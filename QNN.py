@@ -40,13 +40,18 @@ class QNN(nn.Module):
         logits = self.linear_relu_stack(x)
         return logits
 
-    def train_model(self, data, device):
+    def train_model(self, data, weights, device):
         self.train()
         for batch, (states, actions, targets) in enumerate(data):
             states, actions, targets = states.to(device), actions.to(device), targets.to(device)
 
-            # Compute prediction error
-            loss = self.compute_loss(states, actions, targets)
+            # Compute predictions
+            predictions = self(states) 
+            predictions = predictions.gather(1, actions).squeeze(1) # Get Q-values for the selected actions
+
+            # compute_loss
+            loss = self.loss_fn(predictions, targets) # Compute the loss
+
             # Backpropagation
             loss.backward()
             self.optimizer.step()

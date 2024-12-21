@@ -128,11 +128,13 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
                     states, actions, rewards, next_states, dones = zip(*mini_batch)
                 else:
                     states, actions, rewards, next_states, dones = memory.sample(batch_size)
+                    weights = np.ones(batch_size)
                 states = torch.tensor(states, dtype=torch.float32)
                 actions = torch.tensor(actions, dtype=torch.int64)
                 rewards = torch.tensor(rewards, dtype=torch.float32)
                 next_states = torch.tensor(next_states, dtype=torch.float32)
-                
+                weights = torch.tensor(weights, dtype=torch.float32).to(device)
+
                 # Train network
                 # Set target_Qs to 0 for states where episode ends
                 episode_ends = np.where(dones == True)[0]
@@ -143,7 +145,7 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
                     targets = rewards + gamma * target_Qs.gather(1, next_actions.unsqueeze(1)).squeeze(1)
                 else:
                     targets = rewards + gamma * torch.max(target_Qs, dim=1)[0]
-                Q.train_model([(states, actions, targets)], device)
+                Q.train_model([(states, actions, targets)], weights, device)
             # update target network
             if j % target_update_cycle == 0:
                 Q_target.load_state_dict(Q.state_dict())
@@ -291,3 +293,6 @@ def _get_policy(env,Q):
     for i in range(np.prod(env.statespace_dim)):
         policy[i] = np.argmax(Q[i,:])
     return policy
+
+
+
