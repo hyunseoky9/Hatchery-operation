@@ -1,0 +1,11 @@
+parameter set,description,alpha0,alpha1,sigs,mu,kappa,beta,muq,sigq,NHbar,Nth,l,p,c,gamma,extpenalty
+1,"default parameterization written in 
+the latex document env1.0-mock pop
+ model (DP). Reflects realism getting data
+ from literature (mostly osborne 2024
+ and miller 2007)",0.0005,0.0304,0.00005,0.00001,320,0.547,457,200,300000,1000,0.1,1,0.5,0.99,-100
+2,"parameterization derived from the default one (1).
+ Diverges from realistic parameter values in order to
+ have more variable dynamics in the population and
+ larger influence of genetics on survivability.",0,7,0.1,0.00001,400,0.1,457,250,300000,1000,0.1,1,0.5,0.99,-100
+3,same as 2 but different reward structure,0,7,0.1,0.00001,400,0.1,457,250,300000,1000,0.1,20,20,0.99,-100
