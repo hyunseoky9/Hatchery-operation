@@ -77,22 +77,6 @@ class PMemory:
         weights /= weights.max()  # Normalize weights
         return mini_batch, idxs, weights
 
-    def update_priorities(self, idxs, errors):
-        for idx, error in zip(idxs, errors):
-            priority = (np.abs(error) + self.epsilon) ** self.alpha
-            self.tree.update(idx, priority)
-
-
-class PMemorypara:
-    def __init__(self, capacity, alpha):
-        self.tree = SumTree(capacity)
-        self.alpha = alpha
-        self.epsilon = 1e-6
-
-    def add(self, error, transition):
-        priority = (np.abs(error) + self.epsilon) ** self.alpha
-        self.tree.add(priority, transition)
-
     def _sample_one(self, r):
         return self.tree.sample(r)
 
@@ -110,7 +94,7 @@ class PMemorypara:
         weights /= weights.max()
 
         return list(mini_batch), list(idxs), weights
-
+    
     def update_priorities(self, idxs, errors):
         for idx, error in zip(idxs, errors):
             priority = (np.abs(error) + self.epsilon) ** self.alpha
