@@ -171,6 +171,7 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
         
         if PrioritizedReplay:
             beta += (1.0 - beta0)/num_episodes
+            print(f'beta = {beta}')
         Q.scheduler.step() # Decay the learning rate
         #if Q.optimizer.param_groups[0]['lr'] < min_lr:
         #    Q.optimizer.param_groups[0]['lr'] = min_lr
