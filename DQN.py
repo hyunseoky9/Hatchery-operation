@@ -30,7 +30,6 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
     # Prioritized Replay
     alpha = 0.6
     beta0 = 0.4
-    beta_increment_per_sampling = 0.001
     per_epsilon = 1e-6
 
     ## memory parameters
@@ -87,7 +86,7 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
         reachable_states = torch.tensor([env._unflatten(i[0]) for i in reachables], dtype=torch.float32)
         reachable_uniquestateid = torch.tensor(env.reachable_states(), dtype=torch.int64)
         reachable_actions = torch.tensor([i[1] for i in reachables], dtype=torch.int64).unsqueeze(1)
-    
+        
     # load Q function from the value iteration for calculating MSE
     if env.envID == 'Env1.0':
         with open(f"value iter results/Q_Env1.0_par{env.parset}_dis{env.discset}_valiter.pkl", "rb") as file:
@@ -124,7 +123,11 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
             # train network
             if j % training_cycle == 0:
                 # Sample mini-batch from memory
-                states, actions, rewards, next_states, dones = memory.sample(batch_size)
+                if PrioritizedReplay:
+                    mini_batch, idxs, weights = memory.sample(batch_size, beta)
+                    states, actions, rewards, next_states, dones = zip(*mini_batch)
+                else:
+                    states, actions, rewards, next_states, dones = memory.sample(batch_size)
                 states = torch.tensor(states, dtype=torch.float32)
                 actions = torch.tensor(actions, dtype=torch.int64)
                 rewards = torch.tensor(rewards, dtype=torch.float32)
@@ -155,6 +158,8 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
             mse_value = Q.test_model(reachable_states, reachable_actions, Q_vi, device)
             MSE.append(mse_value)
         
+        if PrioritizedReplay:
+            beta += (1.0 - beta0)/num_episodes
         Q.scheduler.step() # Decay the learning rate
         #if Q.optimizer.param_groups[0]['lr'] < min_lr:
         #    Q.optimizer.param_groups[0]['lr'] = min_lr
