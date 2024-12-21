@@ -31,7 +31,7 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
     alpha = 0.6
     beta0 = 0.4
     beta_increment_per_sampling = 0.001
-    per_epsilon = 0.01
+    per_epsilon = 1e-6
 
     ## memory parameters
     memory_size = 10000 # memory capacity
@@ -72,7 +72,7 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
 
     ## initialize memory
     if PrioritizedReplay:
-        memory = PMemorypara(memory_size, alpha)
+        memory = PMemory(memory_size, alpha, per_epsilon)
     else:
         memory = Memory(memory_size, state_size, len(env.actionspace_dim))
     print(f'Pretraining memory with {memory_size} experiences')
