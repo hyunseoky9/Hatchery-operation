@@ -37,8 +37,8 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
 
 
     ## memory parameters
-    memory_size = 10000         # memory capacity
-    batch_size = 1000            # experience mini-batch size
+    memory_size = 10000 # memory capacity
+    batch_size = 1000 # experience mini-batch size
     ## etc.
     lr = 0.01 # starting learning rate
     min_lr = 0.00001  # Set the minimum learning rate

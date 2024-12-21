@@ -1,37 +1,7 @@
 import numpy as np
 import random
+from concurrent.futures import ThreadPoolExecutor
 
-class PrioritizedReplayBuffer:
-    def __init__(self, capacity, alpha=0.6):
-        self.tree = SumTree(capacity)
-        self.alpha = alpha  # Determines how much prioritization is applied
-        self.epsilon = 1e-6  # Small value to avoid zero priority
-
-    def add(self, error, transition):
-        # Priority is proportional to TD error
-        priority = (np.abs(error) + self.epsilon) ** self.alpha
-        self.tree.add(priority, transition)
-
-    def sample(self, batch_size, beta=0.4):
-        mini_batch = []
-        idxs = []
-        priorities = []
-        segment = self.tree.total_sum() / batch_size  # Divide the total sum into segments
-        for i in range(batch_size):
-            r = np.random.uniform(segment * i, segment * (i + 1))
-            idx, priority, data = self.tree.sample(r)
-            mini_batch.append(data)
-            idxs.append(idx)
-            priorities.append(priority)
-        sampling_probs = priorities / self.tree.total_sum()
-        weights = (1 / (len(self.tree.data) * sampling_probs)) ** beta
-        weights /= weights.max()  # Normalize weights
-        return mini_batch, idxs, weights
-
-    def update_priorities(self, idxs, errors):
-        for idx, error in zip(idxs, errors):
-            priority = (np.abs(error) + self.epsilon) ** self.alpha
-            self.tree.update(idx, priority)
 
 # SumTree class for storing priority 
 class SumTree:
@@ -61,5 +31,87 @@ class SumTree:
         if parent != 0:
             self._propagate(parent, change)
 
+    def sample(self, value):
+        idx = self._retrieve(0, value)
+        data_idx = idx - self.capacity + 1
+        return idx, self.tree[idx], self.data[data_idx]
+
+    def _retrieve(self, idx, value):
+        left = 2 * idx + 1
+        right = left + 1
+        if left >= len(self.tree):  # Leaf node
+            return idx
+        if value <= self.tree[left]:
+            return self._retrieve(left, value)
+        else:
+            return self._retrieve(right, value - self.tree[left])
+
     def total_sum(self):
         return self.tree[0]  # Root node contains the total sum
+    
+
+class PMemory:
+    def __init__(self, capacity, alpha=0.6):
+        self.tree = SumTree(capacity)
+        self.alpha = alpha  # Determines how much prioritization is applied
+        self.epsilon = 1e-6  # Small value to avoid zero priority
+
+    def add(self, error, transition):
+        # Priority is proportional to TD error
+        priority = (np.abs(error) + self.epsilon) ** self.alpha
+        self.tree.add(priority, transition)
+
+    def sample(self, batch_size, beta):
+        mini_batch = []
+        idxs = []
+        priorities = []
+        segment = self.tree.total_sum() / batch_size  # Divide the total sum into segments
+        for i in range(batch_size):
+            r = np.random.uniform(segment * i, segment * (i + 1))
+            idx, priority, data = self.tree.sample(r)
+            mini_batch.append(data)
+            idxs.append(idx)
+            priorities.append(priority)
+        sampling_probs = priorities / self.tree.total_sum()
+        weights = (1 / (len(self.tree.data) * sampling_probs)) ** beta
+        weights /= weights.max()  # Normalize weights
+        return mini_batch, idxs, weights
+
+    def update_priorities(self, idxs, errors):
+        for idx, error in zip(idxs, errors):
+            priority = (np.abs(error) + self.epsilon) ** self.alpha
+            self.tree.update(idx, priority)
+
+
+class PMemory_parallel:
+    def __init__(self, capacity, alpha=0.6):
+        self.tree = SumTree(capacity)
+        self.alpha = alpha
+        self.epsilon = 1e-6
+
+    def add(self, error, transition):
+        priority = (np.abs(error) + self.epsilon) ** self.alpha
+        self.tree.add(priority, transition)
+
+    def _sample_one(self, r):
+        return self.tree.sample(r)
+
+    def sample(self, batch_size, beta):
+        segment = self.tree.total_sum() / batch_size
+        segment_values = [np.random.uniform(i * segment, (i + 1) * segment) for i in range(batch_size)]
+
+        # Use ThreadPoolExecutor to parallelize sampling
+        with ThreadPoolExecutor() as executor:
+            results = list(executor.map(self._sample_one, segment_values))
+        idxs, priorities, mini_batch = zip(*results)
+        # calculate weights for importance sampling bias correction
+        sampling_probs = np.array(priorities) / self.tree.total_sum()
+        weights = (1 / (len(self.tree.data) * sampling_probs)) ** beta
+        weights /= weights.max()
+
+        return list(mini_batch), list(idxs), weights
+
+    def update_priorities(self, idxs, errors):
+        for idx, error in zip(idxs, errors):
+            priority = (np.abs(error) + self.epsilon) ** self.alpha
+            self.tree.update(idx, priority)
