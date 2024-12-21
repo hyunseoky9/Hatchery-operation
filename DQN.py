@@ -31,7 +31,7 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
     alpha = 0.6
     beta0 = 0.4
     per_epsilon = 1e-6
-
+    max_priority = 1
     ## memory parameters
     memory_size = 10000 # memory capacity
     batch_size = 1000 # experience mini-batch size
@@ -71,11 +71,11 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
 
     ## initialize memory
     if PrioritizedReplay:
-        memory = PMemory(memory_size, alpha, per_epsilon)
+        memory = PMemory(memory_size, alpha, per_epsilon, max_priority)
+        pretrain(env,memory,PrioritizedReplay,memory.max_priority) # prepopulate memory
     else:
         memory = Memory(memory_size, state_size, len(env.actionspace_dim))
-    max_priority = 1
-    pretrain(env,memory,PrioritizedReplay,max_priority) # prepopulate memory
+        pretrain(env,memory,PrioritizedReplay,0) # prepopulate memory
     print(f'Pretraining memory with {memory_size} experiences')
 
 
@@ -114,7 +114,7 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
                 a = random.randint(0, action_size-1) # first action in the episode is random for added exploration
             reward, done, rate = env.step(a) # take a step
             if PrioritizedReplay:
-                memory.add(max_priority, (S, a, reward, env.state, done)) # add experience to memory
+                memory.add(memory.max_priority, (S, a, reward, env.state, done)) # add experience to memory
             else:
                 memory.add(S, a, reward, env.state, done) # add experience to memory
             S = env.state # update state
@@ -145,7 +145,14 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
                     targets = rewards + gamma * target_Qs.gather(1, next_actions.unsqueeze(1)).squeeze(1)
                 else:
                     targets = rewards + gamma * torch.max(target_Qs, dim=1)[0]
-                train_model(Q, [(states, actions, targets)], weights, device)
+                td_error = train_model(Q, [(states, actions, targets)], weights, device)
+
+                # Update priorities
+                if PrioritizedReplay:
+                    td_error = np.abs(td_error.detach().cpu().numpy())
+                    memory.update_priorities(idxs, td_error)
+                    memory.max_priority = max(memory.max_priority, np.max(np.abs(td_error.detach().cpu().numpy())))
+
             # update target network
             if j % target_update_cycle == 0:
                 Q_target.load_state_dict(Q.state_dict())
@@ -303,13 +310,16 @@ def train_model(Q, data, weights, device):
         predictions = Q(states) 
         predictions = predictions.gather(1, actions).squeeze(1) # Get Q-values for the selected actions
 
+        td_errors = targets - predictions
         # compute_loss
-        loss = Q.loss_fn(predictions, targets) # Compute the loss
+        # loss = #Q.loss_fn(predictions, targets) # Compute the loss
+        loss = (weights * (td_errors ** 2)).mean()
 
         # Backpropagation
         loss.backward()
         Q.optimizer.step()
         Q.optimizer.zero_grad()
+        return td_errors
 
 def compute_loss(Q, states, actions, targetQs): 
     """

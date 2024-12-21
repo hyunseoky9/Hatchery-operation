@@ -51,12 +51,12 @@ class SumTree:
     
 
 class PMemory:
-    def __init__(self, capacity, alpha, epsilon):
+    def __init__(self, capacity, alpha, epsilon, max_priority):
         self.buffer_size = capacity
         self.tree = SumTree(capacity)
         self.alpha = alpha  # Determines how much prioritization is applied
         self.epsilon = epsilon  # Small value to avoid zero priority
-
+        self.max_priority = max_priority
     def add(self, error, transition):
         # Priority is proportional to TD error
         priority = (np.abs(error) + self.epsilon) ** self.alpha
@@ -96,7 +96,7 @@ class PMemory:
 
         return list(mini_batch), list(idxs), weights
     
-    def update_priorities(self, idxs, errors):
-        for idx, error in zip(idxs, errors):
-            priority = (np.abs(error) + self.epsilon) ** self.alpha
+    def update_priorities(self, idxs, abserrors):
+        for idx, abserrors in zip(idxs, abserrors):
+            priority = (abserrors + self.epsilon) ** self.alpha
             self.tree.update(idx, priority)
