@@ -145,7 +145,7 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
                     targets = rewards + gamma * target_Qs.gather(1, next_actions.unsqueeze(1)).squeeze(1)
                 else:
                     targets = rewards + gamma * torch.max(target_Qs, dim=1)[0]
-                Q.train_model([(states, actions, targets)], weights, device)
+                train_model(Q, [(states, actions, targets)], weights, device)
             # update target network
             if j % target_update_cycle == 0:
                 Q_target.load_state_dict(Q.state_dict())
@@ -157,7 +157,7 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
             print(f"Episode {i}, Learning Rate: {current_lr}")
 
         if i % 100 == 0:
-            mse_value = Q.test_model(reachable_states, reachable_actions, Q_vi, device)
+            mse_value = test_model(Q, reachable_states, reachable_actions, Q_vi, device)
             MSE.append(mse_value)
         
         if PrioritizedReplay:
@@ -294,5 +294,56 @@ def _get_policy(env,Q):
         policy[i] = np.argmax(Q[i,:])
     return policy
 
+def train_model(Q, data, weights, device):
+    Q.train()
+    for batch, (states, actions, targets) in enumerate(data):
+        states, actions, targets = states.to(device), actions.to(device), targets.to(device)
 
+        # Compute predictions
+        predictions = Q(states) 
+        predictions = predictions.gather(1, actions).squeeze(1) # Get Q-values for the selected actions
+
+        # compute_loss
+        loss = Q.loss_fn(predictions, targets) # Compute the loss
+
+        # Backpropagation
+        loss.backward()
+        Q.optimizer.step()
+        Q.optimizer.zero_grad()
+
+def compute_loss(Q, states, actions, targetQs): 
+    """
+    Compute the loss and perform a backward pass.
+    
+    Parameters:
+        states (torch.Tensor): Input states.
+        actions (torch.Tensor): Actions taken (as indices).
+        targetQs (torch.Tensor): Target Q values.
+    """
+    q_values = Q(states) # Forward pass
+    selected_q_values = q_values.gather(1, actions).squeeze(1) # Get Q-values for the selected actions
+    loss = Q.loss_fn(selected_q_values, targetQs) # Compute the loss
+    return loss
+
+def test_model(Q, reachable_states, reachable_actions, Qopt, device):
+    """
+    If there is a optimal Q calculate (perhaps from value iteration) MSE loss compared to the optimal Q.
+    """
+    Q.eval()
+    with torch.no_grad():
+        testloss = compute_loss(Q, reachable_states, reachable_actions, Qopt).item()
+    return testloss
+    #print(f"Test Error Avg loss: {test_loss:>8f}\n")
+
+def normalize(Q, state):
+    """
+    min-max normalization for discrete states.
+    parmaeters: 
+        states (torch.Tensor): Input states
+        env (object): Environment object
+    """
+    # Normalize using broadcasting
+    state_norm = (state - Q.state_min) / (Q.state_max - Q.state_min)
+    return state_norm
+    
 
