@@ -7,6 +7,7 @@ import numpy as np
 import random
 from QNN import QNN
 from DuelQNN import DuelQNN
+from PrioritizedMemory import PMemory
 
 def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
     # train using Deep Q Network
@@ -26,6 +27,14 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
     hidden_num_split = 1
     hidden_size_shared = 30
     hidden_size_split = 30
+    # Prioritized Replay
+    alpha = 0.6
+    beta = 0.4
+    beta_increment_per_sampling = 0.001
+    per_epsilon = 0.01
+
+
+
 
     ## memory parameters
     memory_size = 10000         # memory capacity
@@ -65,7 +74,10 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
     Q_target.eval()  # Set target network to evaluation mode (no gradient updates)
 
     ## initialize memory
-    memory = Memory(memory_size, state_size, len(env.actionspace_dim))
+    if PrioritizedReplay:
+        memory = PMemory()
+    else:
+        memory = Memory(memory_size, state_size, len(env.actionspace_dim))
     print(f'Pretraining memory with {memory_size} experiences')
     pretrain(env,memory) # prepopulate memory
 
