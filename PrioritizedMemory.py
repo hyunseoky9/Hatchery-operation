@@ -80,7 +80,7 @@ class PMemory:
     def _sample_one(self, r):
         return self.tree.sample(r)
 
-    def sample(self, batch_size, beta):
+    def sample_parallel(self, batch_size, beta):
         segment = self.tree.total_sum() / batch_size
         segment_values = [np.random.uniform(i * segment, (i + 1) * segment) for i in range(batch_size)]
 
