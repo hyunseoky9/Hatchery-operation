@@ -125,7 +125,7 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
             if j % training_cycle == 0:
                 # Sample mini-batch from memory
                 if PrioritizedReplay:
-                    mini_batch, idxs, weights = memory.sample(batch_size, beta)
+                    mini_batch, idxs, weights = memory.sample_parallel(batch_size, beta)
                     states, actions, rewards, next_states, dones = zip(*mini_batch)
                     actions = torch.tensor(actions, dtype=torch.int64).unsqueeze(1)
                 else:
@@ -153,7 +153,7 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
                 if PrioritizedReplay:
                     td_error = np.abs(td_error.detach().cpu().numpy())
                     memory.update_priorities(idxs, td_error)
-                    memory.max_priority = max(memory.max_priority, np.max(np.abs(td_error.detach().cpu().numpy())))
+                    memory.max_priority = max(memory.max_priority, np.max(td_error))
 
             # update target network
             if j % target_update_cycle == 0:
