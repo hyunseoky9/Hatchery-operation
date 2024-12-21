@@ -75,8 +75,9 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
         memory = PMemory(memory_size, alpha, per_epsilon)
     else:
         memory = Memory(memory_size, state_size, len(env.actionspace_dim))
+    max_priority = 1
+    pretrain(env,memory,PrioritizedReplay,max_priority) # prepopulate memory
     print(f'Pretraining memory with {memory_size} experiences')
-    pretrain(env,memory) # prepopulate memory
 
 
     ## state initialization setting
@@ -113,7 +114,10 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
             else:
                 a = random.randint(0, action_size-1) # first action in the episode is random for added exploration
             reward, done, rate = env.step(a) # take a step
-            memory.add(S, a, reward, env.state, done) # add experience to memory
+            if PrioritizedReplay:
+                memory.add(max_priority, (S, a, reward, env.state, done)) # add experience to memory
+            else:
+                memory.add(S, a, reward, env.state, done) # add experience to memory
             S = env.state # update state
             if t >= max_steps: # finish episode if max steps reached even if terminal state not reached
                 done = True 
@@ -222,7 +226,7 @@ class Memory():
         done = self.done_buffer[indices]
         return states, actions, rewards, next_states, done
     
-def pretrain(env, memory):
+def pretrain(env, memory, PrioritizedReplay, max_priority):
     # Make a bunch of random actions from a random state and store the experiences
     reset = True
     for ii in range(memory.buffer_size):
@@ -238,11 +242,18 @@ def pretrain(env, memory):
 
         if done:
             # Add experience to memory
-            memory.add(state, action, reward, next_state, done)
+            if PrioritizedReplay:
+                memory.add(max_priority, (state, action, reward, next_state, done))
+            else:
+                memory.add(state, action, reward, next_state, done)
+
             reset = True
         else:
             # Add experience to memory
-            memory.add(state, action, reward, next_state, done)
+            if PrioritizedReplay:
+                memory.add(1, (state, action, reward, next_state, done))
+            else:
+                memory.add(state, action, reward, next_state, done)
             state = next_state
 
 def epsilon_update(i,option,num_episodes):

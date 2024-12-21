@@ -52,6 +52,7 @@ class SumTree:
 
 class PMemory:
     def __init__(self, capacity, alpha, epsilon):
+        self.buffer_size = capacity
         self.tree = SumTree(capacity)
         self.alpha = alpha  # Determines how much prioritization is applied
         self.epsilon = epsilon  # Small value to avoid zero priority
