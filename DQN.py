@@ -72,6 +72,7 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
     ## initialize memory
     if PrioritizedReplay:
         memory = PMemory(memory_size, alpha, per_epsilon, max_priority)
+        beta = beta0
         pretrain(env,memory,PrioritizedReplay,memory.max_priority) # prepopulate memory
     else:
         memory = Memory(memory_size, state_size, len(env.actionspace_dim))
@@ -126,11 +127,12 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
                 if PrioritizedReplay:
                     mini_batch, idxs, weights = memory.sample(batch_size, beta)
                     states, actions, rewards, next_states, dones = zip(*mini_batch)
+                    actions = torch.tensor(actions, dtype=torch.int64).unsqueeze(1)
                 else:
                     states, actions, rewards, next_states, dones = memory.sample(batch_size)
                     weights = np.ones(batch_size)
+                    actions = torch.tensor(actions, dtype=torch.int64)
                 states = torch.tensor(states, dtype=torch.float32)
-                actions = torch.tensor(actions, dtype=torch.int64)
                 rewards = torch.tensor(rewards, dtype=torch.float32)
                 next_states = torch.tensor(next_states, dtype=torch.float32)
                 weights = torch.tensor(weights, dtype=torch.float32).to(device)
