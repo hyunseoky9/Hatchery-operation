@@ -267,7 +267,7 @@ def pretrain(env, memory, PrioritizedReplay, max_priority):
         else:
             # Add experience to memory
             if PrioritizedReplay:
-                memory.add(1, (state, action, reward, next_state, done))
+                memory.add(max_priority, (state, action, reward, next_state, done))
             else:
                 memory.add(state, action, reward, next_state, done)
             state = next_state
