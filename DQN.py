@@ -28,13 +28,13 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
     hidden_size_shared = 30
     hidden_size_split = 30
     # Prioritized Replay
-    alpha = 0.6
-    beta0 = 0.4
-    per_epsilon = 1e-6
-    max_priority = 1
+    alpha = 0.0 # priority importance
+    beta0 = 0.4 # initial beta
+    per_epsilon = 1e-6 # small value to avoid zero priority
+    max_priority = 1 # initial max priority
     ## memory parameters
-    memory_size = 10000 # memory capacity
-    batch_size = 1000 # experience mini-batch size
+    memory_size = 1000 # memory capacity
+    batch_size = 100 # experience mini-batch size
     ## etc.
     lr = 0.01 # starting learning rate
     min_lr = 0.00001  # Set the minimum learning rate
@@ -154,6 +154,7 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
                     td_error = np.abs(td_error.detach().cpu().numpy())
                     memory.update_priorities(idxs, td_error)
                     memory.max_priority = max(memory.max_priority, np.max(td_error))
+                    db= 0
 
             # update target network
             if j % target_update_cycle == 0:
@@ -171,7 +172,6 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
         
         if PrioritizedReplay:
             beta += (1.0 - beta0)/num_episodes
-            print(f'beta = {beta}')
         Q.scheduler.step() # Decay the learning rate
         #if Q.optimizer.param_groups[0]['lr'] < min_lr:
         #    Q.optimizer.param_groups[0]['lr'] = min_lr
