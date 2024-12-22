@@ -73,10 +73,10 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
     if PrioritizedReplay:
         memory = PMemory(memory_size, alpha, per_epsilon, max_priority)
         beta = beta0
-        pretrain(env,batch_size, memory,PrioritizedReplay,memory.max_priority) # prepopulate memory
+        pretrain(env,memory,PrioritizedReplay,memory.max_priority) # prepopulate memory
     else:
         memory = Memory(memory_size, state_size, len(env.actionspace_dim))
-        pretrain(env,batch_size, memory,PrioritizedReplay,0) # prepopulate memory
+        pretrain(env,memory,PrioritizedReplay,0) # prepopulate memory
     print(f'Pretraining memory with {memory_size} experiences')
 
 
@@ -125,7 +125,7 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
             if j % training_cycle == 0:
                 # Sample mini-batch from memory
                 if PrioritizedReplay:
-                    mini_batch, idxs, weights = memory.sample(batch_size, beta)
+                    mini_batch, idxs, weights = memory.sample_parallel(batch_size, beta)
                     states, actions, rewards, next_states, dones = zip(*mini_batch)
                     actions = torch.tensor(actions, dtype=torch.int64).unsqueeze(1)
                 else:
@@ -154,7 +154,6 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
                     td_error = np.abs(td_error.detach().cpu().numpy())
                     memory.update_priorities(idxs, td_error)
                     memory.max_priority = max(memory.max_priority, np.max(td_error))
-                    db= 0
 
             # update target network
             if j % target_update_cycle == 0:
@@ -242,12 +241,11 @@ class Memory():
         next_states = self.next_states_buffer[indices]
         done = self.done_buffer[indices]
         return states, actions, rewards, next_states, done
-
-def pretrain(env, batch_size, memory, PrioritizedReplay, max_priority):
+    
+def pretrain(env, memory, PrioritizedReplay, max_priority):
     # Make a bunch of random actions from a random state and store the experiences
     reset = True
-    
-    for ii in range(batch_size):
+    for ii in range(memory.buffer_size):
         if reset == True:
             if env.envID == 'Env1.0':
                 env.reset([-1,-1,-1,-1,-1,-1])
