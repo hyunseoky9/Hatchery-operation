@@ -1,7 +1,8 @@
 # jupyter notebooks.
-.ipynb
+*.ipynb
+*.npy
 .ipynb_checkpoints/
 # result folders
-td results/
-value iter results/
-deepQN results/
+/td results/
+/value iter results/
+/deepQN results/
