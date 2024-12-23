@@ -1,6 +1,6 @@
 import numpy as np
 import random 
-class nq:
+class Nstepqueue:
     """
     Implementation of n-step queue for n-step DQN.
     This class maintains a queue of transitions and calculates the n-step return for each transition.

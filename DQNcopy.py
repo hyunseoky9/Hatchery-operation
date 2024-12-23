@@ -8,6 +8,7 @@ import random
 from QNN import QNN
 from DuelQNN import DuelQNN
 from PrioritizedMemory import *
+from nq import *
 
 def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
     # train using Deep Q Network
@@ -75,11 +76,13 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
     if PrioritizedReplay:
         memory = PMemory(memory_size, alpha, per_epsilon, max_abstd)
         beta = beta0
-        pretrain(env,memory,batch_size,PrioritizedReplay,memory.max_abstd) # prepopulate memory
+        pretrain(env,nq,memory,batch_size,PrioritizedReplay,memory.max_abstd) # prepopulate memory
     else:
         memory = Memory(memory_size, state_size, len(env.actionspace_dim))
-        pretrain(env,memory,batch_size,PrioritizedReplay,0) # prepopulate memory
+        pretrain(env,nq,memory,batch_size,PrioritizedReplay,0) # prepopulate memory
     print(f'Pretraining memory with {memory_size} experiences')
+    ## intialize nstep queue
+    nq = Nstepqueue(3, gamma)
 
 
     ## state initialization setting
@@ -116,10 +119,8 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
             else:
                 a = random.randint(0, action_size-1) # first action in the episode is random for added exploration
             reward, done, rate = env.step(a) # take a step
-            if PrioritizedReplay:
-                memory.add(memory.max_abstd, (S, a, reward, env.state, done)) # add experience to memory
-            else:
-                memory.add(S, a, reward, env.state, done) # add experience to memory
+            nq.add(S, a, reward, env.state, done, memory, PrioritizedReplay) # add transition to queue
+            
             S = env.state # update state
             if t >= max_steps: # finish episode if max steps reached even if terminal state not reached
                 done = True
@@ -146,9 +147,9 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
                 target_Qs[episode_ends] = torch.zeros(action_size)
                 if DDQN:
                     next_actions = torch.argmax(Q(next_states), dim=1)
-                    targets = rewards + gamma * target_Qs.gather(1, next_actions.unsqueeze(1)).squeeze(1)
+                    targets = rewards + (gamma**nq.n) * target_Qs.gather(1, next_actions.unsqueeze(1)).squeeze(1)
                 else:
-                    targets = rewards + gamma * torch.max(target_Qs, dim=1)[0]
+                    targets = rewards + (gamma**nq.n) * torch.max(target_Qs, dim=1)[0]
                 td_error = train_model(Q, [(states, actions, targets)], weights, device)
 
                 # Update priorities
@@ -245,7 +246,7 @@ class Memory():
         done = self.done_buffer[indices]
         return states, actions, rewards, next_states, done
     
-def pretrain(env, memory, batch_size, PrioritizedReplay, max_priority):
+def pretrain(env, nq, memory, batch_size, PrioritizedReplay, max_priority):
     # Make a bunch of random actions from a random state and store the experiences
     reset = True
     for ii in range(batch_size):
