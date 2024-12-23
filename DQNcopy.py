@@ -299,32 +299,7 @@ def epsilon_update(i,option,num_episodes):
         c=-fix*0.4
         return max(a/(1+np.exp(-b*(i+c))), 0.01)
 
-def _get_policy(env,Q):
-    # get policy from Q function
-    policy = np.zeros(np.prod(env.statespace_dim))
-    for i in range(np.prod(env.statespace_dim)):
-        policy[i] = np.argmax(Q[i,:])
-    return policy
 
-def train_model(Q, data, weights, device):
-    Q.train()
-    for batch, (states, actions, targets) in enumerate(data):
-        states, actions, targets = states.to(device), actions.to(device), targets.to(device)
-
-        # Compute predictions
-        predictions = Q(states) 
-        predictions = predictions.gather(1, actions).squeeze(1) # Get Q-values for the selected actions
-
-        td_errors = targets - predictions
-        # compute_loss
-        # loss = #Q.loss_fn(predictions, targets) # Compute the loss
-        loss = (weights * (td_errors ** 2)).mean()
-
-        # Backpropagation
-        loss.backward()
-        Q.optimizer.step()
-        Q.optimizer.zero_grad()
-        return td_errors
 
 def compute_loss(Q, states, actions, targetQs): 
     """
