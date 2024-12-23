@@ -196,7 +196,24 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
     np.save(f"{wd}/MSE_{env.envID}_par{env.parset}_dis{env.discset}_DQN.npy", MSE)
     return Q_discrete, policy, MSE
 
+def _make_discrete_Q(Q,env,device):
+    # make a discrete Q table
+    if env.envID == 'Env1.0':
+        states = torch.tensor([env._unflatten(i) for i in range(np.prod(env.statespace_dim))], dtype=torch.float32)
+        Q_discrete = np.zeros((np.prod(env.statespace_dim),len(env.actions["a"])))
+        for i in range(np.prod(env.statespace_dim)):
+            Q_discrete[i,:] = Q(states[i].unsqueeze(0)).detach().cpu().numpy()
+    return Q_discrete
 
+def choose_action(state, Q, epsilon, action_size):
+    # Choose an action
+    if random.random() < epsilon:
+        action = random.randint(0, action_size-1)
+    else:
+        state = torch.tensor(state, dtype=torch.float32).unsqueeze(0)  # Add batch dimension
+        Qs = Q(state)
+        action = torch.argmax(Qs).item()
+    return action
 
 class Memory():
     def __init__(self, max_size, state_dim, action_dim):
