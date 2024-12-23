@@ -30,12 +30,12 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep):
     hidden_size_split = 30
     # Prioritized Replay
     alpha = 0.6 # priority importance
-    beta0 = 0.2 # initial beta
+    beta0 = 0.6 # initial beta
     per_epsilon = 1e-6 # small value to avoid zero priority
     max_abstd = 1 # initial max priority
     ## memory parameters
-    memory_size = 12 # memory capacity
-    batch_size = 10 # experience mini-batch size
+    memory_size = 1000 # memory capacity
+    batch_size = 100 # experience mini-batch size
     ## etc.
     lr = 0.01 # starting learning rate
     min_lr = 0.00001  # Set the minimum learning rate
@@ -146,9 +146,9 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep):
                 target_Qs[episode_ends] = torch.zeros(action_size)
                 if DDQN:
                     next_actions = torch.argmax(Q(next_states), dim=1)
-                    targets = rewards + (gamma**nq.n) * target_Qs.gather(1, next_actions.unsqueeze(1)).squeeze(1)
+                    targets = rewards + (gamma**nstep) * target_Qs.gather(1, next_actions.unsqueeze(1)).squeeze(1)
                 else:
-                    targets = rewards + (gamma**nq.n) * torch.max(target_Qs, dim=1)[0]
+                    targets = rewards + (gamma**nstep) * torch.max(target_Qs, dim=1)[0]
                 td_error = train_model(Q, [(states, actions, targets)], weights, device)
 
                 # Update priorities
@@ -163,13 +163,14 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep):
                 
             t += 1 # update timestep
             j += 1 # update training cycle
-        if i % 1000 == 0:
-            current_lr = Q.optimizer.param_groups[0]['lr']
-            print(f"Episode {i}, Learning Rate: {current_lr}")
-
         if i % 100 == 0:
             mse_value = test_model(Q, reachable_states, reachable_actions, Q_vi, device)
             MSE.append(mse_value)
+
+        if i % 1000 == 0:
+            current_lr = Q.optimizer.param_groups[0]['lr']
+            print(f"Episode {i}, Learning Rate: {current_lr} MSE: {round(mse_value,2)}")
+
         
         if PrioritizedReplay:
             beta += (1.0 - beta0)/num_episodes
@@ -260,8 +261,6 @@ def pretrain(env, nq, memory, batch_size, PrioritizedReplay, max_priority):
         action = np.random.randint(0, env.actionspace_dim[0])
         reward, done, _ = env.step(action)
         next_state = env.state
-        print(f'memory size: {memadd}')
-        print(f'step result: {state}, {action}, {reward}, {next_state}, {done}')
         if done:
             nq.add(state, action, reward, next_state, done, memory, PrioritizedReplay)
             reset = True

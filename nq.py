@@ -17,20 +17,16 @@ class Nstepqueue:
         # Also, if the episode is done, add rest of the queue to memory.
         self.queue.append((state, action, reward, next_state, done))
         self.rqueue.append(reward)
-        print(f'queue({len(self.queue)}): {self.queue}')
         # If n-step queue is ready, calculate n-step return
         if len(self.queue) >= self.n:
             self.add2mem(memory, per)
-            print('added 2 mem')
         
         # If the episode is done, clear the n-step queue
         if done:
             while len(self.queue) > 0:
                 self.add2mem(memory, per)
-                print('added 2 mem')
             self.queue = [] # make sure the queue is cleared after the episode is done
             self.rqueue = []
-        print(f'queue after memory add({len(self.queue)}): {self.queue}')
             
     def add2mem(self, memory, per):
         G = sum(self.gamma**np.arange(len(self.queue)) * self.rqueue)
