@@ -273,6 +273,7 @@ def pretrain(env, nq, memory, batch_size, PrioritizedReplay, max_priority):
             nq.add(state, action, reward, next_state, done, memory, PrioritizedReplay)
             state = next_state
     nq.queue = [] # clear the n-step queue
+    nq.rqueue = [] 
     
 
 def epsilon_update(i,option,num_episodes):
