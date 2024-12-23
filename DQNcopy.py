@@ -13,7 +13,7 @@ from nq import *
 def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep):
     # train using Deep Q Network
     # env: environment class object
-    # num_episodes: number of episodes to train
+    # num_episodes: number of episodes to train 
     # epdecayopt: epsilon decay option
     
     # parameters
