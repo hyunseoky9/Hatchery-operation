@@ -12,6 +12,8 @@ class Nstepqueue:
 
     def add(self, state, action, reward, next_state, done, memory, per):
         # Add to n-step queue
+        # If the queue becomes length of n, add a transition to memory.
+        # Also, if the episode is done, add rest of the queue to memory.
         self.queue.append((state, action, reward, next_state, done))
         print(f'queue({len(self.queue)}): {self.queue}')
         # If n-step queue is ready, calculate n-step return

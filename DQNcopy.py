@@ -119,7 +119,7 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep):
                 a = random.randint(0, action_size-1) # first action in the episode is random for added exploration
             reward, done, rate = env.step(a) # take a step
             nq.add(S, a, reward, env.state, done, memory, PrioritizedReplay) # add transition to queue
-            
+            db = 0
             S = env.state # update state
             if t >= max_steps: # finish episode if max steps reached even if terminal state not reached
                 done = True
@@ -272,6 +272,7 @@ def pretrain(env, nq, memory, batch_size, PrioritizedReplay, max_priority):
                 memadd += 1
             nq.add(state, action, reward, next_state, done, memory, PrioritizedReplay)
             state = next_state
+    nq.queue = [] # clear the n-step queue
     
 
 def epsilon_update(i,option,num_episodes):
