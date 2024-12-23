@@ -181,7 +181,8 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
     # save results and performance metrics.
     ## save model
     if env.envID == 'Env1.0':
-        torch.save(Q.state_dict(), f"QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pt")
+        wd = './deepQN results'
+        torch.save(Q.state_dict(), f"{wd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pt")
     ## make a discrete Q table if the environment is discrete and save it
     if env.envID == 'Env1.0':
         Q_discrete = _make_discrete_Q(Q,env,device)
