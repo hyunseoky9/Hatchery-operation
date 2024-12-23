@@ -1,3 +1,11 @@
+#################
+# Debugging code for the DQN algorithm with Prioritized Experience Replay
+# runs vanilla version and the PER version in parallel and outputs MSE for each
+# major bug was found (12/23/2024) in how the dones variable was output in the PER verion
+# dones was coming out as a tuple instead of a numpy array making np.where function not work. 
+#############
+
+
 import torch
 from torch import nn
 from torchvision.transforms import ToTensor
@@ -9,7 +17,7 @@ from QNN import QNN
 from DuelQNN import DuelQNN
 from PrioritizedMemory import *
 
-def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
+def DQNcopy(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
     # train using Deep Q Network
     # env: environment class object
     # num_episodes: number of episodes to train
@@ -28,13 +36,13 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
     hidden_size_shared = 30
     hidden_size_split = 30
     # Prioritized Replay
-    alpha = 0.6 # priority importance
-    beta0 = 0.2 # initial beta
+    alpha = 0.0 # priority importance
+    beta0 = 0.4 # initial beta
     per_epsilon = 1e-6 # small value to avoid zero priority
     max_abstd = 1 # initial max priority
     ## memory parameters
-    memory_size = 1000 # memory capacity
-    batch_size = 100 # experience mini-batch size
+    memory_size = 1024 # memory capacity
+    batch_size = 128 # experience mini-batch size
     ## etc.
     lr = 0.01 # starting learning rate
     min_lr = 0.00001  # Set the minimum learning rate
@@ -50,8 +58,6 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
     # initialization
     ## print out extension feature usage
     print(f'DuelingDQN: {DuelingDQN}\n DDQN: {DDQN}\n PrioritizedReplay: {PrioritizedReplay}')
-    if PrioritizedReplay:
-        print(f'alpha: {alpha}, beta0: {beta0}, per_epsilon: {per_epsilon}')
 
     ## initialize NN
     device = (
@@ -65,20 +71,34 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
     if DuelingDQN:
         Q = DuelQNN(state_size, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared, hidden_num_split, lr, state_min, state_max).to(device)
         Q_target = DuelQNN(state_size, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared, hidden_num_split, lr, state_min, state_max).to(device)
+
+        #QV = DuelQNN(state_size, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared, hidden_num_split, lr, state_min, state_max).to(device)
+        #Q_targetV = DuelQNN(state_size, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared, hidden_num_split, lr, state_min, state_max).to(device)
+        #QP = DuelQNN(state_size, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared, hidden_num_split, lr, state_min, state_max).to(device)
+        #QP.load_state_dict(QV.state_dict())  # Copy weights from Q to Q_target
+        #Q_targetP = DuelQNN(state_size, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared, hidden_num_split, lr, state_min, state_max).to(device)
     else:
         Q = QNN(state_size, action_size, hidden_size, hidden_num, lr, state_min, state_max).to(device)
         Q_target = QNN(state_size, action_size, hidden_size, hidden_num, lr, state_min, state_max).to(device)
-    Q_target.load_state_dict(Q.state_dict())  # Copy weights from Q to Q_target
-    Q_target.eval()  # Set target network to evaluation mode (no gradient updates)
+        QV = QNN(state_size, action_size, hidden_size, hidden_num, lr, state_min, state_max).to(device)
+        Q_targetV = QNN(state_size, action_size, hidden_size, hidden_num, lr, state_min, state_max).to(device)
+        QP = QNN(state_size, action_size, hidden_size, hidden_num, lr, state_min, state_max).to(device)
+        QP.load_state_dict(QV.state_dict())  # Copy weights from Q to Q_target
+        Q_targetP = QNN(state_size, action_size, hidden_size, hidden_num, lr, state_min, state_max).to(device)
+    
+    
+    Q_targetV.load_state_dict(QV.state_dict())  # Copy weights from Q to Q_target
+    Q_targetV.eval()  # Set target network to evaluation mode (no gradient updates)
+    Q_targetP.load_state_dict(QV.state_dict())  # Copy weights from Q to Q_target
+    Q_targetP.eval()  # Set target network to evaluation mode (no gradient updates)
 
     ## initialize memory
-    if PrioritizedReplay:
-        memory = PMemory(memory_size, alpha, per_epsilon, max_abstd)
-        beta = beta0
-        pretrain(env,memory,batch_size,PrioritizedReplay,memory.max_abstd) # prepopulate memory
-    else:
-        memory = Memory(memory_size, state_size, len(env.actionspace_dim))
-        pretrain(env,memory,batch_size,PrioritizedReplay,0) # prepopulate memory
+    memoryP = PMemory(memory_size, alpha, per_epsilon, max_abstd)
+    beta = beta0
+    #pretrain(env,memoryP,batch_size,1,memoryP.max_abstd) # prepopulate memory
+    memoryV = Memory(memory_size, state_size, len(env.actionspace_dim))
+    #pretrain(env,memoryV,batch_size,0,0) # prepopulate memory
+    pretrain(env,memoryP,memoryV,batch_size,0,0) # prepopulate memory
     print(f'Pretraining memory with {memory_size} experiences')
 
 
@@ -95,9 +115,11 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
         with open(f"value iter results/Q_Env1.0_par{env.parset}_dis{env.discset}_valiter.pkl", "rb") as file:
             Q_vi = pickle.load(file)
         Q_vi = torch.tensor(Q_vi[reachable_uniquestateid].flatten(), dtype=torch.float32)
-    MSE = []
+    MSEV = []
+    MSEP = []
     
     # initialize counters
+    training_num = 0
     j = 0 # training cycle counter
     i = 0 # peisode num
     # run through the episodes
@@ -111,89 +133,134 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
 
         t = 0 # timestep num
         while done == False:    
+            rng_action = random.random()
             if t > 0:    
-                a = choose_action(S, Q, ep, action_size)
+                a = choose_action(S, QV, ep, action_size, rng_action)
             else:
                 a = random.randint(0, action_size-1) # first action in the episode is random for added exploration
             reward, done, rate = env.step(a) # take a step
-            if PrioritizedReplay:
-                memory.add(memory.max_abstd, (S, a, reward, env.state, done)) # add experience to memory
-            else:
-                memory.add(S, a, reward, env.state, done) # add experience to memory
+            memoryP.add(memoryP.max_abstd, (S, a, reward, env.state, done)) # add experience to memory
+            memoryV.add(S, a, reward, env.state, done) # add experience to memory
             S = env.state # update state
             if t >= max_steps: # finish episode if max steps reached even if terminal state not reached
                 done = True
             # train network
             if j % training_cycle == 0:
                 # Sample mini-batch from memory
-                if PrioritizedReplay:
-                    mini_batch, idxs, weights = memory.sample(batch_size, beta)
-                    states, actions, rewards, next_states, dones = zip(*mini_batch)
-                    dones = np.array(dones)
-                    actions = torch.tensor(actions, dtype=torch.int64).unsqueeze(1)
-                else:
-                    states, actions, rewards, next_states, dones = memory.sample(batch_size)
-                    weights = np.ones(batch_size)
-                    actions = torch.tensor(actions, dtype=torch.int64)
-                states = torch.tensor(states, dtype=torch.float32)
-                rewards = torch.tensor(rewards, dtype=torch.float32)
-                next_states = torch.tensor(next_states, dtype=torch.float32)
-                weights = torch.tensor(weights, dtype=torch.float32).to(device)
+                rng = np.random.uniform(0, 1, batch_size)
+
+                mini_batchP, idxs, weightsP = memoryP.sample(batch_size, beta, rng)
+                statesP, actionsP, rewardsP, next_statesP, donesP = zip(*mini_batchP)
+                donesP = np.array(donesP)
+                actionsP = torch.tensor(actionsP, dtype=torch.int64).unsqueeze(1)
+                ##################### EXPERIMENTAL CODE #####################
+                #if i >= 1500:
+                #    bdist = np.unique(memory.tree.data,return_counts=True)[1]
+                #    ss,_,_,_,_ = zip(*memory.tree.data)
+                #    x = [env._flatten(aa) for aa in ss]
+                #    bdist = np.unique(x,return_counts=True)[1]
+                #    print(bdist)
+                #    db = 0
+                #############################################################
+
+                statesV, actionsV, rewardsV, next_statesV, donesV = memoryV.sample(batch_size,rng)
+                ######### EXPERIMENTAL CODE #########
+                #if i >= 1500:
+                #    x = [env._flatten(aa) for aa in memory.states_buffer]
+                #    bdist = np.unique(x,return_counts=True)[1]
+                #    print(bdist)
+                #    #stateitems = [env._flatten(ii) for ii in states]
+                #    #for kk in range(1000):
+                #    #    states, actions, rewards, next_states, dones = memory.sample(batch_size)
+                #    #    stateitems += [env._flatten(ii) for ii in states]
+                #    #unique, counts = np.unique(stateitems, return_counts=True)
+                #    db = 0
+
+                ####################################
+                weightsV = np.ones(batch_size)
+                actionsV = torch.tensor(actionsV, dtype=torch.int64)
+                
+                # tensorize
+                statesP = torch.tensor(statesP, dtype=torch.float32)
+                rewardsP = torch.tensor(rewardsP, dtype=torch.float32)
+                next_statesP = torch.tensor(next_statesP, dtype=torch.float32)
+                weightsP = torch.tensor(weightsP, dtype=torch.float32).to(device)
+
+                statesV = torch.tensor(statesV, dtype=torch.float32)
+                rewardsV = torch.tensor(rewardsV, dtype=torch.float32)
+                next_statesV = torch.tensor(next_statesV, dtype=torch.float32)
+                weightsV = torch.tensor(weightsV, dtype=torch.float32).to(device)
+
                 # Train network
                 # Set target_Qs to 0 for states where episode ends
-                episode_ends = np.where(dones == True)[0]
-                target_Qs = Q_target(next_states)
-                target_Qs[episode_ends] = torch.zeros(action_size)
+                episode_endsV = np.where(donesV == True)[0]
+                episode_endsP = np.where(donesP == True)[0]
+                target_QsV = Q_targetV(next_statesV)
+                target_QsP = Q_targetP(next_statesP)
+                target_QsV[episode_endsV] = torch.zeros(action_size)
+                target_QsP[episode_endsP] = torch.zeros(action_size)
                 if DDQN:
-                    next_actions = torch.argmax(Q(next_states), dim=1)
-                    targets = rewards + gamma * target_Qs.gather(1, next_actions.unsqueeze(1)).squeeze(1)
+                    next_actionsV = torch.argmax(QV(next_statesV), dim=1)
+                    targetsV = rewardsV + gamma * target_QsV.gather(1, next_actionsV.unsqueeze(1)).squeeze(1)
+                    next_actionsP = torch.argmax(QP(next_statesP), dim=1)
+                    targetsP = rewardsP + gamma * target_QsP.gather(1, next_actionsP.unsqueeze(1)).squeeze(1)
                 else:
                     targets = rewards + gamma * torch.max(target_Qs, dim=1)[0]
-                td_error = train_model(Q, [(states, actions, targets)], weights, device)
+                
+                td_errorV = train_model(QV, [(statesV, actionsV, targetsV)], weightsV, device)
+                td_errorP = train_model(QP, [(statesP, actionsP, targetsP)], weightsP, device)
+                training_num += 1
 
                 # Update priorities
-                if PrioritizedReplay:
-                    td_error = np.abs(td_error.detach().cpu().numpy())
-                    memory.update_priorities(idxs, td_error)
-                    memory.max_abstd = max(memory.max_abstd, np.max(td_error))
+                td_errorP = np.abs(td_errorP.detach().cpu().numpy())
+                memoryP.update_priorities(idxs, td_errorP)
+                memoryP.max_abstd = max(memoryP.max_abstd, np.max(td_errorP))
 
             # update target network
             if j % target_update_cycle == 0:
-                Q_target.load_state_dict(Q.state_dict())
+                Q_targetV.load_state_dict(QV.state_dict())
+                Q_targetP.load_state_dict(QP.state_dict())
                 
             t += 1 # update timestep
             j += 1 # update training cycle
         if i % 1000 == 0:
-            current_lr = Q.optimizer.param_groups[0]['lr']
-            print(f"Episode {i}, Learning Rate: {current_lr}")
+            current_lrv = QV.optimizer.param_groups[0]['lr']
+            current_lrp = QP.optimizer.param_groups[0]['lr']
+            print(f"Episode {i}, Learning Rate V: {current_lrv} Learning Rate P: {current_lrp}")
 
-        if i % 100 == 0:
-            mse_value = test_model(Q, reachable_states, reachable_actions, Q_vi, device)
-            MSE.append(mse_value)
+        if i % 1 == 0:
+            msev_value = test_model(QV, reachable_states, reachable_actions, Q_vi, device)
+            msep_value = test_model(QP, reachable_states, reachable_actions, Q_vi, device)
+            if i % 1 == 0:
+                print(f'Episode {i}, tr#: {training_num} MSEV: {msev_value} MSEP: {msep_value}')
+            MSEV.append(msev_value)
+            MSEP.append(msep_value)
         
         if PrioritizedReplay:
             beta += (1.0 - beta0)/num_episodes
-        Q.scheduler.step() # Decay the learning rate
+        QV.scheduler.step() # Decay the learning rate
+        QP.scheduler.step() # Decay the learning rate
         #if Q.optimizer.param_groups[0]['lr'] < min_lr:
         #    Q.optimizer.param_groups[0]['lr'] = min_lr
         i += 1 # update episode number
 
     # save results and performance metrics.
-    ## save model
-    if env.envID == 'Env1.0':
-        torch.save(Q.state_dict(), f"QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pt")
-    ## make a discrete Q table if the environment is discrete and save it
-    if env.envID == 'Env1.0':
-        Q_discrete = _make_discrete_Q(Q,env,device)
-        policy = _get_policy(env,Q_discrete)
-        wd = './deepQN results'
-        with open(f"{wd}/Q_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pkl", "wb") as file:
-            pickle.dump(Q_discrete, file)
-        with open(f"{wd}/policy_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pkl", "wb") as file:
-            pickle.dump(policy, file)
-    ## save MSE
-    np.save(f"{wd}/MSE_{env.envID}_par{env.parset}_dis{env.discset}_DQN.npy", MSE)
-    return Q_discrete, policy, MSE
+    ### save model
+    #if env.envID == 'Env1.0':
+    #    torch.save(Q.state_dict(), f"QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pt")
+    ### make a discrete Q table if the environment is discrete and save it
+    #if env.envID == 'Env1.0':
+    #    Q_discrete = _make_discrete_Q(Q,env,device)
+    #    policy = _get_policy(env,Q_discrete)
+    #    wd = './deepQN results'
+    #    with open(f"{wd}/Q_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pkl", "wb") as file:
+    #        pickle.dump(Q_discrete, file)
+    #    with open(f"{wd}/policy_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pkl", "wb") as file:
+    #        pickle.dump(policy, file)
+    ### save MSE
+    #wd = './deepQN results'
+    #np.save(f"{wd}/MSE_{env.envID}_par{env.parset}_dis{env.discset}_DQN.npy", MSEV)
+    return MSEV, MSEP
 
 def _make_discrete_Q(Q,env,device):
     # make a discrete Q table
@@ -204,9 +271,9 @@ def _make_discrete_Q(Q,env,device):
             Q_discrete[i,:] = Q(states[i].unsqueeze(0)).detach().cpu().numpy()
     return Q_discrete
 
-def choose_action(state, Q, epsilon, action_size):
+def choose_action(state, Q, epsilon, action_size,rng):
     # Choose an action
-    if random.random() < epsilon:
+    if rng < epsilon:
         action = random.randint(0, action_size-1)
     else:
         state = torch.tensor(state, dtype=torch.float32).unsqueeze(0)  # Add batch dimension
@@ -235,8 +302,9 @@ class Memory():
         self.index = (self.index + 1) % self.buffer_size
         self.size = min(self.size + 1, self.buffer_size)
 
-    def sample(self, batch_size):
-        indices = np.random.choice(self.size, batch_size, replace=True)
+    def sample(self, batch_size, rng):
+        #indices = np.random.choice(self.size, batch_size, replace=True)
+        indices = np.floor(rng*self.size).astype(int)
         states = self.states_buffer[indices]
         actions = self.actions_buffer[indices]
         rewards = self.rewards_buffer[indices]
@@ -244,7 +312,7 @@ class Memory():
         done = self.done_buffer[indices]
         return states, actions, rewards, next_states, done
     
-def pretrain(env, memory, batch_size, PrioritizedReplay, max_priority):
+def pretrain(env, memoryP, memoryV, batch_size, PrioritizedReplay, max_priority):
     # Make a bunch of random actions from a random state and store the experiences
     reset = True
     for ii in range(batch_size):
@@ -260,18 +328,14 @@ def pretrain(env, memory, batch_size, PrioritizedReplay, max_priority):
 
         if done:
             # Add experience to memory
-            if PrioritizedReplay:
-                memory.add(max_priority, (state, action, reward, next_state, done))
-            else:
-                memory.add(state, action, reward, next_state, done)
+            memoryP.add(max_priority, (state, action, reward, next_state, done))
+            memoryV.add(state, action, reward, next_state, done)
 
             reset = True
         else:
             # Add experience to memory
-            if PrioritizedReplay:
-                memory.add(max_priority, (state, action, reward, next_state, done))
-            else:
-                memory.add(state, action, reward, next_state, done)
+            memoryP.add(max_priority, (state, action, reward, next_state, done))
+            memoryV.add(state, action, reward, next_state, done)
             state = next_state
 
 def epsilon_update(i,option,num_episodes):

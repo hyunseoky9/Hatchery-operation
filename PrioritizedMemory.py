@@ -41,7 +41,7 @@ class SumTree:
         right = left + 1
         if left >= len(self.tree):  # Leaf node
             return idx
-        if value <= self.tree[left]:
+        if value < self.tree[left]:
             return self._retrieve(left, value)
         else:
             return self._retrieve(right, value - self.tree[left])
@@ -57,6 +57,7 @@ class PMemory:
         self.alpha = alpha  # Determines how much prioritization is applied
         self.epsilon = epsilon  # Small value to avoid zero priority
         self.max_abstd = max_abstd # maximum absolute td
+        
     def add(self, error, transition):
         # Priority is proportional to TD error
         priority = (np.abs(error) + self.epsilon) ** self.alpha
@@ -68,7 +69,9 @@ class PMemory:
         priorities = []
         segment = self.tree.total_sum() / batch_size  # Divide the total sum into segments
         for i in range(batch_size):
+            #r = rng[i]*self.tree.total_sum() # for testing parallel with vanilla
             r = np.random.uniform(segment * i, segment * (i + 1))
+            #r = np.random.uniform(0, self.tree.total_sum())
             idx, priority, data = self.tree.sample(r)
             mini_batch.append(data)
             idxs.append(idx)
