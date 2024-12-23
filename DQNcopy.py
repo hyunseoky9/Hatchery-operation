@@ -10,7 +10,7 @@ from DuelQNN import DuelQNN
 from PrioritizedMemory import *
 from nq import *
 
-def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
+def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep):
     # train using Deep Q Network
     # env: environment class object
     # num_episodes: number of episodes to train
@@ -50,7 +50,7 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
 
     # initialization
     ## print out extension feature usage
-    print(f'DuelingDQN: {DuelingDQN}\n DDQN: {DDQN}\n PrioritizedReplay: {PrioritizedReplay}')
+    print(f'DuelingDQN: {DuelingDQN}\nDDQN: {DDQN}\nPrioritizedReplay: {PrioritizedReplay}\nnstep: {nstep}')
     if PrioritizedReplay:
         print(f'alpha: {alpha}, beta0: {beta0}, per_epsilon: {per_epsilon}')
 
@@ -82,7 +82,7 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
         pretrain(env,nq,memory,batch_size,PrioritizedReplay,0) # prepopulate memory
     print(f'Pretraining memory with {memory_size} experiences')
     ## intialize nstep queue
-    nq = Nstepqueue(3, gamma)
+    nq = Nstepqueue(nstep, gamma)
 
 
     ## state initialization setting
