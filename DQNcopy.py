@@ -84,7 +84,7 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep):
         pretrain(env,nq,memory,batch_size,PrioritizedReplay,0) # prepopulate memory
     print(f'Pretraining memory with {memory_size} experiences')
 
-    ## state initialization setting
+    ## state initialization setting 
     if env.envID == 'Env1.0':
         initlist = [-1,-1,-1,-1,-1,-1] # all random
         reachables = env.reachable_state_actions()
