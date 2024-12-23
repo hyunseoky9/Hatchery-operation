@@ -249,7 +249,9 @@ class Memory():
 def pretrain(env, nq, memory, batch_size, PrioritizedReplay, max_priority):
     # Make a bunch of random actions from a random state and store the experiences
     reset = True
-    for ii in range(batch_size):
+    memadd = 0 # number of transitions added to memory
+    n = nq.n
+    while memadd < batch_size:
         if reset == True:
             if env.envID == 'Env1.0':
                 env.reset([-1,-1,-1,-1,-1,-1])
@@ -259,22 +261,19 @@ def pretrain(env, nq, memory, batch_size, PrioritizedReplay, max_priority):
         action = np.random.randint(0, env.actionspace_dim[0])
         reward, done, _ = env.step(action)
         next_state = env.state
-
+        
         if done:
-            # Add experience to memory
-            if PrioritizedReplay:
-                memory.add(max_priority, (state, action, reward, next_state, done))
-            else:
-                memory.add(state, action, reward, next_state, done)
-
+            nq.add(state, action, reward, next_state, done, memory, PrioritizedReplay)
             reset = True
+            memadd += n
         else:
-            # Add experience to memory
-            if PrioritizedReplay:
-                memory.add(max_priority, (state, action, reward, next_state, done))
-            else:
-                memory.add(state, action, reward, next_state, done)
+            # increase memadd by 1 if nq is full
+            if len(nq.queue) == n-1:
+                memadd += 1
+            nq.add(state, action, reward, next_state, done, memory, PrioritizedReplay)
+
             state = next_state
+    
 
 def epsilon_update(i,option,num_episodes):
     # update epsilon
