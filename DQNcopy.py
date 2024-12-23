@@ -34,8 +34,8 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep):
     per_epsilon = 1e-6 # small value to avoid zero priority
     max_abstd = 1 # initial max priority
     ## memory parameters
-    memory_size = 1000 # memory capacity
-    batch_size = 100 # experience mini-batch size
+    memory_size = 12 # memory capacity
+    batch_size = 10 # experience mini-batch size
     ## etc.
     lr = 0.01 # starting learning rate
     min_lr = 0.00001  # Set the minimum learning rate
@@ -72,6 +72,8 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep):
     Q_target.load_state_dict(Q.state_dict())  # Copy weights from Q to Q_target
     Q_target.eval()  # Set target network to evaluation mode (no gradient updates)
 
+    ## intialize nstep queue
+    nq = Nstepqueue(nstep, gamma)
     ## initialize memory
     if PrioritizedReplay:
         memory = PMemory(memory_size, alpha, per_epsilon, max_abstd)
@@ -81,9 +83,6 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep):
         memory = Memory(memory_size, state_size, len(env.actionspace_dim))
         pretrain(env,nq,memory,batch_size,PrioritizedReplay,0) # prepopulate memory
     print(f'Pretraining memory with {memory_size} experiences')
-    ## intialize nstep queue
-    nq = Nstepqueue(nstep, gamma)
-
 
     ## state initialization setting
     if env.envID == 'Env1.0':
@@ -261,7 +260,8 @@ def pretrain(env, nq, memory, batch_size, PrioritizedReplay, max_priority):
         action = np.random.randint(0, env.actionspace_dim[0])
         reward, done, _ = env.step(action)
         next_state = env.state
-        
+        print(f'memory size: {memadd}')
+        print(f'step result: {state}, {action}, {reward}, {next_state}, {done}')
         if done:
             nq.add(state, action, reward, next_state, done, memory, PrioritizedReplay)
             reset = True
@@ -271,7 +271,6 @@ def pretrain(env, nq, memory, batch_size, PrioritizedReplay, max_priority):
             if len(nq.queue) == n-1:
                 memadd += 1
             nq.add(state, action, reward, next_state, done, memory, PrioritizedReplay)
-
             state = next_state
     
 
