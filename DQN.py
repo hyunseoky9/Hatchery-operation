@@ -8,11 +8,12 @@ import random
 from QNN import QNN
 from DuelQNN import DuelQNN
 from PrioritizedMemory import *
+from nq import *
 
-def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
+def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,lrdecayrate,lr,min_lr,training_cycle,target_update_cycle):
     # train using Deep Q Network
     # env: environment class object
-    # num_episodes: number of episodes to train
+    # num_episodes: number of episodes to train 
     # epdecayopt: epsilon decay option
     
     # parameters
@@ -29,27 +30,31 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
     hidden_size_split = 30
     # Prioritized Replay
     alpha = 0.6 # priority importance
-    beta0 = 0.2 # initial beta
+    beta0 = 0.6 # initial beta
     per_epsilon = 1e-6 # small value to avoid zero priority
     max_abstd = 1 # initial max priority
     ## memory parameters
     memory_size = 1000 # memory capacity
     batch_size = 100 # experience mini-batch size
     ## etc.
-    lr = 0.01 # starting learning rate
-    min_lr = 0.00001  # Set the minimum learning rate
-    gamma = env.gamma
+    #lr = 0.01
+    #min_lr = 1e-6
+    gamma = env.gamma # discount rate
     max_steps = 1000 # max steps per episode
     ## cycles
-    training_cycle = 7 # number of steps where the network is trained
-    target_update_cycle = 10 # number of steps where the target network is updated
+    #training_cycle = 7 # number of steps where the network is trained
+    #target_update_cycle = 10 # number of steps where the target network is updated
     ## normalization parameters
     state_max = torch.tensor(env.statespace_dim, dtype=torch.float32) - 1
     state_min = torch.zeros([len(env.statespace_dim)], dtype=torch.float32)
 
     # initialization
     ## print out extension feature usage
-    print(f'DuelingDQN: {DuelingDQN}\n DDQN: {DDQN}\n PrioritizedReplay: {PrioritizedReplay}')
+    print(f'DuelingDQN: {DuelingDQN}\nDDQN: {DDQN}\nPrioritizedReplay: {PrioritizedReplay}\nnstep: {nstep}')
+    if DuelingDQN:
+        print(f'hidden_size_shared: {hidden_size_shared}, hidden_size_split: {hidden_size_split}, hidden_num_shared: {hidden_num_shared}, hidden_num_split: {hidden_num_split}')
+    else:
+        print(f'hidden_size: {hidden_size}, hidden_num: {hidden_num}')
     if PrioritizedReplay:
         print(f'alpha: {alpha}, beta0: {beta0}, per_epsilon: {per_epsilon}')
 
@@ -63,26 +68,27 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
     )
     print(f"Using {device} device")
     if DuelingDQN:
-        Q = DuelQNN(state_size, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared, hidden_num_split, lr, state_min, state_max).to(device)
-        Q_target = DuelQNN(state_size, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared, hidden_num_split, lr, state_min, state_max).to(device)
+        Q = DuelQNN(state_size, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared, hidden_num_split, lr, state_min, state_max,lrdecayrate).to(device)
+        Q_target = DuelQNN(state_size, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared, hidden_num_split, lr, state_min, state_max,lrdecayrate).to(device)
     else:
-        Q = QNN(state_size, action_size, hidden_size, hidden_num, lr, state_min, state_max).to(device)
-        Q_target = QNN(state_size, action_size, hidden_size, hidden_num, lr, state_min, state_max).to(device)
+        Q = QNN(state_size, action_size, hidden_size, hidden_num, lr, state_min, state_max,lrdecayrate).to(device)
+        Q_target = QNN(state_size, action_size, hidden_size, hidden_num, lr, state_min, state_max,lrdecayrate).to(device)
     Q_target.load_state_dict(Q.state_dict())  # Copy weights from Q to Q_target
     Q_target.eval()  # Set target network to evaluation mode (no gradient updates)
 
+    ## intialize nstep queue
+    nq = Nstepqueue(nstep, gamma)
     ## initialize memory
     if PrioritizedReplay:
         memory = PMemory(memory_size, alpha, per_epsilon, max_abstd)
         beta = beta0
-        pretrain(env,memory,batch_size,PrioritizedReplay,memory.max_abstd) # prepopulate memory
+        pretrain(env,nq,memory,batch_size,PrioritizedReplay,memory.max_abstd) # prepopulate memory
     else:
         memory = Memory(memory_size, state_size, len(env.actionspace_dim))
-        pretrain(env,memory,batch_size,PrioritizedReplay,0) # prepopulate memory
-    print(f'Pretraining memory with {memory_size} experiences')
+        pretrain(env,nq,memory,batch_size,PrioritizedReplay,0) # prepopulate memory
+    print(f'Pretraining memory with {batch_size} experiences')
 
-
-    ## state initialization setting
+    ## state initialization setting 
     if env.envID == 'Env1.0':
         initlist = [-1,-1,-1,-1,-1,-1] # all random
         reachables = env.reachable_state_actions()
@@ -116,10 +122,8 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
             else:
                 a = random.randint(0, action_size-1) # first action in the episode is random for added exploration
             reward, done, rate = env.step(a) # take a step
-            if PrioritizedReplay:
-                memory.add(memory.max_abstd, (S, a, reward, env.state, done)) # add experience to memory
-            else:
-                memory.add(S, a, reward, env.state, done) # add experience to memory
+            nq.add(S, a, reward, env.state, done, memory, PrioritizedReplay) # add transition to queue
+            db = 0
             S = env.state # update state
             if t >= max_steps: # finish episode if max steps reached even if terminal state not reached
                 done = True
@@ -146,9 +150,9 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
                 target_Qs[episode_ends] = torch.zeros(action_size)
                 if DDQN:
                     next_actions = torch.argmax(Q(next_states), dim=1)
-                    targets = rewards + gamma * target_Qs.gather(1, next_actions.unsqueeze(1)).squeeze(1)
+                    targets = rewards + (gamma**nstep) * target_Qs.gather(1, next_actions.unsqueeze(1)).squeeze(1)
                 else:
-                    targets = rewards + gamma * torch.max(target_Qs, dim=1)[0]
+                    targets = rewards + (gamma**nstep) * torch.max(target_Qs, dim=1)[0]
                 td_error = train_model(Q, [(states, actions, targets)], weights, device)
 
                 # Update priorities
@@ -163,19 +167,20 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay):
                 
             t += 1 # update timestep
             j += 1 # update training cycle
-        if i % 1000 == 0:
-            current_lr = Q.optimizer.param_groups[0]['lr']
-            print(f"Episode {i}, Learning Rate: {current_lr}")
-
         if i % 100 == 0:
             mse_value = test_model(Q, reachable_states, reachable_actions, Q_vi, device)
             MSE.append(mse_value)
+
+        if i % 1000 == 0:
+            current_lr = Q.optimizer.param_groups[0]['lr']
+            print(f"Episode {i}, Learning Rate: {current_lr} MSE: {round(mse_value,2)}")
+
         
         if PrioritizedReplay:
             beta += (1.0 - beta0)/num_episodes
         Q.scheduler.step() # Decay the learning rate
-        #if Q.optimizer.param_groups[0]['lr'] < min_lr:
-        #    Q.optimizer.param_groups[0]['lr'] = min_lr
+        if Q.optimizer.param_groups[0]['lr'] < min_lr:
+            Q.optimizer.param_groups[0]['lr'] = min_lr
         i += 1 # update episode number
 
     # save results and performance metrics.
@@ -245,10 +250,12 @@ class Memory():
         done = self.done_buffer[indices]
         return states, actions, rewards, next_states, done
     
-def pretrain(env, memory, batch_size, PrioritizedReplay, max_priority):
+def pretrain(env, nq, memory, batch_size, PrioritizedReplay, max_priority):
     # Make a bunch of random actions from a random state and store the experiences
     reset = True
-    for ii in range(batch_size):
+    memadd = 0 # number of transitions added to memory
+    n = nq.n
+    while memadd < batch_size:
         if reset == True:
             if env.envID == 'Env1.0':
                 env.reset([-1,-1,-1,-1,-1,-1])
@@ -258,22 +265,19 @@ def pretrain(env, memory, batch_size, PrioritizedReplay, max_priority):
         action = np.random.randint(0, env.actionspace_dim[0])
         reward, done, _ = env.step(action)
         next_state = env.state
-
         if done:
-            # Add experience to memory
-            if PrioritizedReplay:
-                memory.add(max_priority, (state, action, reward, next_state, done))
-            else:
-                memory.add(state, action, reward, next_state, done)
-
+            nq.add(state, action, reward, next_state, done, memory, PrioritizedReplay)
             reset = True
+            memadd += n
         else:
-            # Add experience to memory
-            if PrioritizedReplay:
-                memory.add(max_priority, (state, action, reward, next_state, done))
-            else:
-                memory.add(state, action, reward, next_state, done)
+            # increase memadd by 1 if nq is full
+            if len(nq.queue) == n-1:
+                memadd += 1
+            nq.add(state, action, reward, next_state, done, memory, PrioritizedReplay)
             state = next_state
+    nq.queue = [] # clear the n-step queue
+    nq.rqueue = [] 
+    
 
 def epsilon_update(i,option,num_episodes):
     # update epsilon
