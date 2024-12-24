@@ -98,6 +98,7 @@ class DuelQNN(nn.Module):
 
 
     def disable_noise(self):
+        # Disable noise for all NoisyLinear layers (for validation)
         for layer in self.shared_linear_relu_stack:
             if isinstance(layer, NoisyLinear):
                 layer.use_noise = False
@@ -109,6 +110,7 @@ class DuelQNN(nn.Module):
                 layer.use_noise = False
 
     def enable_noise(self):
+        # Enable noise for all NoisyLinear layers
         for layer in self.shared_linear_relu_stack:
             if isinstance(layer, NoisyLinear):
                 layer.use_noise = True

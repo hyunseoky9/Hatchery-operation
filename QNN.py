@@ -52,11 +52,13 @@ class QNN(nn.Module):
         return logits
 
     def disable_noise(self):
+        # Disable noise for all NoisyLinear layers (for validation)
         for layer in self.linear_relu_stack:
             if isinstance(layer, NoisyLinear):
                 layer.use_noise = False
 
-    def enable_noise(self, initial_sigma=0.017):
+    def enable_noise(self):
+        # Enable noise for all NoisyLinear layers
         for layer in self.linear_relu_stack:
             if isinstance(layer, NoisyLinear):
                 layer.use_noise = True
