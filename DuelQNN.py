@@ -95,3 +95,26 @@ class DuelQNN(nn.Module):
         logits = value + (advantage - advantage.mean(dim=1, keepdim=True))
         #logits = value + (advantage - advantage.mean())       
         return logits
+
+
+    def disable_noise(self):
+        for layer in self.shared_linear_relu_stack:
+            if isinstance(layer, NoisyLinear):
+                layer.use_noise = False
+        for layer in self.value_linear_relu_stack:
+            if isinstance(layer, NoisyLinear):
+                layer.use_noise = False
+        for layer in self.advantage_linear_relu_stack:
+            if isinstance(layer, NoisyLinear):
+                layer.use_noise = False
+
+    def enable_noise(self):
+        for layer in self.shared_linear_relu_stack:
+            if isinstance(layer, NoisyLinear):
+                layer.use_noise = True
+        for layer in self.value_linear_relu_stack:
+            if isinstance(layer, NoisyLinear):
+                layer.use_noise = True
+        for layer in self.advantage_linear_relu_stack:
+            if isinstance(layer, NoisyLinear):
+                layer.use_noise = True

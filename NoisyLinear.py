@@ -15,6 +15,7 @@ class NoisyLinear(nn.Module):
         self.register_buffer('input_noise', torch.empty(in_features))
         self.register_buffer('output_noise', torch.empty(out_features))
 
+        self.use_noise = True
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -26,20 +27,24 @@ class NoisyLinear(nn.Module):
 
     def forward(self, input):
         # Generate factorised noise
-        self.input_noise.normal_()
-        self.output_noise.normal_()
+        if self.use_noise:
+            self.input_noise.normal_()
+            self.output_noise.normal_()
 
-        # Apply f(x) = sgn(x) * sqrt(|x|)
-        input_noise = self.input_noise.sign() * self.input_noise.abs().sqrt()
-        output_noise = self.output_noise.sign() * self.output_noise.abs().sqrt()
-        
-        # Compute noise for weights and biases
-        weight_noise = torch.ger(output_noise, input_noise)  # Outer product
-        bias_noise = output_noise
+            # Apply f(x) = sgn(x) * sqrt(|x|)
+            input_noise = self.input_noise.sign() * self.input_noise.abs().sqrt()
+            output_noise = self.output_noise.sign() * self.output_noise.abs().sqrt()
+            
+            # Compute noise for weights and biases
+            weight_noise = torch.ger(output_noise, input_noise)  # Outer product
+            bias_noise = output_noise
 
-        # Add noise to weights and biases
-        noisy_weights = self.mu + self.sigma * weight_noise
-        noisy_bias = self.bias_mu + self.bias_sigma * bias_noise
+            # Add noise to weights and biases
+            noisy_weights = self.mu + self.sigma * weight_noise
+            noisy_bias = self.bias_mu + self.bias_sigma * bias_noise
+        else:
+            noisy_weights = self.mu
+            noisy_bias = self.bias_mu
 
         # Apply the noisy weights and biases
         return torch.addmm(noisy_bias, input, noisy_weights.t())        

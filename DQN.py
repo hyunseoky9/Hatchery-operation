@@ -109,7 +109,10 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,nois
     # run through the episodes
     while i < num_episodes: #delta > theta:
         # update epsilon
-        ep = epsilon_update(i,epdecayopt,num_episodes) 
+        if noisy: # turn off epsilon greedy for noisy nets
+            ep = 0
+        else:
+            ep = epsilon_update(i,epdecayopt,num_episodes) 
         # initialize state that doesn't start from terminal
         env.reset(initlist) # random initialization
         S = env.state
@@ -168,7 +171,7 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,nois
             t += 1 # update timestep
             j += 1 # update training cycle
         if i % 100 == 0:
-            mse_value = test_model(Q, reachable_states, reachable_actions, Q_vi, device)
+            mse_value = test_model(Q, reachable_states, reachable_actions, Q_vi, noisy, device)
             MSE.append(mse_value)
 
         if i % 1000 == 0:
@@ -344,13 +347,20 @@ def compute_loss(Q, states, actions, targetQs):
     loss = Q.loss_fn(selected_q_values, targetQs) # Compute the loss
     return loss
 
-def test_model(Q, reachable_states, reachable_actions, Qopt, device):
+def test_model(Q, reachable_states, reachable_actions, Qopt, noisy, device):
     """
     If there is a optimal Q calculate (perhaps from value iteration) MSE loss compared to the optimal Q.
     """
     Q.eval()
+    if noisy: # disable noise when evaluating
+        Q.disable_noise()
+    
     with torch.no_grad():
         testloss = compute_loss(Q, reachable_states, reachable_actions, Qopt).item()
+
+    if noisy: # enable noise after evaluating
+        Q.enable_noise()
+
     return testloss
     #print(f"Test Error Avg loss: {test_loss:>8f}\n")
 
