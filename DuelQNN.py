@@ -5,7 +5,7 @@ from torch.optim.lr_scheduler import ExponentialLR, StepLR
 
 # Define model
 class DuelQNN(nn.Module):
-    def __init__(self, state_size, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared, hidden_num_split, learning_rate, state_min, state_max):
+    def __init__(self, state_size, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared, hidden_num_split, learning_rate, state_min, state_max,lrdecayrate):
         super().__init__()
         # architecture parameters
         self.action_size = action_size
@@ -57,7 +57,7 @@ class DuelQNN(nn.Module):
         #self.optimizer = torch.optim.RMSprop(self.parameters(), lr=self.learning_rate)
         #self.optimizer = torch.optim.AdamW(self.parameters(), lr=self.learning_rate)
         self.optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
-        self.scheduler = ExponentialLR(self.optimizer, gamma=0.9997)  # Exponential decay
+        self.scheduler = ExponentialLR(self.optimizer, gamma=lrdecayrate)  # Exponential decay
         #self.scheduler = StepLR(self.optimizer, step_size=1, gamma=0.1)  # Halve LR every 10 steps
 
 
