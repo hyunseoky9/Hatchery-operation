@@ -6,7 +6,7 @@ from NoisyLinear import NoisyLinear
 
 # Define model
 class DuelQNN(nn.Module):
-    def __init__(self, state_size, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared, hidden_num_split, learning_rate, state_min, state_max,lrdecayrate,noisy):
+    def __init__(self, state_size, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared, hidden_num_split, learning_rate, state_min, state_max, lrdecayrate, noisy):
         super().__init__()
         # architecture parameters
         self.action_size = action_size
