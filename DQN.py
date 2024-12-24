@@ -182,7 +182,7 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,nois
                 for layer in Q.linear_relu_stack:
                     if hasattr(layer, 'mu'):
                         meansig += layer.sigma.mean().item()
-                print(f"Layer: {layer}, sigma: {layer.sigma.mean().item()}")
+                print(f"avg sigma: {layer.sigma.mean().item()}")
             print('-----------------------------------')
 
         
