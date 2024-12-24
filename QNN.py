@@ -2,26 +2,37 @@ import torch
 from torch import nn
 from torchvision.transforms import ToTensor
 from torch.optim.lr_scheduler import ExponentialLR, StepLR
+from NoisyLinear import NoisyLinear
 
 # Define model
 class QNN(nn.Module):
-    def __init__(self, state_size, action_size, hidden_size, hidden_num, learning_rate, state_min, state_max,lrdecayrate):
+    def __init__(self, state_size, action_size, hidden_size, hidden_num, learning_rate, state_min, state_max,lrdecayrate, noisy):
         super().__init__()
         self.action_size = action_size
         self.state_size = state_size
         self.hidden_size = hidden_size
         self.hidden_num = hidden_num
         self.learning_rate = learning_rate
+        self.noisy = noisy
 
         # normalization parameters
         self.state_min = state_min
         self.state_max = state_max
+
         # Constructing the layers dynamically
-        layers = [nn.Linear(state_size, hidden_size), nn.ReLU()]
-        for _ in range(self.hidden_num - 1):
-            layers.append(nn.Linear(hidden_size, hidden_size))
-            layers.append(nn.ReLU())
-        layers.append(nn.Linear(hidden_size, action_size))
+        if noisy:
+            layers = [NoisyLinear(state_size, hidden_size), nn.ReLU()]
+            for _ in range(self.hidden_num - 1):
+                layers.append(NoisyLinear(hidden_size, hidden_size))
+                layers.append(nn.ReLU())
+            layers.append(NoisyLinear(hidden_size, action_size))
+        else:
+            layers = [nn.Linear(state_size, hidden_size), nn.ReLU()]
+            for _ in range(self.hidden_num - 1):
+                layers.append(nn.Linear(hidden_size, hidden_size))
+                layers.append(nn.ReLU())
+            layers.append(nn.Linear(hidden_size, action_size))
+
         # Creating the Sequential module
         self.linear_relu_stack = nn.Sequential(*layers)
 
