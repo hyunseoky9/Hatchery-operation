@@ -10,7 +10,7 @@ from DuelQNN import DuelQNN
 from PrioritizedMemory import *
 from nq import *
 
-def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,lrdecayrate,lr,min_lr,training_cycle,target_update_cycle):
+def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,noisy,lrdecayrate,lr,min_lr,training_cycle,target_update_cycle):
     # train using Deep Q Network
     # env: environment class object
     # num_episodes: number of episodes to train 
