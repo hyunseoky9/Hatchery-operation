@@ -10,7 +10,7 @@ from DuelQNN import DuelQNN
 from PrioritizedMemory import *
 from nq import *
 
-def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep):
+def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,lrdecayrate,lr):
     # train using Deep Q Network
     # env: environment class object
     # num_episodes: number of episodes to train 
@@ -37,9 +37,8 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep):
     memory_size = 1000 # memory capacity
     batch_size = 100 # experience mini-batch size
     ## etc.
-    lr = 0.01 # starting learning rate
     min_lr = 0.00001  # Set the minimum learning rate
-    gamma = env.gamma
+    gamma = env.gamma # discount rate
     max_steps = 1000 # max steps per episode
     ## cycles
     training_cycle = 7 # number of steps where the network is trained
@@ -51,6 +50,10 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep):
     # initialization
     ## print out extension feature usage
     print(f'DuelingDQN: {DuelingDQN}\nDDQN: {DDQN}\nPrioritizedReplay: {PrioritizedReplay}\nnstep: {nstep}')
+    if DuelingDQN:
+        print(f'hidden_size_shared: {hidden_size_shared}, hidden_size_split: {hidden_size_split}, hidden_num_shared: {hidden_num_shared}, hidden_num_split: {hidden_num_split}')
+    else:
+        print(f'hidden_size: {hidden_size}, hidden_num: {hidden_num}')
     if PrioritizedReplay:
         print(f'alpha: {alpha}, beta0: {beta0}, per_epsilon: {per_epsilon}')
 
@@ -64,11 +67,11 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep):
     )
     print(f"Using {device} device")
     if DuelingDQN:
-        Q = DuelQNN(state_size, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared, hidden_num_split, lr, state_min, state_max).to(device)
-        Q_target = DuelQNN(state_size, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared, hidden_num_split, lr, state_min, state_max).to(device)
+        Q = DuelQNN(state_size, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared, hidden_num_split, lr, state_min, state_max,lrdecayrate).to(device)
+        Q_target = DuelQNN(state_size, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared, hidden_num_split, lr, state_min, state_max,lrdecayrate).to(device)
     else:
-        Q = QNN(state_size, action_size, hidden_size, hidden_num, lr, state_min, state_max).to(device)
-        Q_target = QNN(state_size, action_size, hidden_size, hidden_num, lr, state_min, state_max).to(device)
+        Q = QNN(state_size, action_size, hidden_size, hidden_num, lr, state_min, state_max,lrdecayrate).to(device)
+        Q_target = QNN(state_size, action_size, hidden_size, hidden_num, lr, state_min, state_max,lrdecayrate).to(device)
     Q_target.load_state_dict(Q.state_dict())  # Copy weights from Q to Q_target
     Q_target.eval()  # Set target network to evaluation mode (no gradient updates)
 
@@ -82,7 +85,7 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep):
     else:
         memory = Memory(memory_size, state_size, len(env.actionspace_dim))
         pretrain(env,nq,memory,batch_size,PrioritizedReplay,0) # prepopulate memory
-    print(f'Pretraining memory with {memory_size} experiences')
+    print(f'Pretraining memory with {batch_size} experiences')
 
     ## state initialization setting 
     if env.envID == 'Env1.0':
