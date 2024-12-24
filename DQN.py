@@ -57,7 +57,7 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,nois
         print(f'hidden_size: {hidden_size}, hidden_num: {hidden_num}')
     if PrioritizedReplay:
         print(f'alpha: {alpha}, beta0: {beta0}, per_epsilon: {per_epsilon}')
-
+    print(f'lr: {lr}, lrdecayrate: {lrdecayrate}, min_lr: {min_lr}')
     ## initialize NN
     device = (
     "cuda"
@@ -102,7 +102,7 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,nois
             Q_vi = pickle.load(file)
         Q_vi = torch.tensor(Q_vi[reachable_uniquestateid].flatten(), dtype=torch.float32)
     MSE = []
-    
+    print('-----------------------------------------------')
     # initialize counters
     j = 0 # training cycle counter
     i = 0 # peisode num
@@ -174,9 +174,16 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,nois
             mse_value = test_model(Q, reachable_states, reachable_actions, Q_vi, noisy, device)
             MSE.append(mse_value)
 
-        if i % 1000 == 0:
+        if i % 1000 == 0: # print outs
             current_lr = Q.optimizer.param_groups[0]['lr']
             print(f"Episode {i}, Learning Rate: {current_lr} MSE: {round(mse_value,2)}")
+            meansig = 0
+            if noisy:
+                for layer in Q.linear_relu_stack:
+                    if hasattr(layer, 'mu'):
+                        meansig += layer.sigma.mean().item()
+                print(f"Layer: {layer}, sigma: {layer.sigma.mean().item()}")
+            print('-----------------------------------')
 
         
         if PrioritizedReplay:
