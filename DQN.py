@@ -10,7 +10,7 @@ from DuelQNN import DuelQNN
 from PrioritizedMemory import *
 from nq import *
 
-def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,lrdecayrate,lr,min_lr,training_cycle,target_update_cycle):
+def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,noisy,lrdecayrate,lr,min_lr,training_cycle,target_update_cycle):
     # train using Deep Q Network
     # env: environment class object
     # num_episodes: number of episodes to train 
@@ -57,7 +57,7 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,lrde
         print(f'hidden_size: {hidden_size}, hidden_num: {hidden_num}')
     if PrioritizedReplay:
         print(f'alpha: {alpha}, beta0: {beta0}, per_epsilon: {per_epsilon}')
-
+    print(f'lr: {lr}, lrdecayrate: {lrdecayrate}, min_lr: {min_lr}')
     ## initialize NN
     device = (
     "cuda"
@@ -68,11 +68,11 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,lrde
     )
     print(f"Using {device} device")
     if DuelingDQN:
-        Q = DuelQNN(state_size, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared, hidden_num_split, lr, state_min, state_max,lrdecayrate).to(device)
-        Q_target = DuelQNN(state_size, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared, hidden_num_split, lr, state_min, state_max,lrdecayrate).to(device)
+        Q = DuelQNN(state_size, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared, hidden_num_split, lr, state_min, state_max,lrdecayrate,noisy).to(device)
+        Q_target = DuelQNN(state_size, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared, hidden_num_split, lr, state_min, state_max,lrdecayrate,noisy).to(device)
     else:
-        Q = QNN(state_size, action_size, hidden_size, hidden_num, lr, state_min, state_max,lrdecayrate).to(device)
-        Q_target = QNN(state_size, action_size, hidden_size, hidden_num, lr, state_min, state_max,lrdecayrate).to(device)
+        Q = QNN(state_size, action_size, hidden_size, hidden_num, lr, state_min, state_max,lrdecayrate,noisy).to(device)
+        Q_target = QNN(state_size, action_size, hidden_size, hidden_num, lr, state_min, state_max,lrdecayrate,noisy).to(device)
     Q_target.load_state_dict(Q.state_dict())  # Copy weights from Q to Q_target
     Q_target.eval()  # Set target network to evaluation mode (no gradient updates)
 
@@ -102,14 +102,17 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,lrde
             Q_vi = pickle.load(file)
         Q_vi = torch.tensor(Q_vi[reachable_uniquestateid].flatten(), dtype=torch.float32)
     MSE = []
-    
+    print('-----------------------------------------------')
     # initialize counters
     j = 0 # training cycle counter
     i = 0 # peisode num
     # run through the episodes
     while i < num_episodes: #delta > theta:
         # update epsilon
-        ep = epsilon_update(i,epdecayopt,num_episodes) 
+        if noisy: # turn off epsilon greedy for noisy nets
+            ep = 0
+        else:
+            ep = epsilon_update(i,epdecayopt,num_episodes) 
         # initialize state that doesn't start from terminal
         env.reset(initlist) # random initialization
         S = env.state
@@ -168,12 +171,19 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,lrde
             t += 1 # update timestep
             j += 1 # update training cycle
         if i % 100 == 0:
-            mse_value = test_model(Q, reachable_states, reachable_actions, Q_vi, device)
+            mse_value = test_model(Q, reachable_states, reachable_actions, Q_vi, noisy, device)
             MSE.append(mse_value)
 
-        if i % 1000 == 0:
+        if i % 1000 == 0: # print outs
             current_lr = Q.optimizer.param_groups[0]['lr']
             print(f"Episode {i}, Learning Rate: {current_lr} MSE: {round(mse_value,2)}")
+            meansig = 0
+            if noisy:
+                for layer in Q.linear_relu_stack:
+                    if hasattr(layer, 'mu'):
+                        meansig += layer.sigma.mean().item()
+                print(f"avg sigma: {layer.sigma.mean().item()}")
+            print('-----------------------------------')
 
         
         if PrioritizedReplay:
@@ -344,13 +354,20 @@ def compute_loss(Q, states, actions, targetQs):
     loss = Q.loss_fn(selected_q_values, targetQs) # Compute the loss
     return loss
 
-def test_model(Q, reachable_states, reachable_actions, Qopt, device):
+def test_model(Q, reachable_states, reachable_actions, Qopt, noisy, device):
     """
     If there is a optimal Q calculate (perhaps from value iteration) MSE loss compared to the optimal Q.
     """
     Q.eval()
+    if noisy: # disable noise when evaluating
+        Q.disable_noise()
+    
     with torch.no_grad():
         testloss = compute_loss(Q, reachable_states, reachable_actions, Qopt).item()
+
+    if noisy: # enable noise after evaluating
+        Q.enable_noise()
+
     return testloss
     #print(f"Test Error Avg loss: {test_loss:>8f}\n")
 

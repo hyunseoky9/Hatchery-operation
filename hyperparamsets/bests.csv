@@ -1,0 +1,26 @@
+theme,ranking,ranking,ranking,ranking,ranking,noisy net test,noisy net test,noisy net test,noisy net test
+log_id,4,6,3,5,2,7,8,9,9
+training_cycle,7,7,7,7,7,7,7,7,7
+target_update_cycle,15,22,10,22,10,15,15,15,15
+lr,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01
+lrdecaytype,exp,exp,exp,exp,exp,exp,exp,exp,exp
+lrdecay,0.9997,0.99992,0.9997,0.9997,0.9997,0.9997,0.9998,0.9999,0.9999
+minlr,inf,inf,inf,inf,inf,inf,inf,inf,inf
+layer_n,3,3,3,3,3,3,3,3,3
+layer_width,30,30,30,30,30,30,30,30,30
+epsilon,4;100000;0.1;-30/fix;-fix*0.4,4;100000;0.1;-30/fix;-fix*0.4,4;100000;0.1;-30/fix;-fix*0.4,4;100000;0.1;-30/fix;-fix*0.4,4;100000;0.1;-30/fix;-fix*0.4,4;100000;0.1;-30/fix;-fix*0.4,4;100000;0.1;-30/fix;-fix*0.4,4;100000;0.1;-30/fix;-fix*0.4,4;100000;0.1;-30/fix;-fix*0.4
+ddqn,T,T,T,T,T,T,T,T,T
+dueling,F,F,F,F,F,F,F,F,F
+hidden_shared_num,1,1,1,1,1,1,1,1,1
+hidden_split_num,1,1,1,1,1,1,1,1,1
+hidden_shared_width,30,30,30,30,30,30,30,30,30
+hidden_split_width,30,30,30,30,30,30,30,30,30
+prioritized,F,F,F,F,T,F,F,F,F
+beta0,0.6,0.6,0.6,0.6,0.6,0.6,0.6,0.6,0.6
+alpha,0.6,0.6,0.6,0.6,0.6,0.6,0.6,0.6,0.6
+nstep,1,1,1,1,1,1,1,1,1
+noisy,F,F,F,F,F,T,T,T,T
+episodenum,20000,20000,20000,20000,20000,10000,10000,10000,20000
+seed,11,11,11,11,11,11,11,11,11
+min_MSE,6.6,9.9,11.78,13.39,13.52,358,185,180,94
+note,so that it trains at least twice before updating,train thrice before updating; slower rl decay,20000 with vanilla,train thrice before updating,PER with 20000,noisy net first run!,noisy net test decreased learning rate decay,noisy net test further decrease in learning rate decay,increase episode num

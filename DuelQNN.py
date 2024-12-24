@@ -2,10 +2,11 @@ import torch
 from torch import nn
 from torchvision.transforms import ToTensor
 from torch.optim.lr_scheduler import ExponentialLR, StepLR
+from NoisyLinear import NoisyLinear
 
 # Define model
 class DuelQNN(nn.Module):
-    def __init__(self, state_size, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared, hidden_num_split, learning_rate, state_min, state_max,lrdecayrate):
+    def __init__(self, state_size, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared, hidden_num_split, learning_rate, state_min, state_max, lrdecayrate, noisy):
         super().__init__()
         # architecture parameters
         self.action_size = action_size
@@ -22,29 +23,54 @@ class DuelQNN(nn.Module):
 
         # Constructing the layers dynamically
         ## shared layers
-        shared_layers = [nn.Linear(state_size, hidden_size_shared), nn.ReLU()]
-        for _ in range(self.hidden_num_shared - 1):
-            shared_layers.append(nn.Linear(hidden_size_shared, hidden_size_shared))
-            shared_layers.append(nn.ReLU())
+        if noisy:
+            shared_layers = [NoisyLinear(state_size, hidden_size_shared), nn.ReLU()]
+            for _ in range(self.hidden_num_shared - 1):
+                shared_layers.append(NoisyLinear(hidden_size_shared, hidden_size_shared))
+                shared_layers.append(nn.ReLU())
 
-        ## value layers
-        if hidden_num_split > 0:
-            value_layers = [nn.Linear(hidden_size_shared, hidden_size_split), nn.ReLU()]
-            for _ in range(self.hidden_num_split - 1):
-                value_layers.append(nn.Linear(hidden_size_split, hidden_size_split))
-                value_layers.append(nn.ReLU())
-            value_layers.append(nn.Linear(hidden_size_split, 1))
+            ## value layers
+            if hidden_num_split > 0:
+                value_layers = [NoisyLinear(hidden_size_shared, hidden_size_split), nn.ReLU()]
+                for _ in range(self.hidden_num_split - 1):
+                    value_layers.append(NoisyLinear(hidden_size_split, hidden_size_split))
+                    value_layers.append(nn.ReLU())
+                value_layers.append(NoisyLinear(hidden_size_split, 1))
+            else:
+                value_layers = [NoisyLinear(hidden_size_shared, 1)]
+            ## advantage layers
+            if hidden_num_split > 0:
+                advantage_layers = [NoisyLinear(hidden_size_shared, hidden_size_split), nn.ReLU()]
+                for _ in range(self.hidden_num_split - 1):
+                    advantage_layers.append(NoisyLinear(hidden_size_split, hidden_size_split))
+                    advantage_layers.append(nn.ReLU())
+                advantage_layers.append(NoisyLinear(hidden_size_split, action_size))
+            else:
+                advantage_layers = [NoisyLinear(hidden_size_shared, action_size)]
         else:
-            value_layers = [nn.Linear(hidden_size_shared, 1)]
-        ## advantage layers
-        if hidden_num_split > 0:
-            advantage_layers = [nn.Linear(hidden_size_shared, hidden_size_split), nn.ReLU()]
-            for _ in range(self.hidden_num_split - 1):
-                advantage_layers.append(nn.Linear(hidden_size_split, hidden_size_split))
-                advantage_layers.append(nn.ReLU())
-            advantage_layers.append(nn.Linear(hidden_size_split, action_size))
-        else:
-            advantage_layers = [nn.Linear(hidden_size_shared, action_size)]
+            shared_layers = [nn.Linear(state_size, hidden_size_shared), nn.ReLU()]
+            for _ in range(self.hidden_num_shared - 1):
+                shared_layers.append(nn.Linear(hidden_size_shared, hidden_size_shared))
+                shared_layers.append(nn.ReLU())
+
+            ## value layers
+            if hidden_num_split > 0:
+                value_layers = [nn.Linear(hidden_size_shared, hidden_size_split), nn.ReLU()]
+                for _ in range(self.hidden_num_split - 1):
+                    value_layers.append(nn.Linear(hidden_size_split, hidden_size_split))
+                    value_layers.append(nn.ReLU())
+                value_layers.append(nn.Linear(hidden_size_split, 1))
+            else:
+                value_layers = [nn.Linear(hidden_size_shared, 1)]
+            ## advantage layers
+            if hidden_num_split > 0:
+                advantage_layers = [nn.Linear(hidden_size_shared, hidden_size_split), nn.ReLU()]
+                for _ in range(self.hidden_num_split - 1):
+                    advantage_layers.append(nn.Linear(hidden_size_split, hidden_size_split))
+                    advantage_layers.append(nn.ReLU())
+                advantage_layers.append(nn.Linear(hidden_size_split, action_size))
+            else:
+                advantage_layers = [nn.Linear(hidden_size_shared, action_size)]
 
         # Creating the Sequential module
         self.shared_linear_relu_stack = nn.Sequential(*shared_layers)
@@ -69,3 +95,28 @@ class DuelQNN(nn.Module):
         logits = value + (advantage - advantage.mean(dim=1, keepdim=True))
         #logits = value + (advantage - advantage.mean())       
         return logits
+
+
+    def disable_noise(self):
+        # Disable noise for all NoisyLinear layers (for validation)
+        for layer in self.shared_linear_relu_stack:
+            if isinstance(layer, NoisyLinear):
+                layer.use_noise = False
+        for layer in self.value_linear_relu_stack:
+            if isinstance(layer, NoisyLinear):
+                layer.use_noise = False
+        for layer in self.advantage_linear_relu_stack:
+            if isinstance(layer, NoisyLinear):
+                layer.use_noise = False
+
+    def enable_noise(self):
+        # Enable noise for all NoisyLinear layers
+        for layer in self.shared_linear_relu_stack:
+            if isinstance(layer, NoisyLinear):
+                layer.use_noise = True
+        for layer in self.value_linear_relu_stack:
+            if isinstance(layer, NoisyLinear):
+                layer.use_noise = True
+        for layer in self.advantage_linear_relu_stack:
+            if isinstance(layer, NoisyLinear):
+                layer.use_noise = True
