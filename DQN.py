@@ -10,7 +10,7 @@ from DuelQNN import DuelQNN
 from PrioritizedMemory import *
 from nq import *
 
-def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,noisy,lrdecayrate,lr,min_lr,training_cycle,target_update_cycle):
+def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,noisy,distributional,lrdecayrate,lr,min_lr,training_cycle,target_update_cycle):
     # train using Deep Q Network
     # env: environment class object
     # num_episodes: number of episodes to train 
@@ -36,6 +36,10 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,nois
     ## memory parameters
     memory_size = 1000 # memory capacity
     batch_size = 100 # experience mini-batch size
+    ## distributional RL atoms size
+    Vmin = -100
+    Vmax = 30
+    atomN = 51
     ## etc.
     #lr = 0.01
     #min_lr = 1e-6
@@ -50,13 +54,15 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,nois
 
     # initialization
     ## print out extension feature usage
-    print(f'DuelingDQN: {DuelingDQN}\nDDQN: {DDQN}\nPrioritizedReplay: {PrioritizedReplay}\nnstep: {nstep}')
+    print(f'DuelingDQN: {DuelingDQN}\nDDQN: {DDQN}\nPrioritizedReplay: {PrioritizedReplay}\nnstep: {nstep}\nnoisynet: {noisy}\ndistributional RL: {distributional}')
     if DuelingDQN:
         print(f'hidden_size_shared: {hidden_size_shared}, hidden_size_split: {hidden_size_split}, hidden_num_shared: {hidden_num_shared}, hidden_num_split: {hidden_num_split}')
     else:
         print(f'hidden_size: {hidden_size}, hidden_num: {hidden_num}')
     if PrioritizedReplay:
         print(f'alpha: {alpha}, beta0: {beta0}, per_epsilon: {per_epsilon}')
+    if distributional:
+        print(f'Vmin: {Vmin}, Vmax: {Vmax}, atom N: {atomN}')
     print(f'lr: {lr}, lrdecayrate: {lrdecayrate}, min_lr: {min_lr}')
     ## initialize NN
     device = (
