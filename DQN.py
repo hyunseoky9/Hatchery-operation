@@ -1,5 +1,3 @@
-# head token
-
 import torch
 from torch import nn
 from torchvision.transforms import ToTensor
@@ -161,6 +159,9 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,nois
                 # Train network
                 # Set target_Qs to 0 for states where episode ends
                 episode_ends = np.where(dones == True)[0]
+                if i >= 690:
+                    db = 1
+                    db = 0
                 target_Qs = Q_target(next_states)
                 if DDQN:
                     if distributional:
@@ -197,6 +198,7 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,nois
             j += 1 # update training cycle
         if i % 100 == 0:
             mse_value = test_model(Q, reachable_states, reachable_actions, Q_vi, noisy, device)
+            print(f"Episode {i}, MSE: {mse_value}")
             MSE.append(mse_value)
 
         if i % 1000 == 0: # print outs
