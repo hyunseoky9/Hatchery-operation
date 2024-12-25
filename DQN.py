@@ -241,7 +241,11 @@ def _make_discrete_Q(Q,env,device):
         states = torch.tensor([env._unflatten(i) for i in range(np.prod(env.statespace_dim))], dtype=torch.float32)
         Q_discrete = np.zeros((np.prod(env.statespace_dim),len(env.actions["a"])))
         for i in range(np.prod(env.statespace_dim)):
-            Q_discrete[i,:] = Q(states[i].unsqueeze(0)).detach().cpu().numpy()
+            if Q.distributional:
+                Q_expected = torch.sum(Q(states[i].unsqueeze(0)) * Q.z, dim=-1) # sum over atoms for each action
+                Q_discrete[i,:] = Q_expected.detach().cpu().numpy()
+            else:
+                Q_discrete[i,:] = Q(states[i].unsqueeze(0)).detach().cpu().numpy()
     return Q_discrete
 
 def choose_action(state, Q, epsilon, action_size, distributional):
