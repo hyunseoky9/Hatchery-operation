@@ -157,11 +157,9 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,nois
                 next_states = torch.tensor(next_states, dtype=torch.float32)
                 weights = torch.tensor(weights, dtype=torch.float32).to(device)
                 # Train network
+
                 # Set target_Qs to 0 for states where episode ends
                 episode_ends = np.where(dones == True)[0]
-                if i >= 690:
-                    db = 1
-                    db = 0
                 target_Qs = Q_target(next_states)
                 if DDQN:
                     if distributional:
@@ -198,7 +196,6 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,nois
             j += 1 # update training cycle
         if i % 100 == 0:
             mse_value = test_model(Q, reachable_states, reachable_actions, Q_vi, noisy, device)
-            print(f"Episode {i}, MSE: {mse_value}")
             MSE.append(mse_value)
 
         if i % 1000 == 0: # print outs
@@ -362,6 +359,7 @@ def train_model(Q, data, weights, device):
         # compute_loss
         if Q.distributional:
             predictions = predictions.gather(1, actions.unsqueeze(-1).expand(-1,-1,Q.atomn)) # Get Q-values for the selected actions
+            predictions = predictions.clamp(min=1e-9) # Avoid log 0
             cross_entropy = -torch.sum(targets * torch.log(predictions), dim=-1)  # Sum over atoms
             loss = cross_entropy.mean()  # Average over batch
             td_errors = cross_entropy.squeeze() # distributional RL uses cross entropy as scalar distance btw target and prediction for priority
