@@ -46,7 +46,7 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,nois
     max_abstd = 1 # initial max priority
     ## memory parameters
     memory_size = 1000 # memory capacity
-    batch_size = 3 # experience mini-batch size
+    batch_size = 100 # experience mini-batch size
     ## distributional RL atoms size
     Vmin = -100
     Vmax = 30
@@ -358,8 +358,10 @@ def train_model(Q, data, weights, device):
         predictions = Q(states) 
         # compute_loss
         if Q.distributional:
-            
-            loss = Q.loss_fn(predictions.log(), targets)  # Cross-entropy between predicted and target distributions
+            predictions = predictions.gather(1, actions.unsqueeze(-1).expand(-1,-1,Q.atomn)) # Get Q-values for the selected actions
+            cross_entropy = -torch.sum(targets * torch.log(predictions), dim=-1)  # Sum over atoms
+            loss = cross_entropy.mean()  # Average over batch
+            td_errors = cross_entropy.squeeze() # distributional RL uses cross entropy as scalar distance btw target and prediction for priority
         else:
             # loss = Q.loss_fn(predictions, targets) # Compute the loss
             predictions = predictions.gather(1, actions).squeeze(1) # Get Q-values for the selected actions
