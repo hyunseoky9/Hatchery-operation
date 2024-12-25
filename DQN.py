@@ -9,6 +9,7 @@ from QNN import QNN
 from DuelQNN import DuelQNN
 from PrioritizedMemory import *
 from nq import *
+from distributionalRL import *
 
 def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,noisy,distributional,lrdecayrate,lr,min_lr,training_cycle,target_update_cycle):
     # train using Deep Q Network
@@ -16,6 +17,16 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,nois
     # num_episodes: number of episodes to train 
     # epdecayopt: epsilon decay option
     
+    # device for pytorch neural network
+    device = (
+    "cuda"
+    if torch.cuda.is_available()
+    else "mps"
+    if torch.backends.mps.is_available()
+    else "cpu"
+    )
+    print(f"Using {device} device")
+
     # parameters
     ## NN parameters
     # DQN
@@ -40,9 +51,6 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,nois
     Vmin = -100
     Vmax = 30
     atomn = 51
-    if distributional:
-        z = torch.linspace(Vmin, Vmax, atomn).to(device)  # Fixed atom values
-
 
     ## etc.
     #lr = 0.01
@@ -69,20 +77,12 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,nois
         print(f'Vmin: {Vmin}, Vmax: {Vmax}, atom N: {atomn}')
     print(f'lr: {lr}, lrdecayrate: {lrdecayrate}, min_lr: {min_lr}')
     ## initialize NN
-    device = (
-    "cuda"
-    if torch.cuda.is_available()
-    else "mps"
-    if torch.backends.mps.is_available()
-    else "cpu"
-    )
-    print(f"Using {device} device")
     if DuelingDQN:
-        Q = DuelQNN(state_size, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared, hidden_num_split, lr, state_min, state_max,lrdecayrate,noisy,distributional,atomn).to(device)
-        Q_target = DuelQNN(state_size, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared, hidden_num_split, lr, state_min, state_max,lrdecayrate,noisy,distributional,atomn).to(device)
+        Q = DuelQNN(state_size, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared, hidden_num_split, lr, state_min, state_max,lrdecayrate,noisy,distributional,atomn, Vmin, Vmax).to(device)
+        Q_target = DuelQNN(state_size, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared, hidden_num_split, lr, state_min, state_max,lrdecayrate,noisy,distributional,atomn, Vmin, Vmax).to(device)
     else:
-        Q = QNN(state_size, action_size, hidden_size, hidden_num, lr, state_min, state_max,lrdecayrate,noisy, distributional, atomn).to(device)
-        Q_target = QNN(state_size, action_size, hidden_size, hidden_num, lr, state_min, state_max,lrdecayrate,noisy, distributional, atomn).to(device)
+        Q = QNN(state_size, action_size, hidden_size, hidden_num, lr, state_min, state_max,lrdecayrate,noisy, distributional, atomn, Vmin, Vmax).to(device)
+        Q_target = QNN(state_size, action_size, hidden_size, hidden_num, lr, state_min, state_max,lrdecayrate,noisy, distributional, atomn, Vmin, Vmax).to(device)
     Q_target.load_state_dict(Q.state_dict())  # Copy weights from Q to Q_target
     Q_target.eval()  # Set target network to evaluation mode (no gradient updates)
 
@@ -131,12 +131,11 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,nois
         t = 0 # timestep num
         while done == False:    
             if t > 0:    
-                a = choose_action(S, Q, ep, action_size)
+                a = choose_action(S, Q, ep, action_size,distributional)
             else:
                 a = random.randint(0, action_size-1) # first action in the episode is random for added exploration
             reward, done, rate = env.step(a) # take a step
             nq.add(S, a, reward, env.state, done, memory, PrioritizedReplay) # add transition to queue
-            db = 0
             S = env.state # update state
             if t >= max_steps: # finish episode if max steps reached even if terminal state not reached
                 done = True
@@ -160,12 +159,25 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,nois
                 # Set target_Qs to 0 for states where episode ends
                 episode_ends = np.where(dones == True)[0]
                 target_Qs = Q_target(next_states)
-                target_Qs[episode_ends] = torch.zeros(action_size)
                 if DDQN:
-                    next_actions = torch.argmax(Q(next_states), dim=1)
-                    targets = rewards + (gamma**nstep) * target_Qs.gather(1, next_actions.unsqueeze(1)).squeeze(1)
+                    if distributional:
+                        next_z = torch.sum(target_Qs * Q.z, dim=-1)  # Expected Q-values for each action
+                        best_actions = torch.argmax(next_z, dim=-1).unsqueeze(1)  # Best action                        
+                        targets = compute_target_distribution(rewards, dones, gamma, target_Qs, best_actions, Q.z, atomn, Vmin, Vmax)                        
+                    else:
+                        if dones.any():
+                            target_Qs[episode_ends] = torch.zeros(action_size)
+                        next_actions = torch.argmax(Q(next_states), dim=1)
+                        targets = rewards + (gamma**nstep) * target_Qs.gather(1, next_actions.unsqueeze(1)).squeeze(1)
                 else:
-                    targets = rewards + (gamma**nstep) * torch.max(target_Qs, dim=1)[0]
+                    if distributional:
+                        next_z = torch.sum(target_Qs * Q.z, dim=-1)  # Expected Q-values for each action
+                        best_actions = torch.argmax(next_z, dim=-1).unsqueeze(1)  # Best action
+                        targets = compute_target_distribution(rewards, dones, gamma, target_Qs, best_actions, Q.z, atomn, Vmin, Vmax)
+                    else:
+                        if dones.any():
+                            target_Qs[episode_ends] = torch.zeros(action_size)
+                        targets = rewards + (gamma**nstep) * torch.max(target_Qs, dim=1)[0]
                 td_error = train_model(Q, [(states, actions, targets)], weights, device)
 
                 # Update priorities
@@ -230,19 +242,17 @@ def _make_discrete_Q(Q,env,device):
             Q_discrete[i,:] = Q(states[i].unsqueeze(0)).detach().cpu().numpy()
     return Q_discrete
 
-def choose_action(state, Q, epsilon, action_size, z, distributional):
+def choose_action(state, Q, epsilon, action_size, distributional):
     # Choose an action
     if random.random() < epsilon:
         action = random.randint(0, action_size-1)
     else:
-        z.to(Qs.device)
         state = torch.tensor(state, dtype=torch.float32).unsqueeze(0)  # Add batch dimension
         Qs = Q(state)
 
         if distributional:
-            Q_expected = torch.sum(Qs * z, dim=-1) # sum over atoms for each action
+            Q_expected = torch.sum(Qs * Q.z, dim=-1) # sum over atoms for each action
             action = torch.argmax(Q_expected).item()
-
         else:
             action = torch.argmax(Qs).item()
     return action
@@ -348,8 +358,11 @@ def train_model(Q, data, weights, device):
 
         td_errors = targets - predictions
         # compute_loss
-        # loss = #Q.loss_fn(predictions, targets) # Compute the loss
-        loss = (weights * (td_errors ** 2)).mean()
+        if Q.distributional:
+            loss = Q.loss_fn(predictions.log(), targets)  # Cross-entropy between predicted and target distributions
+        else:
+            # loss = Q.loss_fn(predictions, targets) # Compute the loss
+            loss = (weights * (td_errors ** 2)).mean()
 
         # Backpropagation
         loss.backward()
@@ -367,8 +380,16 @@ def compute_loss(Q, states, actions, targetQs):
         targetQs (torch.Tensor): Target Q values.
     """
     q_values = Q(states) # Forward pass
-    selected_q_values = q_values.gather(1, actions).squeeze(1) # Get Q-values for the selected actions
-    loss = Q.loss_fn(selected_q_values, targetQs) # Compute the loss
+    if Q.distributional:
+        # Compute expected Q-values from the distribution
+        q_expected = torch.sum(q_values * Q.z, dim=-1)  # Expected Q-values for each action
+        selected_q_values = q_expected.gather(1, actions).squeeze(1)  # Select Q-values for given actions
+
+        # Compute MSE loss with target Q values
+        loss = ((selected_q_values - targetQs) ** 2).mean()  # Compute MSE manually
+    else:
+        selected_q_values = q_values.gather(1, actions).squeeze(1) # Get Q-values for the selected actions
+        loss = Q.loss_fn(selected_q_values, targetQs) # Compute the loss
     return loss
 
 def test_model(Q, reachable_states, reachable_actions, Qopt, noisy, device):
@@ -378,13 +399,12 @@ def test_model(Q, reachable_states, reachable_actions, Qopt, noisy, device):
     Q.eval()
     if noisy: # disable noise when evaluating
         Q.disable_noise()
-    
-    with torch.no_grad():
-        testloss = compute_loss(Q, reachable_states, reachable_actions, Qopt).item()
-
-    if noisy: # enable noise after evaluating
+        with torch.no_grad():
+            testloss = compute_loss(Q, reachable_states, reachable_actions, Qopt).item()
         Q.enable_noise()
-
+    else:
+        with torch.no_grad():
+            testloss = compute_loss(Q, reachable_states, reachable_actions, Qopt).item()
     return testloss
     #print(f"Test Error Avg loss: {test_loss:>8f}\n")
 

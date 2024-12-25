@@ -6,7 +6,7 @@ from NoisyLinear import NoisyLinear
 
 # Define model
 class QNN(nn.Module):
-    def __init__(self, state_size, action_size, hidden_size, hidden_num, learning_rate, state_min, state_max,lrdecayrate, noisy, distributional, atomn):
+    def __init__(self, state_size, action_size, hidden_size, hidden_num, learning_rate, state_min, state_max,lrdecayrate, noisy, distributional, atomn, Vmin, Vmax):
         super().__init__()
         self.action_size = action_size
         self.state_size = state_size
@@ -17,6 +17,7 @@ class QNN(nn.Module):
         self.distributional = distributional
         if distributional:
             self.atomn = atomn
+            self.z = torch.linspace(Vmin, Vmax, atomn)
         else:
             self.atomn = 1
 
