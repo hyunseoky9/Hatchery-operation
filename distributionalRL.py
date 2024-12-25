@@ -5,7 +5,7 @@ from torch.optim.lr_scheduler import ExponentialLR
 import numpy as np
 import random
 
-def compute_target_distribution(reward, done, gamma, next_probs, best_action, z, atomn, Vmin, Vmax):
+def compute_target_distribution(reward, done, gamma, nstep, next_probs, best_action, z, atomn, Vmin, Vmax):
     """
     Compute the target distribution for a batch of transitions.
 
@@ -33,7 +33,7 @@ def compute_target_distribution(reward, done, gamma, next_probs, best_action, z,
     done = done.unsqueeze(1).unsqueeze(2).float()
 
     # Bellman operation
-    target_z = reward + (1 - done) * gamma * z.unsqueeze(0).unsqueeze(0)  # Shape: [batch_size, action_size, atomn]
+    target_z = reward + (1 - done) * (gamma**nstep) * z.unsqueeze(0).unsqueeze(0)  # Shape: [batch_size, action_size, atomn]
     # Clip and project back to atom support
     target_z = torch.clamp(target_z, Vmin, Vmax)  # Clip values
 
