@@ -46,11 +46,11 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,nois
     max_abstd = 1 # initial max priority
     ## memory parameters
     memory_size = 1000 # memory capacity
-    batch_size = 100 # experience mini-batch size
+    batch_size = 3 # experience mini-batch size
     ## distributional RL atoms size
     Vmin = -100
     Vmax = 30
-    atomn = 51
+    atomn = 6
 
     ## etc.
     #lr = 0.01
@@ -356,14 +356,14 @@ def train_model(Q, data, weights, device):
 
         # Compute predictions
         predictions = Q(states) 
-        predictions = predictions.gather(1, actions).squeeze(1) # Get Q-values for the selected actions
-
-        td_errors = targets - predictions
         # compute_loss
         if Q.distributional:
+            
             loss = Q.loss_fn(predictions.log(), targets)  # Cross-entropy between predicted and target distributions
         else:
             # loss = Q.loss_fn(predictions, targets) # Compute the loss
+            predictions = predictions.gather(1, actions).squeeze(1) # Get Q-values for the selected actions
+            td_errors = targets - predictions
             loss = (weights * (td_errors ** 2)).mean()
 
         # Backpropagation
