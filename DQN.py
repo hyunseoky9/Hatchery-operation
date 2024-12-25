@@ -133,7 +133,6 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,nois
         t = 0 # timestep num
         while done == False:    
             if t > 0:
-                ep = 0 
                 a = choose_action(S, Q, ep, action_size,distributional)
             else:
                 a = random.randint(0, action_size-1) # first action in the episode is random for added exploration
