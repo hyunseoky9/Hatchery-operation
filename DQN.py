@@ -40,6 +40,10 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,nois
     Vmin = -100
     Vmax = 30
     atomn = 51
+    if distributional:
+        z = torch.linspace(Vmin, Vmax, atomn).to(device)  # Fixed atom values
+
+
     ## etc.
     #lr = 0.01
     #min_lr = 1e-6
@@ -226,14 +230,21 @@ def _make_discrete_Q(Q,env,device):
             Q_discrete[i,:] = Q(states[i].unsqueeze(0)).detach().cpu().numpy()
     return Q_discrete
 
-def choose_action(state, Q, epsilon, action_size):
+def choose_action(state, Q, epsilon, action_size, z, distributional):
     # Choose an action
     if random.random() < epsilon:
         action = random.randint(0, action_size-1)
     else:
+        z.to(Qs.device)
         state = torch.tensor(state, dtype=torch.float32).unsqueeze(0)  # Add batch dimension
         Qs = Q(state)
-        action = torch.argmax(Qs).item()
+
+        if distributional:
+            Q_expected = torch.sum(Qs * z, dim=-1) # sum over atoms for each action
+            action = torch.argmax(Q_expected).item()
+
+        else:
+            action = torch.argmax(Qs).item()
     return action
 
 class Memory():

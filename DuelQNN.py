@@ -83,7 +83,10 @@ class DuelQNN(nn.Module):
         self.advantage_linear_relu_stack = nn.Sequential(*advantage_layers)
 
         # loss and optimizer
-        self.loss_fn = nn.MSELoss()
+        if distributional: 
+            self.loss_fn = nn.CrossEntropyLoss()
+        else:
+            self.loss_fn = nn.MSELoss()
         #self.optimizer = torch.optim.SGD(self.parameters(), lr=self.learning_rate)
         #self.optimizer = torch.optim.RMSprop(self.parameters(), lr=self.learning_rate)
         #self.optimizer = torch.optim.AdamW(self.parameters(), lr=self.learning_rate)
