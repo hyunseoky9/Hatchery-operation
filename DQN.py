@@ -130,10 +130,12 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,nois
 
         t = 0 # timestep num
         while done == False:    
-            if t > 0:    
+            if t > 0:
+                ep = 0 
                 a = choose_action(S, Q, ep, action_size,distributional)
             else:
                 a = random.randint(0, action_size-1) # first action in the episode is random for added exploration
+
             reward, done, rate = env.step(a) # take a step
             nq.add(S, a, reward, env.state, done, memory, PrioritizedReplay) # add transition to queue
             S = env.state # update state
@@ -161,8 +163,8 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,nois
                 target_Qs = Q_target(next_states)
                 if DDQN:
                     if distributional:
-                        next_z = torch.sum(target_Qs * Q.z, dim=-1)  # Expected Q-values for each action
-                        best_actions = torch.argmax(next_z, dim=-1).unsqueeze(1)  # Best action                        
+                        next_EQ = torch.sum(target_Qs * Q.z, dim=-1)  # Expected Q-values for each action
+                        best_actions = torch.argmax(next_EQ, dim=-1).unsqueeze(1)  # Best action                        
                         targets = compute_target_distribution(rewards, dones, gamma, target_Qs, best_actions, Q.z, atomn, Vmin, Vmax)                        
                     else:
                         if dones.any():
@@ -171,8 +173,8 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,nois
                         targets = rewards + (gamma**nstep) * target_Qs.gather(1, next_actions.unsqueeze(1)).squeeze(1)
                 else:
                     if distributional:
-                        next_z = torch.sum(target_Qs * Q.z, dim=-1)  # Expected Q-values for each action
-                        best_actions = torch.argmax(next_z, dim=-1).unsqueeze(1)  # Best action
+                        next_EQ = torch.sum(target_Qs * Q.z, dim=-1)  # Expected Q-values for each action
+                        best_actions = torch.argmax(next_EQ, dim=-1).unsqueeze(1)  # Best action
                         targets = compute_target_distribution(rewards, dones, gamma, target_Qs, best_actions, Q.z, atomn, Vmin, Vmax)
                     else:
                         if dones.any():
