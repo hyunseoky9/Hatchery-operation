@@ -56,13 +56,12 @@ class QNN(nn.Module):
         
     def forward(self, x):
         #x_norm = self.normalize(x)
+        logits = self.linear_relu_stack(x)
         if self.distributional:
-            logits = self.linear_relu_stack(x)
             logits = logits.view(-1, self.action_size, self.atomn)  # Reshape for actions and atoms
             probabilities = torch.softmax(logits, dim=-1)  # Apply softmax across the atoms
             return probabilities
         else:
-            logits = self.linear_relu_stack(x)
             return logits
 
     def disable_noise(self):
