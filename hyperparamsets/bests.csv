@@ -1,27 +1,29 @@
-theme,ranking,ranking,ranking,ranking,ranking,noisy net test,noisy net test,noisy net test,noisy net test,distributional test,distributional test
-training_cycle,7,7,7,7,7,7,7,7,7,7,7
-target_update_cycle,15,22,10,22,10,15,15,15,15,15,15
-lr,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01
-lrdecaytype,exp,exp,exp,exp,exp,exp,exp,exp,exp,exp,exp
-lrdecay,0.9997,0.99992,0.9997,0.9997,0.9997,0.9997,0.9998,0.9999,0.9999,0.9997,0.9997
-minlr,inf,inf,inf,inf,inf,inf,inf,inf,inf,inf,inf
-layer_n,3,3,3,3,3,3,3,3,3,3,3
-layer_width,30,30,30,30,30,30,30,30,30,30,30
-epsilon,4;100000;0.1;-30/fix;-fix*0.4,4;100000;0.1;-30/fix;-fix*0.4,4;100000;0.1;-30/fix;-fix*0.4,4;100000;0.1;-30/fix;-fix*0.4,4;100000;0.1;-30/fix;-fix*0.4,4;100000;0.1;-30/fix;-fix*0.4,4;100000;0.1;-30/fix;-fix*0.4,4;100000;0.1;-30/fix;-fix*0.4,4;100000;0.1;-30/fix;-fix*0.4,4;100000;0.1;-30/fix;-fix*0.4,4;100000;0.1;-30/fix;-fix*0.4
-ddqn,T,T,T,T,T,T,T,T,T,T,T
-dueling,F,F,F,F,F,F,F,F,F,F,F
-hidden_shared_num,1,1,1,1,1,1,1,1,1,1,1
-hidden_split_num,1,1,1,1,1,1,1,1,1,1,1
-hidden_shared_width,30,30,30,30,30,30,30,30,30,30,30
-hidden_split_width,30,30,30,30,30,30,30,30,30,30,30
-prioritized,F,F,F,F,T,F,F,F,F,F,F
-beta0,0.6,0.6,0.6,0.6,0.6,0.6,0.6,0.6,0.6,0.6,0.6
-alpha,0.6,0.6,0.6,0.6,0.6,0.6,0.6,0.6,0.6,0.6,0.6
-nstep,1,1,1,1,1,1,1,1,1,1,1
-noisy,F,F,F,F,F,T,T,T,T,F,F
-distributional,F,F,F,F,F,F,F,F,F,F,F
-atomn,0,0,0,0,0,0,0,0,0,6,6
-episodenum,20000,20000,20000,20000,20000,10000,10000,10000,20000,10000,10000
-seed,11,11,11,11,11,11,11,11,11,12,12
-min_MSE,6.6,9.9,11.78,13.39,13.52,358,185,180,94,35,35
-note,so that it trains at least twice before updating,train thrice before updating; slower rl decay,20000 with vanilla,train thrice before updating,PER with 20000,noisy net first run!,noisy net test decreased learning rate decay,noisy net test further decrease in learning rate decay,increase episode num,first test on distributional. Increase decay rate,51 atoms
+theme,ranking,ranking,ranking,ranking,ranking,noisy net test,noisy net test,noisy net test,noisy net test,distributional test,distributional test,distributional test,distributional test,distributional test,distributional test,distributional test,distributional test,distributional test,distributional test,distributional test
+training_cycle,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7
+target_update_cycle,15,22,10,22,10,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15
+lr,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01
+lrdecaytype,exp,exp,exp,exp,exp,exp,exp,exp,exp,exp,exp,exp,exp,exp,exp,exp,exp,exp,exp,exp
+lrdecay,0.9997,0.99992,0.9997,0.9997,0.9997,0.9997,0.9998,0.9999,0.9999,0.9997,0.9994,0.9997,0.9997,0.9995,0.9992,0.9992,0.9992,0.9992,0.9992,0.9992
+minlr,inf,inf,inf,inf,inf,inf,inf,inf,inf,inf,inf,inf,inf,inf,inf,inf,inf,inf,inf,inf
+layer_n,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3
+layer_width,30,30,30,30,30,30,30,30,30,30,64,64,40,40,64,40,40,40,40,40
+epsilon,4;100000;0.1;-30/fix;-fix*0.4,4;100000;0.1;-30/fix;-fix*0.4,4;100000;0.1;-30/fix;-fix*0.4,4;100000;0.1;-30/fix;-fix*0.4,4;100000;0.1;-30/fix;-fix*0.4,4;100000;0.1;-30/fix;-fix*0.4,4;100000;0.1;-30/fix;-fix*0.4,4;100000;0.1;-30/fix;-fix*0.4,4;100000;0.1;-30/fix;-fix*0.4,4;100000;0.1;-30/fix;-fix*0.4,4;100000;0.1;-30/fix;-fix*0.4,4;100000;0.1;-30/fix;-fix*0.4,4;100000;0.1;-30/fix;-fix*0.4,4;100000;0.1;-30/fix;-fix*0.4,4;100000;0.1;-30/fix;-fix*0.4,4;100000;0.1;-30/fix;-fix*0.4,4;100000;0.1;-30/fix;-fix*0.4,4;100000;0.1;-30/fix;-fix*0.4,4;100000;0.1;-30/fix;-fix*0.4,4;100000;0.1;-30/fix;-fix*0.4
+ddqn,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T
+dueling,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F
+hidden_shared_num,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+hidden_split_num,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+hidden_shared_width,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30
+hidden_split_width,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30
+prioritized,F,F,F,F,T,F,F,F,F,T,T,T,T,T,T,T,T,T,F,F
+beta0,0.6,0.6,0.6,0.6,0.6,0.6,0.6,0.6,0.6,0.6,0.6,0.6,0.6,0.6,0.6,0.6,0.6,0.6,0.6,0.6
+alpha,0.6,0.6,0.6,0.6,0.6,0.6,0.6,0.6,0.6,0.6,0.6,0.6,0.6,0.6,0.6,0.6,0.6,0.6,0.6,0.6
+nstep,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+noisy,F,F,F,F,F,T,T,T,T,F,F,F,F,F,F,F,F,F,F,F
+distributional,F,F,F,F,F,F,F,F,F,T,T,T,T,T,T,T,T,T,T,T
+atomn,0,0,0,0,0,0,0,0,0,6,51,51,21,21,51,21,26,16,16,16
+vmin,0,0,0,0,0,0,0,0,0,-100,-100,-100,-100,-100,-100,-100,-100,-100,-100,-104
+vmax,0,0,0,0,0,0,0,0,0,30,30,30,30,30,50,50,70,70,70,70
+episodenum,20000,20000,20000,20000,20000,10000,10000,10000,20000,10000,20000,20000,20000,20000,20000,15000,15000,15000,15000,15000
+seed,11,11,11,11,11,11,11,11,11,12,12,12,12,12,12,12,12,12,12,12
+min_MSE,6.6,9.9,11.78,13.39,13.52,358,185,180,94,35,33,20,20,21,21,16.6,11.8,10.55,9.46,37
+note,so that it trains at least twice before updating,train thrice before updating; slower rl decay,20000 with vanilla,train thrice before updating,PER with 20000,noisy net first run!,noisy net test decreased learning rate decay,noisy net test further decrease in learning rate decay,increase episode num,first test on distributional. Increase decay rate,51 atoms,higher learning rate,21 atoms,faster lr,increased vmax,lowered atomn and layer width,,fewer atoms,turned off PER,decreased Vmin

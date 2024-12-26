@@ -32,7 +32,7 @@ def Rainbow(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,
     # DQN
     state_size = len(env.statespace_dim)
     action_size = env.actionspace_dim[0]
-    hidden_size = 30
+    hidden_size = 40
     hidden_num = 3
     # Dueling DQN
     hidden_num_shared = 1
@@ -40,17 +40,17 @@ def Rainbow(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,
     hidden_size_shared = 30
     hidden_size_split = 30
     # Prioritized Replay
-    alpha = 0.6 # priority importance
-    beta0 = 0.6 # initial beta
+    alpha = 0.4 # priority importance
+    beta0 = 0.4 # initial beta
     per_epsilon = 1e-6 # small value to avoid zero priority
     max_abstd = 1 # initial max priority
     ## memory parameters
     memory_size = 1000 # memory capacity
     batch_size = 100 # experience mini-batch size
     ## distributional RL atoms size
-    Vmin = -100
-    Vmax = 30
-    atomn = 51
+    Vmin = -104
+    Vmax = 70
+    atomn = 16
 
     ## etc.
     #lr = 0.01
