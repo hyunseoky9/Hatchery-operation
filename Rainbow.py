@@ -11,7 +11,7 @@ from PrioritizedMemory import *
 from nq import *
 from distributionalRL import *
 
-def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,noisy,distributional,lrdecayrate,lr,min_lr,training_cycle,target_update_cycle):
+def Rainbow(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,noisy,distributional,lrdecayrate,lr,min_lr,training_cycle,target_update_cycle):
     # train using Deep Q Network
     # env: environment class object
     # num_episodes: number of episodes to train 
