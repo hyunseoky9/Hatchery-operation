@@ -118,7 +118,6 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,nois
     i = 0 # peisode num
     # run through the episodes
     while i < num_episodes: #delta > theta:
-        print(i)
         # update epsilon
         if noisy: # turn off epsilon greedy for noisy nets
             ep = 0
