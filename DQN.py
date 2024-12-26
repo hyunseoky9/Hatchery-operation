@@ -118,6 +118,7 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,nois
     i = 0 # peisode num
     # run through the episodes
     while i < num_episodes: #delta > theta:
+        print(i)
         # update epsilon
         if noisy: # turn off epsilon greedy for noisy nets
             ep = 0
@@ -203,9 +204,20 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,nois
             print(f"Episode {i}, Learning Rate: {current_lr} MSE: {round(mse_value,2)}")
             meansig = 0
             if noisy:
-                for layer in Q.linear_relu_stack:
-                    if hasattr(layer, 'mu'):
-                        meansig += layer.sigma.mean().item()
+                if DuelingDQN:
+                    for layer in Q.shared_linear_relu_stack:
+                        if hasattr(layer, 'mu'):
+                            meansig += layer.sigma.mean().item()
+                    for layer in Q.value_linear_relu_stack:
+                        if hasattr(layer, 'mu'):
+                            meansig += layer.sigma.mean().item()
+                    for layer in Q.advantage_linear_relu_stack:
+                        if hasattr(layer, 'mu'):
+                            meansig += layer.sigma.mean().item()
+                else:
+                    for layer in Q.linear_relu_stack:
+                        if hasattr(layer, 'mu'):
+                            meansig += layer.sigma.mean().item()
                 print(f"avg sigma: {layer.sigma.mean().item()}")
             print('-----------------------------------')
 

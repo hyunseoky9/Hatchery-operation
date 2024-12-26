@@ -50,7 +50,7 @@ class DuelQNN(nn.Module):
                 for _ in range(self.hidden_num_split - 1):
                     advantage_layers.append(NoisyLinear(hidden_size_split, hidden_size_split))
                     advantage_layers.append(nn.ReLU())
-                advantage_layers.append(NoisyLinear(hidden_size_split, action_size))
+                advantage_layers.append(NoisyLinear(hidden_size_split, action_size*self.atomn))
             else:
                 advantage_layers = [NoisyLinear(hidden_size_shared, action_size*self.atomn)]
         else:
@@ -74,7 +74,7 @@ class DuelQNN(nn.Module):
                 for _ in range(self.hidden_num_split - 1):
                     advantage_layers.append(nn.Linear(hidden_size_split, hidden_size_split))
                     advantage_layers.append(nn.ReLU())
-                advantage_layers.append(nn.Linear(hidden_size_split, action_size))
+                advantage_layers.append(nn.Linear(hidden_size_split, action_size*self.atomn))
             else:
                 advantage_layers = [nn.Linear(hidden_size_shared, action_size*self.atomn)]
 
