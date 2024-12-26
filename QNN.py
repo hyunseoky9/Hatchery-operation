@@ -6,7 +6,7 @@ from NoisyLinear import NoisyLinear
 
 # Define model
 class QNN(nn.Module):
-    def __init__(self, state_size, action_size, hidden_size, hidden_num, learning_rate, state_min, state_max,lrdecayrate, noisy):
+    def __init__(self, state_size, action_size, hidden_size, hidden_num, learning_rate, state_min, state_max,lrdecayrate, noisy, distributional, atomn, Vmin, Vmax):
         super().__init__()
         self.action_size = action_size
         self.state_size = state_size
@@ -14,6 +14,12 @@ class QNN(nn.Module):
         self.hidden_num = hidden_num
         self.learning_rate = learning_rate
         self.noisy = noisy
+        self.distributional = distributional
+        if distributional:
+            self.atomn = atomn
+            self.z = torch.linspace(Vmin, Vmax, atomn)
+        else:
+            self.atomn = 1
 
         # normalization parameters
         self.state_min = state_min
@@ -25,19 +31,22 @@ class QNN(nn.Module):
             for _ in range(self.hidden_num - 1):
                 layers.append(NoisyLinear(hidden_size, hidden_size))
                 layers.append(nn.ReLU())
-            layers.append(NoisyLinear(hidden_size, action_size))
+            layers.append(NoisyLinear(hidden_size, action_size * self.atomn))
         else:
             layers = [nn.Linear(state_size, hidden_size), nn.ReLU()]
             for _ in range(self.hidden_num - 1):
                 layers.append(nn.Linear(hidden_size, hidden_size))
                 layers.append(nn.ReLU())
-            layers.append(nn.Linear(hidden_size, action_size))
+            layers.append(nn.Linear(hidden_size, action_size * self.atomn))
 
         # Creating the Sequential module
         self.linear_relu_stack = nn.Sequential(*layers)
 
         # loss and optimizer
-        self.loss_fn = nn.MSELoss()
+        if self.distributional: # distributional
+            self.loss_fn = nn.CrossEntropyLoss()
+        else: # normal Q-learning
+            self.loss_fn = nn.MSELoss()
         #self.optimizer = torch.optim.SGD(self.parameters(), lr=self.learning_rate)
         #self.optimizer = torch.optim.RMSprop(self.parameters(), lr=self.learning_rate)
         #self.optimizer = torch.optim.AdamW(self.parameters(), lr=self.learning_rate)
@@ -49,7 +58,12 @@ class QNN(nn.Module):
     def forward(self, x):
         #x_norm = self.normalize(x)
         logits = self.linear_relu_stack(x)
-        return logits
+        if self.distributional:
+            logits = logits.view(-1, self.action_size, self.atomn)  # Reshape for actions and atoms
+            probabilities = torch.softmax(logits, dim=-1)  # Apply softmax across the atoms
+            return probabilities
+        else:
+            return logits
 
     def disable_noise(self):
         # Disable noise for all NoisyLinear layers (for validation)

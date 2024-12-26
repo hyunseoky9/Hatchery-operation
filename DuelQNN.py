@@ -6,7 +6,7 @@ from NoisyLinear import NoisyLinear
 
 # Define model
 class DuelQNN(nn.Module):
-    def __init__(self, state_size, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared, hidden_num_split, learning_rate, state_min, state_max, lrdecayrate, noisy):
+    def __init__(self, state_size, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared, hidden_num_split, learning_rate, state_min, state_max, lrdecayrate, noisy, distributional, atomn, Vmin, Vmax):
         super().__init__()
         # architecture parameters
         self.action_size = action_size
@@ -16,6 +16,12 @@ class DuelQNN(nn.Module):
         self.hidden_num_shared = hidden_num_shared
         self.hidden_num_split = hidden_num_split
         self.learning_rate = learning_rate
+        self.distributional = distributional
+        if distributional:
+            self.atomn = atomn
+            self.z = torch.linspace(Vmin, Vmax, atomn)
+        else:
+            self.atomn = 1
 
         # normalization parameters
         self.state_min = state_min
@@ -44,9 +50,9 @@ class DuelQNN(nn.Module):
                 for _ in range(self.hidden_num_split - 1):
                     advantage_layers.append(NoisyLinear(hidden_size_split, hidden_size_split))
                     advantage_layers.append(nn.ReLU())
-                advantage_layers.append(NoisyLinear(hidden_size_split, action_size))
+                advantage_layers.append(NoisyLinear(hidden_size_split, action_size*self.atomn))
             else:
-                advantage_layers = [NoisyLinear(hidden_size_shared, action_size)]
+                advantage_layers = [NoisyLinear(hidden_size_shared, action_size*self.atomn)]
         else:
             shared_layers = [nn.Linear(state_size, hidden_size_shared), nn.ReLU()]
             for _ in range(self.hidden_num_shared - 1):
@@ -68,9 +74,9 @@ class DuelQNN(nn.Module):
                 for _ in range(self.hidden_num_split - 1):
                     advantage_layers.append(nn.Linear(hidden_size_split, hidden_size_split))
                     advantage_layers.append(nn.ReLU())
-                advantage_layers.append(nn.Linear(hidden_size_split, action_size))
+                advantage_layers.append(nn.Linear(hidden_size_split, action_size*self.atomn))
             else:
-                advantage_layers = [nn.Linear(hidden_size_shared, action_size)]
+                advantage_layers = [nn.Linear(hidden_size_shared, action_size*self.atomn)]
 
         # Creating the Sequential module
         self.shared_linear_relu_stack = nn.Sequential(*shared_layers)
@@ -78,7 +84,10 @@ class DuelQNN(nn.Module):
         self.advantage_linear_relu_stack = nn.Sequential(*advantage_layers)
 
         # loss and optimizer
-        self.loss_fn = nn.MSELoss()
+        if distributional: 
+            self.loss_fn = nn.CrossEntropyLoss()
+        else:
+            self.loss_fn = nn.MSELoss()
         #self.optimizer = torch.optim.SGD(self.parameters(), lr=self.learning_rate)
         #self.optimizer = torch.optim.RMSprop(self.parameters(), lr=self.learning_rate)
         #self.optimizer = torch.optim.AdamW(self.parameters(), lr=self.learning_rate)
@@ -94,7 +103,13 @@ class DuelQNN(nn.Module):
         advantage = self.advantage_linear_relu_stack(shared_output)
         logits = value + (advantage - advantage.mean(dim=1, keepdim=True))
         #logits = value + (advantage - advantage.mean())       
-        return logits
+        if self.distributional:
+            logits = logits.view(-1, self.action_size, self.atomn)  # Reshape for actions and atoms
+            probabilities = torch.softmax(logits, dim=-1)  # Apply softmax across the atoms
+            return probabilities
+        else:
+
+            return logits
 
 
     def disable_noise(self):
