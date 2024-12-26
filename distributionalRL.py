@@ -60,9 +60,13 @@ def project_distribution(target_z, z, atomn, probs):
     """
     delta_z = z[1] - z[0]  # Atom spacing
     b = torch.abs((target_z - z[0]) / delta_z)  # Compute absolute positions in the atom space
+    b = b.clamp(0, atomn - 1) # ensure b is within bounds
     lower = torch.floor(b).long()  # Lower atom indices
     upper = torch.ceil(b).long()  # Upper atom indices
     
+    lower = torch.clamp(lower, 0, atomn - 1) # ensure lower index is within bounds
+    upper = torch.clamp(upper, 0, atomn - 1) # ensure upper index is withint bounds
+
     # Identify exact matches (where b is an integer)
     exact_match = (b % 1 == 0)
 

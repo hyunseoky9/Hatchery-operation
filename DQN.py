@@ -50,7 +50,7 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,nois
     ## distributional RL atoms size
     Vmin = -100
     Vmax = 30
-    atomn = 6
+    atomn = 51
 
     ## etc.
     #lr = 0.01
@@ -165,7 +165,7 @@ def DQN(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,nois
                     if distributional:
                         next_EQ = torch.sum(target_Qs * Q.z, dim=-1)  # Expected Q-values for each action
                         best_actions = torch.argmax(next_EQ, dim=-1).unsqueeze(1)  # Best action                        
-                        targets = compute_target_distribution(rewards, dones, gamma, target_Qs, best_actions, Q.z, atomn, Vmin, Vmax)                        
+                        targets = compute_target_distribution(rewards, dones, gamma, nstep, target_Qs, best_actions, Q.z, atomn, Vmin, Vmax)                        
                     else:
                         if dones.any():
                             target_Qs[episode_ends] = torch.zeros(action_size)
