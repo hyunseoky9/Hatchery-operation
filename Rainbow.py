@@ -10,8 +10,9 @@ from DuelQNN import DuelQNN
 from PrioritizedMemory import *
 from nq import *
 from distributionalRL import *
+from calc_performance import *
 
-def Rainbow(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,noisy,distributional,lrdecayrate,lr,min_lr,training_cycle,target_update_cycle):
+def Rainbow(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,noisy,distributional,lrdecayrate,lr,min_lr,training_cycle,target_update_cycle,calc_MSE):
     # train using Deep Q Network
     # env: environment class object
     # num_episodes: number of episodes to train 
@@ -107,15 +108,21 @@ def Rainbow(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,
         reachable_actions = torch.tensor([i[1] for i in reachables], dtype=torch.int64).unsqueeze(1)
         
     # load Q function from the value iteration for calculating MSE
-    if env.envID == 'Env1.0':
-        with open(f"value iter results/Q_Env1.0_par{env.parset}_dis{env.discset}_valiter.pkl", "rb") as file:
-            Q_vi = pickle.load(file)
-        Q_vi = torch.tensor(Q_vi[reachable_uniquestateid].flatten(), dtype=torch.float32)
+    if calc_MSE:
+        if env.envID == 'Env1.0':
+            with open(f"value iter results/Q_Env1.0_par{env.parset}_dis{env.discset}_valiter.pkl", "rb") as file:
+                Q_vi = pickle.load(file)
+            Q_vi = torch.tensor(Q_vi[reachable_uniquestateid].flatten(), dtype=torch.float32)
     MSE = []
-    print('-----------------------------------------------')
+    # initialize reward performance receptacle
+    rewards100 = [] # average of last 100 rewards
+    totRs = 0 # total reward sums
+
     # initialize counters
     j = 0 # training cycle counter
     i = 0 # peisode num
+    print('-----------------------------------------------')
+
     # run through the episodes
     while i < num_episodes: #delta > theta:
         # update epsilon
@@ -127,6 +134,7 @@ def Rainbow(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,
         env.reset(initlist) # random initialization
         S = env.state
         done = False
+        totR = 0 # total reward
 
         t = 0 # timestep num
         while done == False:    
@@ -136,6 +144,7 @@ def Rainbow(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,
                 a = random.randint(0, action_size-1) # first action in the episode is random for added exploration
 
             reward, done, rate = env.step(a) # take a step
+            totR += reward
             nq.add(S, a, reward, env.state, done, memory, PrioritizedReplay) # add transition to queue
             S = env.state # update state
             if t >= max_steps: # finish episode if max steps reached even if terminal state not reached
@@ -194,9 +203,14 @@ def Rainbow(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,
                 
             t += 1 # update timestep
             j += 1 # update training cycle
+        totRs += totR
         if i % 100 == 0:
-            mse_value = test_model(Q, reachable_states, reachable_actions, Q_vi, noisy, device)
-            MSE.append(mse_value)
+            if calc_MSE:
+                mse_value = test_model(Q, reachable_states, reachable_actions, Q_vi, noisy, device)
+                MSE.append(mse_value)
+            rewards100.append(totRs/100)
+            totRs = 0
+            
 
         if i % 1000 == 0: # print outs
             current_lr = Q.optimizer.param_groups[0]['lr']
@@ -244,7 +258,7 @@ def Rainbow(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,
             pickle.dump(policy, file)
     ## save MSE
     np.save(f"{wd}/MSE_{env.envID}_par{env.parset}_dis{env.discset}_DQN.npy", MSE)
-    return Q_discrete, policy, MSE
+    return Q_discrete, policy, MSE, performance
 
 def _make_discrete_Q(Q,env,device):
     # make a discrete Q table
