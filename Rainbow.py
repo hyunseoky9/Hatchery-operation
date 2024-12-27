@@ -1,3 +1,5 @@
+import subprocess
+import os
 import torch
 from torch import nn
 from torchvision.transforms import ToTensor
@@ -64,6 +66,18 @@ def Rainbow(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,
 
     ## testing settings
     external_testing = True # if True, outputs Q every x episodes and another script tests the Q function
+    if external_testing:
+        testwd = './deepQN results/training Q network'
+        # delete all files in this wd to not test the old Q networks
+        for file in os.listdir(testwd):
+            os.remove(os.path.join(testwd,file))
+        # run the testing script in a separate process
+        # Define the script and arguments
+        script_name = "performance_tester.py"
+        args = ["--num_episodes", f"{num_episodes}", "--DQNorPolicy", "0"]
+        # Run the script independently with arguments
+        #subprocess.Popen(["python", script_name] + args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.Popen(["python", script_name] + args)
 
     ## normalization parameters
     state_max = torch.tensor(env.statespace_dim, dtype=torch.float32) - 1
@@ -121,7 +135,10 @@ def Rainbow(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,
     MSE = []
     # initialize reward performance receptacle
     avgperformances = [] # average of rewards over 100 episodes with policy following trained Q
+    performance_sampleN = 1000
+    final_performance_sampleN = 10000
     final_avgreward = 0
+    print(f'performance sampling: {performance_sampleN}/{final_performance_sampleN}')
 
     # initialize counters
     j = 0 # training cycle counter
@@ -213,18 +230,19 @@ def Rainbow(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,
         if i % 1000 == 0: # calculate average reward over 1000 episodes
             if external_testing:
                 if env.envID == 'Env1.0':
-                    wd = './deepQN results'
-                    torch.save(Q.state_dict(), f"{wd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN_episode{i}.pt")
+                    wd = './deepQN results/training Q network'
+                    torch.save(Q, f"{wd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN_episode{i}.pt")
             else:
-                avgperformance = calc_performance(env,Q,None,1000)
+                avgperformance = calc_performance(env,Q,None,performance_sampleN)
                 avgperformances.append(avgperformance)
-
-            #avgperformance = 0
 
             
 
         if i % 1000 == 0: # print outs
             current_lr = Q.optimizer.param_groups[0]['lr']
+            if external_testing:
+                avgperformance = 'using external testing'
+
             if calc_MSE:
                 print(f"Episode {i}, Learning Rate: {current_lr} MSE: {round(mse_value,2)} Avg Performance: {avgperformance}")
             else:
@@ -259,13 +277,18 @@ def Rainbow(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,
 
     # calculate final average reward
     print('calculating the average reward with the final Q network')
-    #final_avgreward = calc_performance(env,Q,None,10000)
+    if external_testing == False:
+        final_avgreward = calc_performance(env,Q,None,final_performance_sampleN)
+    else:
+        if env.envID == 'Env1.0':
+            wd = './deepQN results/training Q network'
+            torch.save(Q, f"{wd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN_episode{i}.pt")
 
     # save results and performance metrics.
     ## save model
     if env.envID == 'Env1.0':
         wd = './deepQN results'
-        torch.save(Q.state_dict(), f"{wd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pt")
+        torch.save(Q, f"{wd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pt")
     ## make a discrete Q table if the environment is discrete and save it
     if env.envID == 'Env1.0':
         Q_discrete = _make_discrete_Q(Q,env,device)
@@ -276,8 +299,9 @@ def Rainbow(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,
         with open(f"{wd}/policy_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pkl", "wb") as file:
             pickle.dump(policy, file)
     ## save performance
-    avgperformances.append(final_avgreward)
-    np.save(f"{wd}/rewards_{env.envID}_par{env.parset}_dis{env.discset}_DQN.npy", avgperformances)
+    if external_testing == False:
+        avgperformances.append(final_avgreward)
+        np.save(f"{wd}/rewards_{env.envID}_par{env.parset}_dis{env.discset}_DQN.npy", avgperformances)
     ## save MSE
     np.save(f"{wd}/MSE_{env.envID}_par{env.parset}_dis{env.discset}_DQN.npy", MSE)
     return Q_discrete, policy, MSE, avgperformances, final_avgreward
