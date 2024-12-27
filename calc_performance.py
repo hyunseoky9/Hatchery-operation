@@ -1,4 +1,4 @@
-from Rainbow import choose_action
+from choose_action import choose_action
 def calc_performance(env,Q=None,policy=None,episodenum=1000):
     """
     calculate the performance of the agent in the environment.

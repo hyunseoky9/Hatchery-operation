@@ -106,7 +106,8 @@ def Rainbow(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,
         reachable_states = torch.tensor([env._unflatten(i[0]) for i in reachables], dtype=torch.float32)
         reachable_uniquestateid = torch.tensor(env.reachable_states(), dtype=torch.int64)
         reachable_actions = torch.tensor([i[1] for i in reachables], dtype=torch.int64).unsqueeze(1)
-        
+    
+    ## initialize performance metrics
     # load Q function from the value iteration for calculating MSE
     if calc_MSE:
         if env.envID == 'Env1.0':
@@ -115,8 +116,8 @@ def Rainbow(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,
             Q_vi = torch.tensor(Q_vi[reachable_uniquestateid].flatten(), dtype=torch.float32)
     MSE = []
     # initialize reward performance receptacle
-    rewards100 = [] # average of last 100 rewards
-    totRs = 0 # total reward sums
+    avgperformances = [] # average of rewards over 100 episodes with policy following trained Q
+    final_avgreward = 0
 
     # initialize counters
     j = 0 # training cycle counter
@@ -134,7 +135,6 @@ def Rainbow(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,
         env.reset(initlist) # random initialization
         S = env.state
         done = False
-        totR = 0 # total reward
 
         t = 0 # timestep num
         while done == False:    
@@ -144,7 +144,6 @@ def Rainbow(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,
                 a = random.randint(0, action_size-1) # first action in the episode is random for added exploration
 
             reward, done, rate = env.step(a) # take a step
-            totR += reward
             nq.add(S, a, reward, env.state, done, memory, PrioritizedReplay) # add transition to queue
             S = env.state # update state
             if t >= max_steps: # finish episode if max steps reached even if terminal state not reached
@@ -203,22 +202,22 @@ def Rainbow(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,
                 
             t += 1 # update timestep
             j += 1 # update training cycle
-        totRs += totR
         if i % 100 == 0:
             if calc_MSE:
                 mse_value = test_model(Q, reachable_states, reachable_actions, Q_vi, noisy, device)
                 MSE.append(mse_value)
-            avgreward = totRs/100
-            rewards100.append(avgreward)
-            totRs = 0
+            avgperformance = calc_performance(env,Q,None,100)
+            avgperformances.append(avgperformance)
+            #avgperformance = 0
+
             
 
         if i % 1000 == 0: # print outs
             current_lr = Q.optimizer.param_groups[0]['lr']
             if calc_MSE:
-                print(f"Episode {i}, Learning Rate: {current_lr} MSE: {round(mse_value,2)} Last 100 Avg Rewards: {avgreward}")
+                print(f"Episode {i}, Learning Rate: {current_lr} MSE: {round(mse_value,2)} Avg Performance: {avgperformance}")
             else:
-                print(f"Episode {i}, Learning Rate: {current_lr} Last 100 Avg Rewards: {avgreward}")
+                print(f"Episode {i}, Learning Rate: {current_lr} Avg Performance: {avgperformance}")
 
             meansig = 0
             if noisy:
@@ -248,7 +247,8 @@ def Rainbow(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,
         i += 1 # update episode number
 
     # calculate final average reward
-    final_avgreward = calc_performance(env,Q,None,10000)
+    print('calculating the average reward with the final Q network')
+    #final_avgreward = calc_performance(env,Q,None,10000)
 
     # save results and performance metrics.
     ## save model
@@ -264,9 +264,12 @@ def Rainbow(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,
             pickle.dump(Q_discrete, file)
         with open(f"{wd}/policy_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pkl", "wb") as file:
             pickle.dump(policy, file)
+    ## save performance
+    avgperformances.append(final_avgreward)
+    np.save(f"{wd}/rewards_{env.envID}_par{env.parset}_dis{env.discset}_DQN.npy", avgperformances)
     ## save MSE
     np.save(f"{wd}/MSE_{env.envID}_par{env.parset}_dis{env.discset}_DQN.npy", MSE)
-    return Q_discrete, policy, MSE, rewards100, final_avgreward
+    return Q_discrete, policy, MSE, avgperformances, final_avgreward
 
 
 
@@ -283,20 +286,6 @@ def _make_discrete_Q(Q,env,device):
                 Q_discrete[i,:] = Q(states[i].unsqueeze(0)).detach().cpu().numpy()
     return Q_discrete
 
-def choose_action(state, Q, epsilon, action_size, distributional):
-    # Choose an action
-    if random.random() < epsilon:
-        action = random.randint(0, action_size-1)
-    else:
-        state = torch.tensor(state, dtype=torch.float32).unsqueeze(0)  # Add batch dimension
-        Qs = Q(state)
-
-        if distributional:
-            Q_expected = torch.sum(Qs * Q.z, dim=-1) # sum over atoms for each action
-            action = torch.argmax(Q_expected).item()
-        else:
-            action = torch.argmax(Qs).item()
-    return action
 
 class Memory():
     def __init__(self, max_size, state_dim, action_dim):
