@@ -3,7 +3,8 @@
 
 ### environment classes
 - *env1_0.py*: first mock model for hatchery operation and population dynamics
-- *env1.0_plotting_running.ipynb*: run the training algorithms (e.g. value iteration and td learning) and plot results
+- *env0_0.py*: mock model of env1.0 made for practicing tabular Q learning. Practically useless now.
+
 
 
 ### Algorithm running / plotting and analyzing outputs
@@ -18,20 +19,57 @@
 #### tabular Q learning
 - *td_learning_nonclass.py*: perform Q learning or sarsa on the model
 
+#### Deep Q Network (Rainbow)
+- *Rainbow.py*: main DQN script. Has all the features in Rainbow.
+- *choose_action.py*: choose action from Q or randomly depending on epsilon 
+- *distributionalRL.py*: distributional RL feature in rainbow
+- *DuelQNN.py*: Dueling network
+- *NoisyLinear.py*: Noisy network
+- *nq.py*: Queue for N-step learning
+- *PrioritizedMemory.py*: Prioritized memory buffer
+- *QNN.py*: Vanilla Q network
+
+### Others
+
+*calc_performance.py*: Calculates expected reward by environment simulation, given Q or policy.
+*performance_tester.py*: Uses calc_performance.py to calculate performance, used in tandem with RL algorithms (e.g., Rainbow.py). RL algorithms usually run this in a separate process for efficiency.
+
+*decay curves.R*: made visualizing different types of decay curves to decide on decay curve parameters. Used for epislon in epsilon-greedy and learning rate.
+
+Scripts made for practicing function approximation using neural net.
+- *fn_approx_practice.ipynb*
+- *fnapproxto.py*
+- *function_approximation_datagen.R*
+
+## Input Files
+Parameterization of the environments 
+- parameterization_env0.0.csv
+- parameterization_env1.0.csv
+
 ## Output Files
+### Q, V, policy outputs
+State action function, Value function, and Policy results made by RL algorithms
 - policy, Q, V function outputs (tabular ones)
 format: 
-{policy,Q, or V}_{model version}_par{parameterization id}\_dis{discretization id}\_{optimization algorithm used}.pkl
+{policy,Q, or V}_{model version}\_par{parameterization id}\_dis{discretization id}\_{optimization algorithm used}.pkl
 
 - Q function in network.
-QNetwork_{model version}_par{parameterization id}\_dis{discretization id}\_{optimization algorithm used}.pkl
+QNetwork_{model version}\_par{parameterization id}\_dis{discretization id}\_{optimization algorithm used}.pkl
 
 These files are in results folders
-
-### Folders
   - *td_results*: results from tabular Q learning
   - *value iter results*: results from value iteration
   - *deepQN results*: results from deep Q learning
+
+### Auxillary outputs
+These are outputs that aren't Q,V, or policy outputs but outputs made by the algorithm scripts that helps the algorithm calculate the policy or value functions efficiently. 
+
+- initQopt2_{envID}_par{parID}_dis{discID}.pkl: initial Q for tabular Q learning with initialization option 2. Check the td learning portion of env1.0_plotting_running.ipynb for details on initialization
+
+- initQopt3_{envID}_par{parID}_dis{discID}.pkl:initial Q for tabular Q learning with option 3.
+- trp_{envID}_par{parID}_dis{discID}.pkl: saved transition probability for the environment used for value iteration. Took one day of simulating transitions to make this.
+- {state var}prob(tau_)_{envID}_par{parID}_dis{discID}.pkl: saved transition probability for each state variable (e.g. H, NW) in different tau (season). Made for value iteration for env1.0, but not used because calculating transition probability by state variables did not do very well in getting expected transition probabilities.
+
 
 
 ## Environments.
