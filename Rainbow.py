@@ -208,13 +208,18 @@ def Rainbow(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,
             if calc_MSE:
                 mse_value = test_model(Q, reachable_states, reachable_actions, Q_vi, noisy, device)
                 MSE.append(mse_value)
-            rewards100.append(totRs/100)
+            avgreward = totRs/100
+            rewards100.append(avgreward)
             totRs = 0
             
 
         if i % 1000 == 0: # print outs
             current_lr = Q.optimizer.param_groups[0]['lr']
-            print(f"Episode {i}, Learning Rate: {current_lr} MSE: {round(mse_value,2)}")
+            if calc_MSE:
+                print(f"Episode {i}, Learning Rate: {current_lr} MSE: {round(mse_value,2)} Last 100 Avg Rewards: {avgreward}")
+            else:
+                print(f"Episode {i}, Learning Rate: {current_lr} Last 100 Avg Rewards: {avgreward}")
+
             meansig = 0
             if noisy:
                 if DuelingDQN:
@@ -242,6 +247,9 @@ def Rainbow(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,
             Q.optimizer.param_groups[0]['lr'] = min_lr
         i += 1 # update episode number
 
+    # calculate final average reward
+    final_avgreward = calc_performance(env,Q,None,10000)
+
     # save results and performance metrics.
     ## save model
     if env.envID == 'Env1.0':
@@ -258,7 +266,9 @@ def Rainbow(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,
             pickle.dump(policy, file)
     ## save MSE
     np.save(f"{wd}/MSE_{env.envID}_par{env.parset}_dis{env.discset}_DQN.npy", MSE)
-    return Q_discrete, policy, MSE, performance
+    return Q_discrete, policy, MSE, rewards100, final_avgreward
+
+
 
 def _make_discrete_Q(Q,env,device):
     # make a discrete Q table
