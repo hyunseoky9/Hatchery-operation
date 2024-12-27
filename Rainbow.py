@@ -61,6 +61,10 @@ def Rainbow(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,
     ## cycles
     #training_cycle = 7 # number of steps where the network is trained
     #target_update_cycle = 10 # number of steps where the target network is updated
+
+    ## testing settings
+    external_testing = True # if True, outputs Q every x episodes and another script tests the Q function
+
     ## normalization parameters
     state_max = torch.tensor(env.statespace_dim, dtype=torch.float32) - 1
     state_min = torch.zeros([len(env.statespace_dim)], dtype=torch.float32)
@@ -206,8 +210,15 @@ def Rainbow(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,
             if calc_MSE:
                 mse_value = test_model(Q, reachable_states, reachable_actions, Q_vi, noisy, device)
                 MSE.append(mse_value)
-            avgperformance = calc_performance(env,Q,None,100)
-            avgperformances.append(avgperformance)
+        if i % 1000 == 0: # calculate average reward over 1000 episodes
+            if external_testing:
+                if env.envID == 'Env1.0':
+                    wd = './deepQN results'
+                    torch.save(Q.state_dict(), f"{wd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN_episode{i}.pt")
+            else:
+                avgperformance = calc_performance(env,Q,None,1000)
+                avgperformances.append(avgperformance)
+
             #avgperformance = 0
 
             
