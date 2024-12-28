@@ -6,6 +6,7 @@ def calc_performance(env,Q=None,policy=None,episodenum=1000):
     For Tabular Q learning and value iteration, calculate perofrmance using the policy table.
     For policy gradient methods, calculate performance using the policy network.
     """
+    t_maxstep = 1000
     avgrewards = 0
     action_size = env.actionspace_dim[0]
     if Q is not None:
@@ -15,6 +16,7 @@ def calc_performance(env,Q=None,policy=None,episodenum=1000):
         if env.envID in ['Env1.0','Env1.1']:
             env.reset([-1,-1,-1,-1,-1,-1])
         done = False
+        t = 0
         while done == False:
             if Q is not None:
                 action = choose_action(env.state,Q,0,action_size,distributional)
@@ -23,6 +25,9 @@ def calc_performance(env,Q=None,policy=None,episodenum=1000):
                 foo = 0
             reward, done, _ = env.step(action)
             rewards += reward
+            if t >= t_maxstep:
+                done = True
+            t += 1
         avgrewards += rewards
     
     return avgrewards/episodenum

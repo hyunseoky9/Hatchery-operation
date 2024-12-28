@@ -41,7 +41,7 @@ class Env1_1:
                 "NW": [0,10000000], # Population size, continuous
                 "NWm1": [self.Nth, 10000000], # last year population size, continuous
                 "NH": [0, 300000], # hatchery population size, continuous
-                "H": [0, 1], # Heterozygosity, continuous
+                "H": [0.56, 0.86], # Heterozygosity, continuous
                 "q": [65, 848], # Spring Flow, continuous
                 "tau": [0, 1]  # 0 for Fall, 1 for Spring, discrete
             }

@@ -39,7 +39,7 @@ def Rainbow(env,num_episodes,epdecayopt,
     # DQN
     state_size = len(env.statespace_dim)
     action_size = env.actionspace_dim[0]
-    hidden_size = 40
+    hidden_size = 20
     hidden_num = 3
     # Dueling DQN
     hidden_num_shared = 1
@@ -77,7 +77,7 @@ def Rainbow(env,num_episodes,epdecayopt,
         # run the testing script in a separate process
         # Define the script and arguments
         script_name = "performance_tester.py"
-        args = ["--num_episodes", f"{num_episodes}", "--DQNorPolicy", "0"]
+        args = ["--num_episodes", f"{num_episodes}", "--DQNorPolicy", "0", "--envID", f"{env.envID}", "--parset", f"{env.parset+1}", "--discset", f"{env.discset}"]
         # Run the script independently with arguments
         #subprocess.Popen(["python", script_name] + args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         subprocess.Popen(["python", script_name] + args)
@@ -148,8 +148,8 @@ def Rainbow(env,num_episodes,epdecayopt,
     MSE = []
     # initialize reward performance receptacle
     avgperformances = [] # average of rewards over 100 episodes with policy following trained Q
-    performance_sampleN = 1000
-    final_performance_sampleN = 10000
+    performance_sampleN = 100
+    final_performance_sampleN = 100
     final_avgreward = 0
     print(f'performance sampling: {performance_sampleN}/{final_performance_sampleN}')
 
@@ -182,6 +182,7 @@ def Rainbow(env,num_episodes,epdecayopt,
             S = env.state # update state
             if t >= max_steps: # finish episode if max steps reached even if terminal state not reached
                 done = True
+                db = 0
             # train network
             if j % training_cycle == 0:
                 # Sample mini-batch from memory
@@ -236,11 +237,11 @@ def Rainbow(env,num_episodes,epdecayopt,
                 
             t += 1 # update timestep
             j += 1 # update training cycle
-        if i % 100 == 0:
+        if i % 100 == 0: # MSE calculation
             if calc_MSE:
                 mse_value = test_model(Q, reachable_states, reachable_actions, Q_vi, noisy, device)
                 MSE.append(mse_value)
-        if i % 1000 == 0: # calculate average reward over 1000 episodes
+        if i % 1000 == 0: # calculate average reward every 1000 episodes
             if external_testing:
                 if env.envID in ['Env1.0', 'Env1.1']:
                     wd = './deepQN results/training Q network'
@@ -248,9 +249,6 @@ def Rainbow(env,num_episodes,epdecayopt,
             else:
                 avgperformance = calc_performance(env,Q,None,performance_sampleN)
                 avgperformances.append(avgperformance)
-
-            
-
         if i % 1000 == 0: # print outs
             current_lr = Q.optimizer.param_groups[0]['lr']
             if external_testing:
@@ -278,10 +276,8 @@ def Rainbow(env,num_episodes,epdecayopt,
                         if hasattr(layer, 'mu'):
                             meansig += layer.sigma.mean().item()
                 print(f"avg sigma: {layer.sigma.mean().item()}")
-            print('-----------------------------------')
-
-        
-        if PrioritizedReplay:
+            print('-----------------------------------')        
+        if PrioritizedReplay: # beta update
             beta += (1.0 - beta0)/num_episodes
         Q.scheduler.step() # Decay the learning rate
         if Q.optimizer.param_groups[0]['lr'] < min_lr:
@@ -293,9 +289,8 @@ def Rainbow(env,num_episodes,epdecayopt,
     if external_testing == False:
         final_avgreward = calc_performance(env,Q,None,final_performance_sampleN)
     else:
-        if env.envID == 'Env1.0':
-            wd = './deepQN results/training Q network'
-            torch.save(Q, f"{wd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN_episode{i}.pt")
+        wd = './deepQN results/training Q network'
+        torch.save(Q, f"{wd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN_episode{i}.pt")
 
     # save results and performance metrics.
     ## save model

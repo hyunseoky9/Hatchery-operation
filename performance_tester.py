@@ -2,6 +2,7 @@
 import argparse
 import time
 from env1_0 import Env1_0
+from env1_1 import Env1_1
 from calc_performance import *
 import torch
 from torch import nn
@@ -19,19 +20,25 @@ torch.manual_seed(seednum)
 parser = argparse.ArgumentParser(description="Example script.")
 parser.add_argument("--num_episodes", type=str, required=True, help="Argument 1")
 parser.add_argument("--DQNorPolicy", type=str, required=True, help="Argument 2")
+parser.add_argument("--envID", type=str, required=True, help="Argument 3")
+parser.add_argument("--parset", type=str, required=True, help="Argument 4")
+parser.add_argument("--discset", type=str, required=True, help="Argument 5")
 args = parser.parse_args()
 
 num_episode = int(args.num_episodes)
 DQNorPolicy = int(args.DQNorPolicy)
+envID = args.envID
+parset = int(args.parset)
+discset = int(args.discset)
+
+print(f'num_episode: {num_episode} DQNorPolicy: {DQNorPolicy} env: {envID} parset: {parset} discset: {discset}')
 #num_episode = int(sys.argv[1])
 #DQNorPolicy = int(sys.argv[2]) # 0 for DQN, 1 for Policy gradient
-envID = 1.1
 interval = 1000
-if envID == 1.1:
-    env = Env1_0([-1,-1,-1,-1,-1,-1],2,1)
-elif envID == 1.1:
-    foo = 0
-print(f'num_episode: {num_episode} DQNorPolicy: {DQNorPolicy} env: {envID}')
+if envID == 'Env1.0':
+    env = Env1_0([-1,-1,-1,-1,-1,-1],parset,discset)
+elif envID == 'Env1.1':
+    env = Env1_1([-1,-1,-1,-1,-1,-1],parset,discset)
 avgperformances = []
 if DQNorPolicy == 0:
     wd = './deepQN results/training Q network'
