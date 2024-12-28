@@ -14,7 +14,11 @@ from nq import *
 from distributionalRL import *
 from calc_performance import *
 
-def Rainbow(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,noisy,distributional,lrdecayrate,lr,min_lr,training_cycle,target_update_cycle,calc_MSE, normalize):
+def Rainbow(env,num_episodes,epdecayopt,
+            DDQN,DuelingDQN,PrioritizedReplay,nstep,noisy,distributional,
+            lrdecayrate,lr,min_lr,
+            training_cycle,target_update_cycle,
+            calc_MSE, external_testing, normalize):
     # train using Deep Q Network
     # env: environment class object
     # num_episodes: number of episodes to train 
@@ -65,7 +69,6 @@ def Rainbow(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,
     #target_update_cycle = 10 # number of steps where the target network is updated
 
     ## testing settings
-    external_testing = True # if True, outputs Q every x episodes and another script tests the Q function
     if external_testing:
         testwd = './deepQN results/training Q network'
         # delete all files in this wd to not test the old Q networks

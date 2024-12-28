@@ -12,7 +12,7 @@ def calc_performance(env,Q=None,policy=None,episodenum=1000):
         distributional = Q.distributional
     for i in range(episodenum):
         rewards = 0
-        if env.envID == 'Env1.0':
+        if env.envID in ['Env1.0','Env1.1']:
             env.reset([-1,-1,-1,-1,-1,-1])
         done = False
         while done == False:

@@ -64,8 +64,8 @@ else: # fill this in later when you have policy gradient algorithms!
 
 # save the performance results
 if DQNorPolicy == 0:
-    if env.envID == 'Env1.0':
-        wd2 = './deepQN results'
-        np.save(f"{wd2}/rewards_{env.envID}_par{env.parset}_dis{env.discset}_DQN.npy", avgperformances)
+    wd2 = './deepQN results'
+    np.save(f"{wd2}/rewards_{env.envID}_par{env.parset}_dis{env.discset}_DQN.npy", avgperformances)
+
 else:
     foo = 0
