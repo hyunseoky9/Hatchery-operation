@@ -2,6 +2,8 @@
 *.ipynb
 *.npy
 .ipynb_checkpoints/
+# Rhistory
+.Rhistory
 # result folders
 td results/
 value iter results/
