@@ -10,7 +10,7 @@ class Env1_2:
     Action space is now continuous
     """
     def __init__(self,initstate,parameterization_set,discretization_set):
-        self.envID = 'Env1.0'
+        self.envID = 'Env1.2'
         self.discset = discretization_set
 
         # Define parameters

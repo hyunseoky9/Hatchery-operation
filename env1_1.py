@@ -10,7 +10,7 @@ class Env1_1:
     Action space is still discrete
     """
     def __init__(self,initstate,parameterization_set,discretization_set):
-        self.envID = 'Env1.0'
+        self.envID = 'Env1.1'
         self.discset = discretization_set
 
         # Define parameters

@@ -6,7 +6,7 @@ from NoisyLinear import NoisyLinear
 
 # Define model
 class QNN(nn.Module):
-    def __init__(self, state_size, action_size, hidden_size, hidden_num, learning_rate, state_min, state_max,lrdecayrate, noisy, distributional, atomn, Vmin, Vmax):
+    def __init__(self, state_size, action_size, hidden_size, hidden_num, learning_rate, state_min, state_max,lrdecayrate, noisy, distributional, atomn, Vmin, Vmax, normalize):
         super().__init__()
         self.action_size = action_size
         self.state_size = state_size
@@ -15,6 +15,7 @@ class QNN(nn.Module):
         self.learning_rate = learning_rate
         self.noisy = noisy
         self.distributional = distributional
+        self.normalization = normalize
         if distributional:
             self.atomn = atomn
             self.z = torch.linspace(Vmin, Vmax, atomn)
@@ -56,7 +57,8 @@ class QNN(nn.Module):
 
         
     def forward(self, x):
-        #x_norm = self.normalize(x)
+        if self.normalization:
+            x = self.normalize(x)
         logits = self.linear_relu_stack(x)
         if self.distributional:
             logits = logits.view(-1, self.action_size, self.atomn)  # Reshape for actions and atoms
@@ -76,3 +78,16 @@ class QNN(nn.Module):
         for layer in self.linear_relu_stack:
             if isinstance(layer, NoisyLinear):
                 layer.use_noise = True
+
+    def normalize(self, state):
+        """
+        min-max normalization for discrete states.
+        parmaeters: 
+            states (torch.Tensor): Input states
+            env (object): Environment object
+        """
+        # Normalize using broadcasting
+        state_norm = (state - self.state_min) / (self.state_max - self.state_min)
+        return state_norm
+    
+

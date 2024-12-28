@@ -14,7 +14,7 @@ from nq import *
 from distributionalRL import *
 from calc_performance import *
 
-def Rainbow(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,noisy,distributional,lrdecayrate,lr,min_lr,training_cycle,target_update_cycle,calc_MSE):
+def Rainbow(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,noisy,distributional,lrdecayrate,lr,min_lr,training_cycle,target_update_cycle,calc_MSE, normalize):
     # train using Deep Q Network
     # env: environment class object
     # num_episodes: number of episodes to train 
@@ -80,9 +80,13 @@ def Rainbow(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,
         subprocess.Popen(["python", script_name] + args)
 
     ## normalization parameters
-    state_max = torch.tensor(env.statespace_dim, dtype=torch.float32) - 1
-    state_min = torch.zeros([len(env.statespace_dim)], dtype=torch.float32)
-
+    if env.envID == 'Env1.0': # for discrete states
+        state_max = torch.tensor(env.statespace_dim, dtype=torch.float32) - 1
+        state_min = torch.zeros([len(env.statespace_dim)], dtype=torch.float32)
+    elif env.envID in ['Env1.1','Env1.2']: # for continuous states
+        state_max = torch.tensor([env.states[key][1] for key in env.states.keys()], dtype=torch.float32)
+        state_min = torch.tensor([env.states[key][0] for key in env.states.keys()], dtype=torch.float32)
+        
     # initialization
     ## print out extension feature usage
     print(f'DuelingDQN: {DuelingDQN}\nDDQN: {DDQN}\nPrioritizedReplay: {PrioritizedReplay}\nnstep: {nstep}\nnoisynet: {noisy}\ndistributional RL: {distributional}')
@@ -97,11 +101,15 @@ def Rainbow(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,
     print(f'lr: {lr}, lrdecayrate: {lrdecayrate}, min_lr: {min_lr}')
     ## initialize NN
     if DuelingDQN:
-        Q = DuelQNN(state_size, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared, hidden_num_split, lr, state_min, state_max,lrdecayrate,noisy,distributional,atomn, Vmin, Vmax).to(device)
-        Q_target = DuelQNN(state_size, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared, hidden_num_split, lr, state_min, state_max,lrdecayrate,noisy,distributional,atomn, Vmin, Vmax).to(device)
+        Q = DuelQNN(state_size, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared,
+                     hidden_num_split, lr, state_min, state_max,lrdecayrate,noisy,distributional,atomn, Vmin, Vmax, normalize).to(device)
+        Q_target = DuelQNN(state_size, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared,
+                            hidden_num_split, lr, state_min, state_max,lrdecayrate,noisy,distributional,atomn, Vmin, Vmax, normalize).to(device)
     else:
-        Q = QNN(state_size, action_size, hidden_size, hidden_num, lr, state_min, state_max,lrdecayrate,noisy, distributional, atomn, Vmin, Vmax).to(device)
-        Q_target = QNN(state_size, action_size, hidden_size, hidden_num, lr, state_min, state_max,lrdecayrate,noisy, distributional, atomn, Vmin, Vmax).to(device)
+        Q = QNN(state_size, action_size, hidden_size, hidden_num, lr, state_min, state_max,
+                lrdecayrate,noisy, distributional, atomn, Vmin, Vmax, normalize).to(device)
+        Q_target = QNN(state_size, action_size, hidden_size, hidden_num, lr, state_min, 
+                       state_max,lrdecayrate,noisy, distributional, atomn, Vmin, Vmax, normalize).to(device)
     Q_target.load_state_dict(Q.state_dict())  # Copy weights from Q to Q_target
     Q_target.eval()  # Set target network to evaluation mode (no gradient updates)
 
@@ -124,6 +132,8 @@ def Rainbow(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,
         reachable_states = torch.tensor([env._unflatten(i[0]) for i in reachables], dtype=torch.float32)
         reachable_uniquestateid = torch.tensor(env.reachable_states(), dtype=torch.int64)
         reachable_actions = torch.tensor([i[1] for i in reachables], dtype=torch.int64).unsqueeze(1)
+    elif env.envID == 'Env1.1':
+        initlist = [-1,-1,-1,-1,-1,-1]
     
     ## initialize performance metrics
     # load Q function from the value iteration for calculating MSE
@@ -229,7 +239,7 @@ def Rainbow(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,
                 MSE.append(mse_value)
         if i % 1000 == 0: # calculate average reward over 1000 episodes
             if external_testing:
-                if env.envID == 'Env1.0':
+                if env.envID in ['Env1.0', 'Env1.1']:
                     wd = './deepQN results/training Q network'
                     torch.save(Q, f"{wd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN_episode{i}.pt")
             else:
@@ -286,7 +296,7 @@ def Rainbow(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,
 
     # save results and performance metrics.
     ## save model
-    if env.envID == 'Env1.0':
+    if env.envID in ['Env1.0','Env1.1']:
         wd = './deepQN results'
         torch.save(Q, f"{wd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pt")
     ## make a discrete Q table if the environment is discrete and save it
@@ -298,6 +308,9 @@ def Rainbow(env,num_episodes,epdecayopt,DDQN,DuelingDQN,PrioritizedReplay,nstep,
             pickle.dump(Q_discrete, file)
         with open(f"{wd}/policy_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pkl", "wb") as file:
             pickle.dump(policy, file)
+    else:
+        Q_discrete = None
+        policy = None
     ## save performance
     if external_testing == False:
         avgperformances.append(final_avgreward)
@@ -359,7 +372,7 @@ def pretrain(env, nq, memory, batch_size, PrioritizedReplay, max_priority):
     n = nq.n
     while memadd < batch_size:
         if reset == True:
-            if env.envID == 'Env1.0':
+            if env.envID in ['Env1.0', 'Env1.1']:
                 env.reset([-1,-1,-1,-1,-1,-1])
                 state = env.state
                 reset = False
@@ -475,16 +488,3 @@ def test_model(Q, reachable_states, reachable_actions, Qopt, noisy, device):
             testloss = compute_loss(Q, reachable_states, reachable_actions, Qopt).item()
     return testloss
     #print(f"Test Error Avg loss: {test_loss:>8f}\n")
-
-def normalize(Q, state):
-    """
-    min-max normalization for discrete states.
-    parmaeters: 
-        states (torch.Tensor): Input states
-        env (object): Environment object
-    """
-    # Normalize using broadcasting
-    state_norm = (state - Q.state_min) / (Q.state_max - Q.state_min)
-    return state_norm
-    
-
