@@ -1,5 +1,5 @@
 from choose_action import choose_action
-def calc_performance(env,Q=None,policy=None,episodenum=1000):
+def calc_performance(env, device, Q=None, policy=None, episodenum=1000):
     """
     calculate the performance of the agent in the environment.
     For DQN calculate performance with the Q network. (use Q variable in the function input)
@@ -19,7 +19,7 @@ def calc_performance(env,Q=None,policy=None,episodenum=1000):
         t = 0
         while done == False:
             if Q is not None:
-                action = choose_action(env.state,Q,0,action_size,distributional)
+                action = choose_action(env.state,Q,0,action_size,distributional,device)
             elif policy is not None:
                 # fill this in later when you get policy gradient algorithms!
                 foo = 0

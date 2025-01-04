@@ -89,11 +89,11 @@ def Rainbow(env,num_episodes,epdecayopt,
 
     ## normalization parameters
     if env.envID == 'Env1.0': # for discrete states
-        state_max = torch.tensor(env.statespace_dim, dtype=torch.float32) - 1
-        state_min = torch.zeros([len(env.statespace_dim)], dtype=torch.float32)
+        state_max = (torch.tensor(env.statespace_dim, dtype=torch.float32) - 1).to(device)
+        state_min = torch.zeros([len(env.statespace_dim)], dtype=torch.float32).to(device)
     elif env.envID in ['Env1.1','Env1.2']: # for continuous states
-        state_max = torch.tensor([env.states[key][1] for key in env.states.keys()], dtype=torch.float32)
-        state_min = torch.tensor([env.states[key][0] for key in env.states.keys()], dtype=torch.float32)
+        state_max = torch.tensor([env.states[key][1] for key in env.states.keys()], dtype=torch.float32).to(device)
+        state_min = torch.tensor([env.states[key][0] for key in env.states.keys()], dtype=torch.float32).to(device)
         
     # initialization
     ## print out extension feature usage
@@ -137,9 +137,9 @@ def Rainbow(env,num_episodes,epdecayopt,
     if env.envID == 'Env1.0':
         initlist = [-1,-1,-1,-1,-1,-1] # all random
         reachables = env.reachable_state_actions()
-        reachable_states = torch.tensor([env._unflatten(i[0]) for i in reachables], dtype=torch.float32)
-        reachable_uniquestateid = torch.tensor(env.reachable_states(), dtype=torch.int64)
-        reachable_actions = torch.tensor([i[1] for i in reachables], dtype=torch.int64).unsqueeze(1)
+        reachable_states = torch.tensor([env._unflatten(i[0]) for i in reachables], dtype=torch.float32).to(device)
+        reachable_uniquestateid = torch.tensor(env.reachable_states(), dtype=torch.int64).to(device)
+        reachable_actions = torch.tensor([i[1] for i in reachables], dtype=torch.int64).unsqueeze(1).to(device)
     elif env.envID == 'Env1.1':
         initlist = [-1,-1,-1,-1,-1,-1]
     
@@ -149,7 +149,7 @@ def Rainbow(env,num_episodes,epdecayopt,
         if env.envID == 'Env1.0':
             with open(f"value iter results/Q_Env1.0_par{env.parset}_dis{env.discset}_valiter.pkl", "rb") as file:
                 Q_vi = pickle.load(file)
-            Q_vi = torch.tensor(Q_vi[reachable_uniquestateid].flatten(), dtype=torch.float32)
+            Q_vi = torch.tensor(Q_vi[reachable_uniquestateid].flatten(), dtype=torch.float32).to(device)
     MSE = []
     # initialize reward performance receptacle
     avgperformances = [] # average of rewards over 100 episodes with policy following trained Q
@@ -160,7 +160,6 @@ def Rainbow(env,num_episodes,epdecayopt,
     j = 0 # training cycle counter
     i = 0 # peisode num
     print('-----------------------------------------------')
-
     # run through the episodes
     while i < num_episodes: #delta > theta:
         # update epsilon
@@ -172,20 +171,18 @@ def Rainbow(env,num_episodes,epdecayopt,
         env.reset(initlist) # random initialization
         S = env.state
         done = False
-
+        
         t = 0 # timestep num
         while done == False:    
             if t > 0:
-                a = choose_action(S, Q, ep, action_size,distributional)
+                a = choose_action(S, Q, ep, action_size,distributional,device)
             else:
                 a = random.randint(0, action_size-1) # first action in the episode is random for added exploration
-
-            reward, done, rate = env.step(a) # take a step
+            reward, done, _ = env.step(a) # take a step
             nq.add(S, a, reward, env.state, done, memory, PrioritizedReplay) # add transition to queue
-            S = env.state # update state
+            S = env.state #  update state
             if t >= max_steps: # finish episode if max steps reached even if terminal state not reached
                 done = True
-                db = 0
             # train network
             if j % training_cycle == 0:
                 # Sample mini-batch from memory
@@ -193,14 +190,14 @@ def Rainbow(env,num_episodes,epdecayopt,
                     mini_batch, idxs, weights = memory.sample(batch_size, beta)
                     states, actions, rewards, next_states, dones = zip(*mini_batch)
                     dones = np.array(dones)
-                    actions = torch.tensor(actions, dtype=torch.int64).unsqueeze(1)
+                    actions = torch.tensor(actions, dtype=torch.int64).unsqueeze(1).to(device)
                 else:
                     states, actions, rewards, next_states, dones = memory.sample(batch_size)
                     weights = np.ones(batch_size)
-                    actions = torch.tensor(actions, dtype=torch.int64)
-                states = torch.tensor(states, dtype=torch.float32)
-                rewards = torch.tensor(rewards, dtype=torch.float32)
-                next_states = torch.tensor(next_states, dtype=torch.float32)
+                    actions = torch.tensor(actions, dtype=torch.int64).to(device)
+                states = torch.tensor(states, dtype=torch.float32).to(device)
+                rewards = torch.tensor(rewards, dtype=torch.float32).to(device)
+                next_states = torch.tensor(next_states, dtype=torch.float32).to(device)
                 weights = torch.tensor(weights, dtype=torch.float32).to(device)
                 # Train network
 
@@ -214,7 +211,7 @@ def Rainbow(env,num_episodes,epdecayopt,
                         targets = compute_target_distribution(rewards, dones, gamma, nstep, target_Qs, best_actions, Q.z, atomn, Vmin, Vmax)                        
                     else:
                         if dones.any():
-                            target_Qs[episode_ends] = torch.zeros(action_size)
+                            target_Qs[episode_ends] = torch.zeros(action_size, device=device)
                         next_actions = torch.argmax(Q(next_states), dim=1)
                         targets = rewards + (gamma**nstep) * target_Qs.gather(1, next_actions.unsqueeze(1)).squeeze(1)
                 else:
@@ -224,7 +221,7 @@ def Rainbow(env,num_episodes,epdecayopt,
                         targets = compute_target_distribution(rewards, dones, gamma, nstep, target_Qs, best_actions, Q.z, atomn, Vmin, Vmax)
                     else:
                         if dones.any():
-                            target_Qs[episode_ends] = torch.zeros(action_size)
+                            target_Qs[episode_ends] = torch.zeros(action_size, device=device)
                         targets = rewards + (gamma**nstep) * torch.max(target_Qs, dim=1)[0]
                 td_error = train_model(Q, [(states, actions, targets)], weights, device)
 
@@ -250,7 +247,7 @@ def Rainbow(env,num_episodes,epdecayopt,
                     wd = './deepQN results/training Q network'
                     torch.save(Q, f"{wd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN_episode{i}.pt")
             else:
-                avgperformance = calc_performance(env,Q,None,performance_sampleN)
+                avgperformance = calc_performance(env,device,Q,None,performance_sampleN)
                 avgperformances.append(avgperformance)
         if i % 1000 == 0: # print outs
             current_lr = Q.optimizer.param_groups[0]['lr']
@@ -290,7 +287,7 @@ def Rainbow(env,num_episodes,epdecayopt,
     # calculate final average reward
     print('calculating the average reward with the final Q network')
     if external_testing == False:
-        final_avgreward = calc_performance(env,Q,None,final_performance_sampleN)
+        final_avgreward = calc_performance(env,device,Q,None,final_performance_sampleN)
     else:
         wd = './deepQN results/training Q network'
         torch.save(Q, f"{wd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN_episode{i}.pt")
