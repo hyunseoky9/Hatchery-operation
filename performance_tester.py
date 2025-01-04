@@ -16,6 +16,16 @@ random.seed(seednum)
 np.random.seed(seednum)
 torch.manual_seed(seednum)
 
+# device for pytorch neural network
+device = (
+"cuda"
+if torch.cuda.is_available()
+else "mps"
+if torch.backends.mps.is_available()
+else "cpu"
+)
+print(f"Using {device} device")
+
 # Define the arguments
 parser = argparse.ArgumentParser(description="Example script.")
 parser.add_argument("--num_episodes", type=str, required=True, help="Argument 1")
@@ -47,7 +57,7 @@ elif envID == 'Env1.1':
     env = Env1_1([-1,-1,-1,-1,-1,-1],parset,discset)
 avgperformances = []
 if DQNorPolicy == 0:
-    wd = './deepQN results/training Q network'
+    wd = './deepQN results/intermediate training Q network'
         
     for i in range(0,num_episode+1,interval):
         print(f'episode {i}')
@@ -71,19 +81,19 @@ if DQNorPolicy == 0:
         # calculate performance 
         if i == num_episode: # Final Q network performance sampled more accurately.
             print('calculating final performance')
-            performance = calc_performance(env,Q=Q,episodenum=midsample)
+            performance = calc_performance(env,device,Q=Q,episodenum=midsample)
         else:
             print('calculating performance')
-            performance = calc_performance(env,Q=Q,episodenum=finalsample)
+            performance = calc_performance(env,device,Q=Q,episodenum=finalsample)
             print('finished calculating performance')
         avgperformances.append(performance)
 else: # fill this in later when you have policy gradient algorithms!
     foo = 0 
 
-# save the performance results
+# save the performance results and the best Q network
 if DQNorPolicy == 0:
     wd2 = './deepQN results'
     np.save(f"{wd2}/rewards_{env.envID}_par{env.parset}_dis{env.discset}_DQN.npy", avgperformances)
-
+    
 else:
     foo = 0

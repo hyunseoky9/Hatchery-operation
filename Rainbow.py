@@ -39,7 +39,7 @@ def Rainbow(env,num_episodes,epdecayopt,
     # DQN
     state_size = len(env.statespace_dim)
     action_size = env.actionspace_dim[0]
-    hidden_size = 30
+    hidden_size = 20
     hidden_num = 3
     # Dueling DQN
     hidden_num_shared = 1
@@ -72,11 +72,12 @@ def Rainbow(env,num_episodes,epdecayopt,
     final_performance_sampleN = 100
 
     ## testing settings
+    testwd = './deepQN results/intermediate training Q network'
+    # delete all the previous network files in the intermediate network folder to not test the old Q networks
+    for file in os.listdir(testwd):
+        os.remove(os.path.join(testwd,file))
+
     if external_testing:
-        testwd = './deepQN results/training Q network'
-        # delete all files in this wd to not test the old Q networks
-        for file in os.listdir(testwd):
-            os.remove(os.path.join(testwd,file))
         # run the testing script in a separate process
         # Define the script and arguments
         script_name = "performance_tester.py"
@@ -237,18 +238,25 @@ def Rainbow(env,num_episodes,epdecayopt,
                 
             t += 1 # update timestep
             j += 1 # update training cycle
+        # beta update for prioritized replay
+        if PrioritizedReplay: 
+            beta += (1.0 - beta0)/num_episodes
+        # Decay the learning rate
+        Q.scheduler.step() 
+        if Q.optimizer.param_groups[0]['lr'] < min_lr:
+            Q.optimizer.param_groups[0]['lr'] = min_lr
+
         if i % 100 == 0: # MSE calculation
             if calc_MSE:
                 mse_value = test_model(Q, reachable_states, reachable_actions, Q_vi, noisy, device)
                 MSE.append(mse_value)
         if i % 1000 == 0: # calculate average reward every 1000 episodes
-            if external_testing:
-                if env.envID in ['Env1.0', 'Env1.1']:
-                    wd = './deepQN results/training Q network'
-                    torch.save(Q, f"{wd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN_episode{i}.pt")
-            else:
+            if not external_testing:
                 avgperformance = calc_performance(env,device,Q,None,performance_sampleN)
                 avgperformances.append(avgperformance)
+            if env.envID in ['Env1.0', 'Env1.1']:
+                torch.save(Q, f"{testwd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN_episode{i}.pt")
+
         if i % 1000 == 0: # print outs
             current_lr = Q.optimizer.param_groups[0]['lr']
             if external_testing:
@@ -277,26 +285,27 @@ def Rainbow(env,num_episodes,epdecayopt,
                             meansig += layer.sigma.mean().item()
                 print(f"avg sigma: {layer.sigma.mean().item()}")
             print('-----------------------------------')        
-        if PrioritizedReplay: # beta update
-            beta += (1.0 - beta0)/num_episodes
-        Q.scheduler.step() # Decay the learning rate
-        if Q.optimizer.param_groups[0]['lr'] < min_lr:
-            Q.optimizer.param_groups[0]['lr'] = min_lr
         i += 1 # update episode number
 
     # calculate final average reward
     print('calculating the average reward with the final Q network')
     if external_testing == False:
         final_avgreward = calc_performance(env,device,Q,None,final_performance_sampleN)
+        avgperformances.append(final_avgreward)
+        print(f'final average reward: {final_avgreward}')
     else:
-        wd = './deepQN results/training Q network'
-        torch.save(Q, f"{wd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN_episode{i}.pt")
+        torch.save(Q, f"{testwd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN_episode{i}.pt")
 
     # save results and performance metrics.
-    ## save model
+    ## save last model and the best model (in terms of rewards)
     if env.envID in ['Env1.0','Env1.1']:
+        # last model
         wd = './deepQN results'
         torch.save(Q, f"{wd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pt")
+        # best model
+        
+        torch.save(Q, f"{wd}/bestQNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pt")
+
     ## make a discrete Q table if the environment is discrete and save it
     if env.envID == 'Env1.0':
         Q_discrete = _make_discrete_Q(Q,env,device)
@@ -311,10 +320,10 @@ def Rainbow(env,num_episodes,epdecayopt,
         policy = None
     ## save performance
     if external_testing == False:
-        avgperformances.append(final_avgreward)
         np.save(f"{wd}/rewards_{env.envID}_par{env.parset}_dis{env.discset}_DQN.npy", avgperformances)
     ## save MSE
-    np.save(f"{wd}/MSE_{env.envID}_par{env.parset}_dis{env.discset}_DQN.npy", MSE)
+    if calc_MSE:
+        np.save(f"{wd}/MSE_{env.envID}_par{env.parset}_dis{env.discset}_DQN.npy", MSE)
     return Q_discrete, policy, MSE, avgperformances, final_avgreward
 
 
