@@ -19,7 +19,7 @@ def Rainbow(env,num_episodes,epdecayopt,
             DDQN,DuelingDQN,PrioritizedReplay,nstep,noisy,distributional,
             lrdecayrate,lr,min_lr,
             training_cycle,target_update_cycle,
-            calc_MSE, external_testing, normalize):
+            calc_MSE, external_testing, normalize, bestQinit):
     # train using Deep Q Network
     # env: environment class object
     # num_episodes: number of episodes to train 
