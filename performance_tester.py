@@ -23,6 +23,9 @@ parser.add_argument("--DQNorPolicy", type=str, required=True, help="Argument 2")
 parser.add_argument("--envID", type=str, required=True, help="Argument 3")
 parser.add_argument("--parset", type=str, required=True, help="Argument 4")
 parser.add_argument("--discset", type=str, required=True, help="Argument 5")
+parser.add_argument("--midsample", type=str, required=True, help="Argument 6")
+parser.add_argument("--finalsample", type=str, required=True, help="Argument 7")
+
 args = parser.parse_args()
 
 num_episode = int(args.num_episodes)
@@ -30,8 +33,11 @@ DQNorPolicy = int(args.DQNorPolicy)
 envID = args.envID
 parset = int(args.parset)
 discset = int(args.discset)
+midsample = int(args.midsample)
+finalsample = int(args.finalsample)
 
 print(f'num_episode: {num_episode} DQNorPolicy: {DQNorPolicy} env: {envID} parset: {parset} discset: {discset}')
+print(f'midsample size: {args.midsample} finalsample size: {args.finalsample}')
 #num_episode = int(sys.argv[1])
 #DQNorPolicy = int(sys.argv[2]) # 0 for DQN, 1 for Policy gradient
 interval = 1000
@@ -49,6 +55,7 @@ if DQNorPolicy == 0:
         print(filename)
         filefound = 0
         # if file is not found, the algorithm is still running, wait and try again
+        trynum = 0
         while filefound == 0:
             try:
                 Q = torch.load(filename,weights_only=False)
@@ -57,13 +64,17 @@ if DQNorPolicy == 0:
             except:
                 print('file not found, sleeping 3 sec')
                 time.sleep(3)
+                trynum += 1
+            if trynum > 30:
+                print('file not found after 30 tries, exiting')
+                sys.exit()
         # calculate performance 
         if i == num_episode: # Final Q network performance sampled more accurately.
             print('calculating final performance')
-            performance = calc_performance(env,Q=Q,episodenum=10000)
+            performance = calc_performance(env,Q=Q,episodenum=midsample)
         else:
             print('calculating performance')
-            performance = calc_performance(env,Q=Q,episodenum=1000)
+            performance = calc_performance(env,Q=Q,episodenum=finalsample)
             print('finished calculating performance')
         avgperformances.append(performance)
 else: # fill this in later when you have policy gradient algorithms!

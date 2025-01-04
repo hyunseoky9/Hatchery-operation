@@ -39,13 +39,13 @@ def Rainbow(env,num_episodes,epdecayopt,
     # DQN
     state_size = len(env.statespace_dim)
     action_size = env.actionspace_dim[0]
-    hidden_size = 20
+    hidden_size = 30
     hidden_num = 3
     # Dueling DQN
     hidden_num_shared = 1
     hidden_num_split = 1
     hidden_size_shared = 30
-    hidden_size_split = 30
+    hidden_size_split = 20
     # Prioritized Replay
     alpha = 0.4 # priority importance
     beta0 = 0.4 # initial beta
@@ -67,6 +67,9 @@ def Rainbow(env,num_episodes,epdecayopt,
     ## cycles
     #training_cycle = 7 # number of steps where the network is trained
     #target_update_cycle = 10 # number of steps where the target network is updated
+    ## performance testing sample size
+    performance_sampleN = 100
+    final_performance_sampleN = 100
 
     ## testing settings
     if external_testing:
@@ -77,7 +80,9 @@ def Rainbow(env,num_episodes,epdecayopt,
         # run the testing script in a separate process
         # Define the script and arguments
         script_name = "performance_tester.py"
-        args = ["--num_episodes", f"{num_episodes}", "--DQNorPolicy", "0", "--envID", f"{env.envID}", "--parset", f"{env.parset+1}", "--discset", f"{env.discset}"]
+        args = ["--num_episodes", f"{num_episodes}", "--DQNorPolicy", "0", "--envID", f"{env.envID}",
+                 "--parset", f"{env.parset+1}", "--discset", f"{env.discset}", "--midsample", f"{performance_sampleN}",
+                 "--finalsample", f"{final_performance_sampleN}"]
         # Run the script independently with arguments
         #subprocess.Popen(["python", script_name] + args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         subprocess.Popen(["python", script_name] + args)
@@ -148,8 +153,6 @@ def Rainbow(env,num_episodes,epdecayopt,
     MSE = []
     # initialize reward performance receptacle
     avgperformances = [] # average of rewards over 100 episodes with policy following trained Q
-    performance_sampleN = 100
-    final_performance_sampleN = 100
     final_avgreward = 0
     print(f'performance sampling: {performance_sampleN}/{final_performance_sampleN}')
 
