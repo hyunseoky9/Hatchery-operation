@@ -1,3 +1,4 @@
+import shutil
 import subprocess
 import os
 import torch
@@ -293,8 +294,7 @@ def Rainbow(env,num_episodes,epdecayopt,
         final_avgreward = calc_performance(env,device,Q,None,final_performance_sampleN)
         avgperformances.append(final_avgreward)
         print(f'final average reward: {final_avgreward}')
-    else:
-        torch.save(Q, f"{testwd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN_episode{i}.pt")
+    torch.save(Q, f"{testwd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN_episode{i}.pt")
 
     # save results and performance metrics.
     ## save last model and the best model (in terms of rewards)
@@ -303,8 +303,10 @@ def Rainbow(env,num_episodes,epdecayopt,
         wd = './deepQN results'
         torch.save(Q, f"{wd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pt")
         # best model
-        
-        torch.save(Q, f"{wd}/bestQNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pt")
+        if not external_testing:
+            bestidx = np.array(avgperformances).argmax()
+            bestfilename = f"{testwd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN_episode{bestidx*1000}.pt"
+            shutil.copy(bestfilename, f"{wd}/bestQNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pt")
 
     ## make a discrete Q table if the environment is discrete and save it
     if env.envID == 'Env1.0':

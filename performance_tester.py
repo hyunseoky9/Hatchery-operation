@@ -1,4 +1,5 @@
 # compute performance of the Q networks that are output during the training.
+import shutil
 import argparse
 import time
 from env1_0 import Env1_0
@@ -91,9 +92,12 @@ else: # fill this in later when you have policy gradient algorithms!
     foo = 0 
 
 # save the performance results and the best Q network
-if DQNorPolicy == 0:
+if DQNorPolicy == 0: # DQN
     wd2 = './deepQN results'
     np.save(f"{wd2}/rewards_{env.envID}_par{env.parset}_dis{env.discset}_DQN.npy", avgperformances)
-    
-else:
+    # best model
+    bestidx = np.array(avgperformances).argmax()
+    bestfilename = f"{wd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN_episode{bestidx*1000}.pt"
+    shutil.copy(bestfilename, f"{wd2}/bestQNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pt")
+else: # policy gradient
     foo = 0
