@@ -25,5 +25,6 @@ vmin,-104,0,-104,0,0,0,0,0,0,0,0,-100,-100,-100,-100,-100,-100,-100,-100,-100,-1
 vmax,70,0,70,0,0,0,0,0,0,0,0,30,30,30,30,30,50,50,70,70,70,70,70
 episodenum,15000,20000,15000,20000,20000,20000,20000,10000,10000,10000,20000,10000,20000,20000,20000,20000,20000,15000,15000,15000,15000,15000,15000
 seed,12,11,12,11,11,11,11,11,11,11,11,12,12,12,12,12,12,12,12,12,12,12,12
+external testing,FALSE,TRUE,FALSE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE
 min_MSE,6.38,6.6,7.7,9.9,11.78,13.39,13.52,358,185,180,94,35,33,20,20,21,21,16.6,11.8,10.55,9.46,6.38,7.7
 note,best with distributional DQN,so that it trains at least twice before updating,second best with distributional RL,train thrice before updating; slower rl decay,20000 with vanilla,train thrice before updating,PER with 20000,noisy net first run!,noisy net test decreased learning rate decay,noisy net test further decrease in learning rate decay,increase episode num,first test on distributional. Increase decay rate,51 atoms,higher learning rate,21 atoms,faster lr,increased vmax,lowered atomn and layer width,,fewer atoms,turned off PER,best with distributional DQN,second best with distributional RL

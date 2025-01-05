@@ -36,6 +36,7 @@ parser.add_argument("--parset", type=str, required=True, help="Argument 4")
 parser.add_argument("--discset", type=str, required=True, help="Argument 5")
 parser.add_argument("--midsample", type=str, required=True, help="Argument 6")
 parser.add_argument("--finalsample", type=str, required=True, help="Argument 7")
+parser.add_argument("--initQperformance", type=str, required=True, help="Argument 8")
 
 args = parser.parse_args()
 
@@ -46,7 +47,7 @@ parset = int(args.parset)
 discset = int(args.discset)
 midsample = int(args.midsample)
 finalsample = int(args.finalsample)
-
+initQperformance = float(args.initQperformance)
 print(f'num_episode: {num_episode} DQNorPolicy: {DQNorPolicy} env: {envID} parset: {parset} discset: {discset}')
 print(f'midsample size: {args.midsample} finalsample size: {args.finalsample}')
 #num_episode = int(sys.argv[1])
@@ -96,8 +97,9 @@ if DQNorPolicy == 0: # DQN
     wd2 = './deepQN results'
     np.save(f"{wd2}/rewards_{env.envID}_par{env.parset}_dis{env.discset}_DQN.npy", avgperformances)
     # best model
-    bestidx = np.array(avgperformances).argmax()
-    bestfilename = f"{wd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN_episode{bestidx*1000}.pt"
-    shutil.copy(bestfilename, f"{wd2}/bestQNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pt")
+    if initQperformance < max(avgperformances):
+        bestidx = np.array(avgperformances).argmax()
+        bestfilename = f"{wd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN_episode{bestidx*1000}.pt"
+        shutil.copy(bestfilename, f"{wd2}/bestQNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pt")
 else: # policy gradient
     foo = 0

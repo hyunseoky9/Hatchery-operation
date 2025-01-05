@@ -40,7 +40,7 @@ def Rainbow(env,num_episodes,epdecayopt,
     # DQN
     state_size = len(env.statespace_dim)
     action_size = env.actionspace_dim[0]
-    hidden_size = 40
+    hidden_size = 20
     hidden_num = 3
     # Dueling DQN
     hidden_num_shared = 1
@@ -72,22 +72,7 @@ def Rainbow(env,num_episodes,epdecayopt,
     performance_sampleN = 100
     final_performance_sampleN = 100
 
-    ## testing settings
-    testwd = './deepQN results/intermediate training Q network'
-    # delete all the previous network files in the intermediate network folder to not test the old Q networks
-    for file in os.listdir(testwd):
-        os.remove(os.path.join(testwd,file))
-
-    if external_testing:
-        # run the testing script in a separate process
-        # Define the script and arguments
-        script_name = "performance_tester.py"
-        args = ["--num_episodes", f"{num_episodes}", "--DQNorPolicy", "0", "--envID", f"{env.envID}",
-                 "--parset", f"{env.parset+1}", "--discset", f"{env.discset}", "--midsample", f"{performance_sampleN}",
-                 "--finalsample", f"{final_performance_sampleN}"]
-        # Run the script independently with arguments
-        #subprocess.Popen(["python", script_name] + args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        subprocess.Popen(["python", script_name] + args)
+ 
 
     ## normalization parameters
     if env.envID == 'Env1.0': # for discrete states
@@ -120,9 +105,38 @@ def Rainbow(env,num_episodes,epdecayopt,
                 lrdecayrate,noisy, distributional, atomn, Vmin, Vmax, normalize).to(device)
         Q_target = QNN(state_size, action_size, hidden_size, hidden_num, lr, state_min, 
                        state_max,lrdecayrate,noisy, distributional, atomn, Vmin, Vmax, normalize).to(device)
+    if bestQinit:
+        # initialize Q with the best Q network from the previous run
+        with open(f"deepQN results/bestQNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pt", "rb") as file:
+            initQ = torch.load(file,weights_only=False)
+        print('initializing Q with the best Q network from the previous run')
+        Q.load_state_dict(initQ.state_dict())
+        initperform = calc_performance(env,device,Q,None,performance_sampleN) # initial Q's performance
+        print(f'performance of the initial Q network: {initperform}')
+    else:
+        initperform = -100000000
+
     Q_target.load_state_dict(Q.state_dict())  # Copy weights from Q to Q_target
     Q_target.eval()  # Set target network to evaluation mode (no gradient updates)
+    
 
+   ## start testing process
+    testwd = './deepQN results/intermediate training Q network'
+    # delete all the previous network files in the intermediate network folder to not test the old Q networks
+    for file in os.listdir(testwd):
+        os.remove(os.path.join(testwd,file))
+    # run testing script in a separate process if external testing is on
+    if external_testing:
+        # run the testing script in a separate process
+        # Define the script and arguments
+        script_name = "performance_tester.py"
+        args = ["--num_episodes", f"{num_episodes}", "--DQNorPolicy", "0", "--envID", f"{env.envID}",
+                 "--parset", f"{env.parset+1}", "--discset", f"{env.discset}", "--midsample", f"{performance_sampleN}",
+                 "--finalsample", f"{final_performance_sampleN}","--initQperformance", f"{initperform}"]
+        # Run the script independently with arguments
+        #subprocess.Popen(["python", script_name] + args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.Popen(["python", script_name] + args)
+    
     ## intialize nstep queue
     nq = Nstepqueue(nstep, gamma)
     ## initialize memory
@@ -304,9 +318,12 @@ def Rainbow(env,num_episodes,epdecayopt,
         torch.save(Q, f"{wd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pt")
         # best model
         if not external_testing:
-            bestidx = np.array(avgperformances).argmax()
-            bestfilename = f"{testwd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN_episode{bestidx*1000}.pt"
-            shutil.copy(bestfilename, f"{wd}/bestQNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pt")
+            if max(avgperformances) > initperform:
+                bestidx = np.array(avgperformances).argmax()
+                bestfilename = f"{testwd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN_episode{bestidx*1000}.pt"
+                shutil.copy(bestfilename, f"{wd}/bestQNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pt")
+            else:
+                print(f'no improvement in the performance from training')
 
     ## make a discrete Q table if the environment is discrete and save it
     if env.envID == 'Env1.0':
