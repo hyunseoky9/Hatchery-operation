@@ -1,0 +1,33 @@
+theme,ranking,ranking,ranking
+training_cycle,7,7,7
+target_update_cycle,15,15,15
+lr,0.01,0.01,0.01
+lrdecaytype,exp,exp,exp
+lrdecay,0.9993,0.9992,0.9995
+minlr,inf,inf,inf
+layer_n,3,3,3
+layer_width,20,20,20
+epsilon,4;100000;0.1;-30/fix;-fix*0.4,4;100000;0.1;-30/fix;-fix*0.4,4;100000;0.1;-30/fix;-fix*0.4
+ddqn,T,T,T
+dueling,F,F,F
+hidden_shared_num,NA,NA,NA
+hidden_split_num,NA,NA,NA
+hidden_shared_width,NA,NA,NA
+hidden_split_width,NA,NA,NA
+prioritized,T,F,T
+beta0,0.4,NA,0.4
+alpha,0.4,NA,0.4
+nstep,1,1,1
+noisy,F,F,F
+distributional,F,F,F
+atomn,NA,NA,NA
+vmin,NA,NA,NA
+vmax,NA,NA,NA
+episodenum,7000,7000,7000
+seed,29445,566,566
+external testing ,FALSE,FALSE,FALSE
+normalize True,TRUE,TRUE,TRUE
+buffer size,1000,1000,1000
+batch size,100,100,100
+max R,760,763,752
+note,,,

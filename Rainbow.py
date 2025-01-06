@@ -57,8 +57,8 @@ def Rainbow(env,num_episodes,epdecayopt,
     batch_size = 100 # experience mini-batch size
     ## distributional RL atoms size
     Vmin = -104
-    Vmax = 70
-    atomn = 16
+    Vmax = 1002
+    atomn = 32
 
     ## etc.
     #lr = 0.01
@@ -69,8 +69,8 @@ def Rainbow(env,num_episodes,epdecayopt,
     #training_cycle = 7 # number of steps where the network is trained
     #target_update_cycle = 10 # number of steps where the target network is updated
     ## performance testing sample size
-    performance_sampleN = 100
-    final_performance_sampleN = 100
+    performance_sampleN = 1000
+    final_performance_sampleN = 1000
 
  
 
@@ -124,7 +124,12 @@ def Rainbow(env,num_episodes,epdecayopt,
     testwd = './deepQN results/intermediate training Q network'
     # delete all the previous network files in the intermediate network folder to not test the old Q networks
     for file in os.listdir(testwd):
-        os.remove(os.path.join(testwd,file))
+        try:
+            os.remove(os.path.join(testwd,file))
+        except PermissionError:
+            print(f"File {filepath} is locked. Retrying...")
+            time.sleep(5)  # Wait 1 second
+            os.remove(filepath)  # Retry deletion
     # run testing script in a separate process if external testing is on
     if external_testing:
         # run the testing script in a separate process
@@ -147,7 +152,7 @@ def Rainbow(env,num_episodes,epdecayopt,
     else:
         memory = Memory(memory_size, state_size, len(env.actionspace_dim))
         pretrain(env,nq,memory,batch_size,PrioritizedReplay,0) # prepopulate memory
-    print(f'Pretraining memory with {batch_size} experiences')
+    print(f'Pretraining memory with {batch_size} experiences (buffer size: {memory_size})')
 
     ## state initialization setting 
     if env.envID == 'Env1.0':
