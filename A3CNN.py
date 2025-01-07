@@ -39,7 +39,6 @@ class A3CNN(nn.Module):
         self.stack = nn.Sequential(*layers)
 
         # learning rate scheduler and optimizer
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
         self.scheduler = ExponentialLR(self.optimizer, gamma=lrdecayrate)  # Exponential decay
 
     def forward(self, x, hidden_state=None):

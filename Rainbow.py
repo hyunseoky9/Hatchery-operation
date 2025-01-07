@@ -14,6 +14,7 @@ from PrioritizedMemory import *
 from nq import *
 from distributionalRL import *
 from calc_performance import *
+from choose_action import *
 
 def Rainbow(env,num_episodes,epdecayopt,
             DDQN,DuelingDQN,PrioritizedReplay,nstep,noisy,distributional,
@@ -128,7 +129,7 @@ def Rainbow(env,num_episodes,epdecayopt,
             os.remove(os.path.join(testwd,file))
         except PermissionError:
             print(f"File {filepath} is locked. Retrying...")
-            time.sleep(5)  # Wait 1 second
+            time.sleep(5)  # Wait 5 second
             os.remove(filepath)  # Retry deletion
     # run testing script in a separate process if external testing is on
     if external_testing:
