@@ -4,7 +4,7 @@ import os
 import torch
 from torch import nn
 from torchvision.transforms import ToTensor
-from torch.optim.lr_scheduler import ExponentialLR
+from torch.optim.lr_scheduler import ExponentialLR, LambdaLR
 import pickle
 import numpy as np
 import random

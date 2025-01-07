@@ -14,8 +14,9 @@ from choose_action import *
 from A3CNN import *
 from env1_0 import Env1_0
 from env1_1 import Env1_1
+import time
 
-def A3C(env,contaction,lr,lrdecayrate,normalize,calc_MSE,external_testing,tmax,Tmax):
+def A3C(env,contaction,lr,min_lr,normalize,calc_MSE,external_testing,tmax,Tmax):
     """
     N-step Advantage Actor-Critic (A3C) algorithm
     """
@@ -105,22 +106,81 @@ def A3C(env,contaction,lr,lrdecayrate,normalize,calc_MSE,external_testing,tmax,T
     final_avgreward = 0
     print(f'performance sampling: {performance_sampleN}/{final_performance_sampleN}')
 
+    # Set multiprocessing method
     mp.set_start_method("spawn", force=True)
 
+    # Initialize shared global network and optimizer
+    global_net = A3CNN(state_size, 0, action_size, hidden_size, hidden_num, 0, 0, normalize, state_min, state_max)
+    global_net.share_memory() # Share network across processes
+    optimizer = torch.optim.Adam(global_net.parmeters(), lr=lr)
+
+    # Global counter 
+    T = mp.Value('i', 0)
+
+    # Environment parameters
+    envinit_params = {
+        "envID": env.envID,
+        "initstate": [-1,-1,-1,-1,-1,-1],
+        "parameterization_set": env.parset + 1,
+        "discretization_set": env.discset
+    }
+    # networkinit_params
+    networkinit_params = {
+        "state_size": state_size,
+        "contaction": 0,
+        "action_size": action_size,
+        "hidden_size": hidden_size,
+        "hidden_num": hidden_num,
+        "lstm": 0,
+        "lstm_num": 0,
+        "normalize": normalize,
+        "state_min": state_min,
+        "state_max": state_max
+    }
+    # worker_params
+    worker_params = {
+        "tmax": tmax,
+        "Tmax": Tmax,
+        "gamma": gamma,
+        "l": 1,
+        "beta": 0.01,
+        "lr": lr,
+        "min_lr": min_lr
+    }
+
+    # Spawn worker processes
+    processes = []
+    for worker_id in range(num_workers):
+        p = mp.Process(target=worker, args=(global_net, optimizer, T, worker_id, envinit_params, networkinit_params, worker_params))
+        p.start()
+        processes.append(p)
+    
+    # Wait for all processes to finish
+    for p in processes:
+        p.join()
+    
+    # make outputs
+    ## calculate final average reward
+    ## calculate MSE
+    ## Save the final network
+    ## make discrete Q if the env is discrete and save
+    return Q_discrete, policy, MSE, final_avgreward
     
 
 def worker(global_net, optimizer, T, worker_id, envinit_params, networkinit_params, worker_params):
     """Worker proccess for A3C using Hogwild!"""
     # Initialize local environment and network
-    env = Env1_0(**envinit_params)
+    if envinit_params['envID'] == 'Env1.0':
+        env = Env1_0(envinit_params['initstate'], envinit_params['parameterization_set'], envinit_params['discretization_set'])
+    elif envinit_params['envID'] == 'Env1.1':
+        env = Env1_1(envinit_params['initstate'], envinit_params['parameterization_set'], envinit_params['discretization_set'])
+
     local_net = A3CNN(
         state_size = networkinit_params['state_size'],
         contaction = networkinit_params['contaction'],
         action_size = networkinit_params['action_size'],
         hidden_size = networkinit_params['hidden_size'],
         hidden_num = networkinit_params['hidden_num'],
-        lr = networkinit_params['lr'],
-        lrdecayrate = networkinit_params['lrdecayrate'],
         lstm = networkinit_params['lstm'],
         lstm_num = networkinit_params['lstm_num'],
         normalize = networkinit_params['normalize'],
@@ -135,6 +195,9 @@ def worker(global_net, optimizer, T, worker_id, envinit_params, networkinit_para
     gamma = worker_params['gamma']
     l = worker_params['l']
     beta = worker_params['beta']
+    lr = worker_params['lr']
+    min_lr = worker_params['min_lr']
+
     state = torch.tensor(env.state, dtype=torch.float32)
     episode_reward = 0
 
@@ -156,6 +219,7 @@ def worker(global_net, optimizer, T, worker_id, envinit_params, networkinit_para
 
             with T.get_lock(): # safely read and update global counter
                 T.value += 1
+                adjust_learning_rate(optimizer, T, Tmax, lr, min_lr)  # Adjust learning rate dynamically
                 if T.value >= Tmax:
                     return
             
@@ -199,3 +263,9 @@ def worker(global_net, optimizer, T, worker_id, envinit_params, networkinit_para
         # Sync local network with global network
         local_net.load_state_dict(global_net.state_dict())
 
+def adjust_learning_rate(optimizer, T, Tmax, initial_lr, min_lr):
+    """Adjust learning rate based on the global step."""
+    lr = initial_lr * (1 - T.value / Tmax)
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = max(lr, min_lr)
+        

@@ -5,13 +5,12 @@ from torch.optim.lr_scheduler import ExponentialLR, StepLR
 from NoisyLinear import NoisyLinear
 
 class A3CNN(nn.Module):
-    def __init__(self, state_size, contaction, action_size, hidden_size, hidden_num, lr, lrdecayrate, lstm, lstm_num, normalize, state_min, state_max):
+    def __init__(self, state_size, contaction, action_size, hidden_size, hidden_num, lstm, lstm_num, normalize, state_min, state_max):
         super().__init__()
         self.action_size = action_size # number of actions if discrete action space, number of parameters for a continuous distribution if continuous action space
         self.state_size = state_size
         self.hidden_size = hidden_size
         self.hidden_num = hidden_num
-        self.lr = lr
         self.contaction = contaction # 1= continuous, 0= discrete
         self.normalization = normalize
         self.state_min = state_min
@@ -37,9 +36,6 @@ class A3CNN(nn.Module):
 
         # Creating the Sequential module
         self.stack = nn.Sequential(*layers)
-
-        # learning rate scheduler and optimizer
-        self.scheduler = ExponentialLR(self.optimizer, gamma=lrdecayrate)  # Exponential decay
 
     def forward(self, x, hidden_state=None):
         if self.normalization:
