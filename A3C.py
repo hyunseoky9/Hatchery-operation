@@ -44,8 +44,9 @@ def A3C(env,contaction,lr,min_lr,normalize,calc_MSE,external_testing,tmax,Tmax):
     ## A3C parameters    
     num_workers = 1 # number of workers
     Tmax = 100000 # total number of global steps
-    t_max = 5 # number of steps before updating the global network
-    
+    tmax = 5 # number of steps before updating the global network
+    l = 0.5 # weight for value loss
+    beta  = 0.01 # weight for entropy loss
 
     ## performance testing sample size
     performance_sampleN = 1000
@@ -97,9 +98,9 @@ def A3C(env,contaction,lr,min_lr,normalize,calc_MSE,external_testing,tmax,Tmax):
     # load Q function from the value iteration for calculating MSE
     if calc_MSE:
         if env.envID == 'Env1.0':
-            with open(f"value iter results/Q_Env1.0_par{env.parset}_dis{env.discset}_valiter.pkl", "rb") as file:
-                Q_vi = pickle.load(file)
-            Q_vi = torch.tensor(Q_vi[reachable_uniquestateid].flatten(), dtype=torch.float32).to(device)
+            with open(f"value iter results/V_Env1.0_par{env.parset}_dis{env.discset}_valiter.pkl", "rb") as file:
+                V_vi = pickle.load(file)
+            V_vi = torch.tensor(V_vi[reachable_uniquestateid].flatten(), dtype=torch.float32).to(device)
     MSE = []
     # initialize reward performance receptacle
     avgperformances = [] # average of rewards over 100 episodes with policy following trained Q
@@ -142,8 +143,8 @@ def A3C(env,contaction,lr,min_lr,normalize,calc_MSE,external_testing,tmax,Tmax):
         "tmax": tmax,
         "Tmax": Tmax,
         "gamma": gamma,
-        "l": 1,
-        "beta": 0.01,
+        "l": l,
+        "beta": beta,
         "lr": lr,
         "min_lr": min_lr
     }
@@ -169,6 +170,7 @@ def A3C(env,contaction,lr,min_lr,normalize,calc_MSE,external_testing,tmax,Tmax):
 
 def worker(global_net, optimizer, T, worker_id, envinit_params, networkinit_params, worker_params):
     """Worker proccess for A3C using Hogwild!"""
+    print(f"Worker {worker_id} initiated")
     # Initialize local environment and network
     if envinit_params['envID'] == 'Env1.0':
         env = Env1_0(envinit_params['initstate'], envinit_params['parameterization_set'], envinit_params['discretization_set'])
@@ -225,7 +227,8 @@ def worker(global_net, optimizer, T, worker_id, envinit_params, networkinit_para
             
             episode_reward += reward
             if done:
-                state = torch.tensor(env.reset([-1,-1,-1,-1,-1,-1]), dtype=torch.float32)
+                env.reset([-1,-1,-1,-1,-1,-1])
+                state = torch.tensor(env.state, dtype=torch.float32)
                 print(f"Worker {worker_id} episode reward: {episode_reward}")
                 episode_reward = 0
                 break
@@ -268,4 +271,3 @@ def adjust_learning_rate(optimizer, T, Tmax, initial_lr, min_lr):
     lr = initial_lr * (1 - T.value / Tmax)
     for param_group in optimizer.param_groups:
         param_group['lr'] = max(lr, min_lr)
-        
