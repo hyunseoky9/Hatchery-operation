@@ -18,7 +18,6 @@ class A3CNN(nn.Module):
         self.state_max = state_max
         self.lstm = lstm # 1= use LSTM, 0= not use LSTM
         self.lstm_num = lstm_num # number of LSTM cells in a layer.
-        self.hidden_state = None  # For LSTM hidden states
 
         layers = [nn.Linear(state_size, hidden_size), nn.ReLU()]
         for _ in range(self.hidden_num - 1):
@@ -43,21 +42,20 @@ class A3CNN(nn.Module):
         self.optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
         self.scheduler = ExponentialLR(self.optimizer, gamma=lrdecayrate)  # Exponential decay
 
-
-    def forward(self, x):
+    def forward(self, x, hidden_state=None):
         if self.normalization:
             x = self.normalize(x)
         x = self.stack(x)
         if self.lstm:
             if len(x.shape) == 2:
-                x = x.unsqueeze(1) # add batch dimension 
+                x = x.unsqueeze(0) # add batch dimension 
             
-            if self.hidden_state is None:
+            if hidden_state is None:
                 batch_size = x.size(0)
-                self.hidden_state = (torch.zeros(1, batch_size, self.lstm_num).to(x.device),
+                hidden_state = (torch.zeros(1, batch_size, self.lstm_num).to(x.device),
                                      torch.zeros(1, batch_size, self.lstm_num).to(x.device))
             # pass through LSTM layer
-            x, self.hidden_state = self.lstm_layer(x,self.hidden_state) # x shape: 
+            x, hidden_state = self.lstm_layer(x,hidden_state) # x shape: 
             x = x[:, -1, :]  # Extract last time step
 
         logits = self.policy_head(x)
@@ -67,7 +65,7 @@ class A3CNN(nn.Module):
             policy = logits
 
         value = self.value_head(x)
-        return policy, value, self.hidden_state if self.lstm else None
+        return policy, value, hidden_state if self.lstm else None
 
     
     def normalize(self, state):
