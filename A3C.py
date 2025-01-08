@@ -36,7 +36,7 @@ def A3C(env,contaction,lr,min_lr,normalize,calc_MSE,external_testing,tmax,Tmax,l
     gamma = env.gamma # discount rate
     max_steps = 1000 # max steps per episode
     ## A3C parameters    
-    num_workers = 4 # number of workers
+    num_workers = 2 # number of workers
     #tmax = 5 # number of steps before updating the global network
     l = 0.5 # weight for value loss
     beta  = 0.01 # weight for entropy loss
@@ -93,10 +93,13 @@ def A3C(env,contaction,lr,min_lr,normalize,calc_MSE,external_testing,tmax,Tmax,l
             with open(f"value iter results/V_Env1.0_par{env.parset}_dis{env.discset}_valiter.pkl", "rb") as file:
                 V_vi = pickle.load(file)
             V_vi = torch.tensor(V_vi[reachable_uniquestateid].flatten(), dtype=torch.float32)
-    MSE = []
+            with open(f"value iter results/policy_Env1.0_par{env.parset}_dis{env.discset}_valiter.pkl", "rb") as file:
+                policy_vi = pickle.load(file)
+            policy_vi = torch.tensor(policy_vi[reachable_uniquestateid].flatten(), dtype=torch.float32)
+    MSEV = [] # MSE for value function
+    MSEP = [] # MSE for policy function
     # initialize reward performance receptacle
     avgperformances = [] # average of rewards over 100 episodes with policy following trained Q
-    final_avgreward = 0
     print(f'performance sampling: {performance_sampleN}/{final_performance_sampleN}')
 
     # Set multiprocessing method
@@ -284,3 +287,13 @@ def worker(global_net, optimizer, T, worker_id, envinit_params, networkinit_para
         # Sync local network with global network
         local_net.load_state_dict(global_net.state_dict())
 
+def tester(MSEV, MSEP, avgperformances, V_vi, policy_vi, T, global_net, envinit_params, networkinit_params, calc_MSE, performance_sampleN, final_performance_sampleN):
+    """
+    Test the performance of the policy network in 3 ways:
+    1. Calculate the MSE of the value function
+    2. Calculate the MSE of the policy function
+    3. Calculate the average reward over N episodes (performance_sampleN, final_performance_sampleN)
+    """
+    if calc_MSE:
+    
+        
