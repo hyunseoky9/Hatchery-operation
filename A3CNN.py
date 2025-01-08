@@ -47,8 +47,8 @@ class A3CNN(nn.Module):
             
             if hidden_state is None:
                 batch_size = x.size(0)
-                hidden_state = (torch.zeros(1, batch_size, self.lstm_num).to(x.device),
-                                     torch.zeros(1, batch_size, self.lstm_num).to(x.device))
+                hidden_state = (torch.zeros(1, batch_size, self.lstm_num),
+                                     torch.zeros(1, batch_size, self.lstm_num))
             # pass through LSTM layer
             x, hidden_state = self.lstm_layer(x,hidden_state) # x shape: 
             x = x[:, -1, :]  # Extract last time step

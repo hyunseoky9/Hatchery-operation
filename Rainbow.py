@@ -128,9 +128,9 @@ def Rainbow(env,num_episodes,epdecayopt,
         try:
             os.remove(os.path.join(testwd,file))
         except PermissionError:
-            print(f"File {filepath} is locked. Retrying...")
+            print(f"File {testwd} is locked. Retrying...")
             time.sleep(5)  # Wait 5 second
-            os.remove(filepath)  # Retry deletion
+            os.remove(testwd)  # Retry deletion
     # run testing script in a separate process if external testing is on
     if external_testing:
         # run the testing script in a separate process
