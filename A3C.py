@@ -36,7 +36,7 @@ def A3C(env,contaction,lr,min_lr,normalize,calc_MSE,external_testing,tmax,Tmax,l
     gamma = env.gamma # discount rate
     max_steps = 1000 # max steps per episode
     ## A3C parameters    
-    num_workers = 1 # number of workers
+    num_workers = 4 # number of workers
     #tmax = 5 # number of steps before updating the global network
     l = 0.5 # weight for value loss
     beta  = 0.01 # weight for entropy loss
@@ -205,6 +205,7 @@ def worker(global_net, optimizer, T, worker_id, envinit_params, networkinit_para
     # Initialize LSTM hidden state
     hidden_state = None
     done = True
+    episode_count = 0
     while True:
         # Store transitions and hidden states
         states, actions, rewards = [], [], []
@@ -214,7 +215,8 @@ def worker(global_net, optimizer, T, worker_id, envinit_params, networkinit_para
             env.reset(initstate)
             state = torch.tensor(env.state, dtype=torch.float32)
             hidden_state = None
-            print(f"Worker {worker_id} episode reward: {episode_reward}")
+            print(f"Worker {worker_id} episode {episode_count} reward: {episode_reward}")
+            episode_count += 1
             episode_reward = 0
 
         for _ in range(tmax):
