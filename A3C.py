@@ -20,15 +20,6 @@ def A3C(env,contaction,lr,min_lr,normalize,calc_MSE,external_testing,tmax,Tmax):
     """
     N-step Advantage Actor-Critic (A3C) algorithm
     """
-    # device for pytorch neural network
-    device = (
-    "cuda"
-    if torch.cuda.is_available()
-    else "mps"
-    if torch.backends.mps.is_available()
-    else "cpu"
-    )
-    print(f"Using {device} device")
     # parameters
     ## NN parameters
     state_size = len(env.statespace_dim) # state space dimension
@@ -43,8 +34,8 @@ def A3C(env,contaction,lr,min_lr,normalize,calc_MSE,external_testing,tmax,Tmax):
     max_steps = 1000 # max steps per episode
     ## A3C parameters    
     num_workers = 1 # number of workers
-    Tmax = 100000 # total number of global steps
-    tmax = 5 # number of steps before updating the global network
+    #Tmax = 100000 # total number of global steps
+    #tmax = 5 # number of steps before updating the global network
     l = 0.5 # weight for value loss
     beta  = 0.01 # weight for entropy loss
 
@@ -111,9 +102,9 @@ def A3C(env,contaction,lr,min_lr,normalize,calc_MSE,external_testing,tmax,Tmax):
     mp.set_start_method("spawn", force=True)
 
     # Initialize shared global network and optimizer
-    global_net = A3CNN(state_size, 0, action_size, hidden_size, hidden_num, 0, 0, normalize, state_min, state_max)
+    global_net = A3CNN(state_size, contaction, action_size, hidden_size, hidden_num, 0, 0, normalize, state_min, state_max)
     global_net.share_memory() # Share network across processes
-    optimizer = torch.optim.Adam(global_net.parmeters(), lr=lr)
+    optimizer = torch.optim.Adam(global_net.parameters(), lr=lr)
 
     # Global counter 
     T = mp.Value('i', 0)
@@ -146,7 +137,8 @@ def A3C(env,contaction,lr,min_lr,normalize,calc_MSE,external_testing,tmax,Tmax):
         "l": l,
         "beta": beta,
         "lr": lr,
-        "min_lr": min_lr
+        "min_lr": min_lr,
+        "max_steps": max_steps
     }
 
     # Spawn worker processes
@@ -165,7 +157,8 @@ def A3C(env,contaction,lr,min_lr,normalize,calc_MSE,external_testing,tmax,Tmax):
     ## calculate MSE
     ## Save the final network
     ## make discrete Q if the env is discrete and save
-    return Q_discrete, policy, MSE, final_avgreward
+    Q_discrete = None
+    return Q_discrete, global_net, MSE, final_avgreward
     
 
 def worker(global_net, optimizer, T, worker_id, envinit_params, networkinit_params, worker_params):
@@ -200,17 +193,31 @@ def worker(global_net, optimizer, T, worker_id, envinit_params, networkinit_para
     lr = worker_params['lr']
     min_lr = worker_params['min_lr']
 
-    state = torch.tensor(env.state, dtype=torch.float32)
     episode_reward = 0
 
+    # Initialize LSTM hidden state
+    hidden_state = None
+    done = True
     while True:
-        # Store transitions
+        # Store transitions and hidden states
         states, actions, rewards = [], [], []
+        hidden_in = []
+        # If episode is done, reset environment & hidden states
+        if done:
+            env.reset([-1,-1,-1,-1,-1,-1])
+            state = torch.tensor(env.state, dtype=torch.float32)
+            hidden_state = None
+            print(f"Worker {worker_id} episode reward: {episode_reward}")
+            episode_reward = 0
+
         for _ in range(tmax):
+            # Store the hidden state *before* the forward pass
+            hidden_in.append(hidden_state)
             with torch.no_grad():
-                policy, value, _ = local_net(state.unsqueeze(0))
+                policy, value, hidden_state = local_net(state.unsqueeze(0), hidden_state)
+
             action = torch.multinomial(policy, 1).item() # sample action
-            action_prob = policy[0, action]
+            
             reward, done, _ = env.step(action)
 
             # save transition
@@ -227,36 +234,38 @@ def worker(global_net, optimizer, T, worker_id, envinit_params, networkinit_para
             
             episode_reward += reward
             if done:
-                env.reset([-1,-1,-1,-1,-1,-1])
-                state = torch.tensor(env.state, dtype=torch.float32)
-                print(f"Worker {worker_id} episode reward: {episode_reward}")
-                episode_reward = 0
                 break
         
         # Compute n-step returns and advantages
-        R = 0 if done else local_net(state.unsqueeze(0))[-1].item() # Bootstrapped value
-        returns, advantages = [], []
+        if done:
+            R = 0
+        else:
+            with torch.no_grad():
+                _, value_next, _ = local_net(state.unsqueeze(0), hidden_state)
+            R = value_next.item()
+        
+        returns = []
         for r in reversed(rewards):
             R = r + gamma * R
             returns.insert(0, R)
-        returns = torch.tensor(returns)
-        values = torch.stack([local_net(s.unsqueeze(0))[1] for s in states]).squeeze()
-        advantages = returns - values
+        returns = torch.tensor(returns, dtype=torch.float32)
 
         # compute losses
-        policy_loss, value_loss, entropy_loss = 0,0,0
-        for s, a, adv, R in zip(states, actions, advantages, returns):
-            policy, value, _ = local_net(s.unsqueeze(0))  # Use the correct state
+        optimizer.zero_grad()
+        policy_loss, value_loss, entropy_loss = 0.0 ,0.0 ,0.0
+        hidden_state_train = hidden_in[0]
+        for s, a, R in zip(states, actions, returns):
+            policy, value, hidden_state_train = local_net(s.unsqueeze(0), hidden_state_train)  # Use the correct state
             log_prob = torch.log(policy[0, a])  # Use the correct action
-            entropy = -torch.sum(policy * torch.log(policy))  # Entropy of the policy
-            policy_loss += -log_prob * adv
-            value_loss += (value - R) ** 2
-            entropy_loss += entropy
+            entropy = -torch.sum(policy * torch.log(policy + 1e-9), dim=1)  # Entropy of the policy
+            advantage = R - value
+            policy_loss += -log_prob * advantage
+            value_loss += advantage.pow(2)
+            entropy_loss += entropy.mean()
         
         total_loss = policy_loss + l * value_loss - beta * entropy_loss
 
         # back propagation
-        optimizer.zero_grad()
         total_loss.backward()
         for global_param, local_param in zip(global_net.parameters(), local_net.parameters()):
             if global_param.grad is None:
