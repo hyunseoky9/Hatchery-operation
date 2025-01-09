@@ -159,7 +159,7 @@ def Rainbow(env,num_episodes,epdecayopt,
     if env.envID == 'Env1.0':
         initlist = [-1,-1,-1,-1,-1,-1] # all random
         reachables = env.reachable_state_actions()
-        reachable_states = torch.tensor([env._unflatten(i[0]) for i in reachables], dtype=torch.float32).to(device)
+        reachable_states = torch.tensor([env._unflatten(i[0]) for i in reachables], dtype=torch.float32).to(device) # states extracted from reachable state-action pairs. *there are redundant states on purpose*
         reachable_uniquestateid = torch.tensor(env.reachable_states(), dtype=torch.int64).to(device)
         reachable_actions = torch.tensor([i[1] for i in reachables], dtype=torch.int64).unsqueeze(1).to(device)
     elif env.envID == 'Env1.1':

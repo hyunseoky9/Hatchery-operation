@@ -68,10 +68,8 @@ def A3C(env,contaction,lr,min_lr,normalize,calc_MSE,tmax,Tmax,lstm,testnum):
     ## state initialization setting 
     if env.envID == 'Env1.0':
         initstate = [-1,-1,-1,-1,-1,-1] # all random
-        reachables = env.reachable_state_actions()
-        reachable_states = torch.tensor([env._unflatten(i[0]) for i in reachables], dtype=torch.float32)
+        reachable_states = torch.tensor([env._unflatten(i) for i in env.reachable_states()], dtype=torch.float32) # unique reachable states in unflattened form. *Different from DQN!*
         reachable_uniquestateid = torch.tensor(env.reachable_states(), dtype=torch.int64)
-        reachable_actions = torch.tensor([i[1] for i in reachables], dtype=torch.int64).unsqueeze(1)
     elif env.envID == 'Env1.1':
         initstate = [-1,-1,-1,-1,-1,-1]
 
@@ -81,7 +79,7 @@ def A3C(env,contaction,lr,min_lr,normalize,calc_MSE,tmax,Tmax,lstm,testnum):
         if env.envID == 'Env1.0':
             with open(f"value iter results/V_Env1.0_par{env.parset}_dis{env.discset}_valiter.pkl", "rb") as file:
                 V_vi = pickle.load(file)
-            V_vi = torch.tensor(V_vi[reachable_uniquestateid].flatten(), dtype=torch.float32)
+            V_vi = torch.tensor(V_vi[reachable_uniquestateid], dtype=torch.float32)
             with open(f"value iter results/policy_Env1.0_par{env.parset}_dis{env.discset}_valiter.pkl", "rb") as file:
                 policy_vi = pickle.load(file)
             policy_vi = torch.tensor(policy_vi[reachable_uniquestateid].flatten(), dtype=torch.float32)
@@ -139,7 +137,7 @@ def A3C(env,contaction,lr,min_lr,normalize,calc_MSE,tmax,Tmax,lstm,testnum):
 
     processes = []
     # Spawn tester process
-    p = mp.Process(target=tester, args=(MSEV, MSEP, avgperformances, V_vi, policy_vi, T, global_net, envinit_params, networkinit_params, worker_params, calc_MSE, performance_sampleN, final_performance_sampleN, testnum))
+    p = mp.Process(target=tester, args=(MSEV, MSEP, avgperformances, V_vi, policy_vi, reachable_states, T, global_net, envinit_params, networkinit_params, worker_params, calc_MSE, performance_sampleN, final_performance_sampleN, testnum))
     p.start()
     processes.append(p)
     # Spawn worker processes
@@ -281,7 +279,7 @@ def worker(global_net, optimizer, T, worker_id, envinit_params, networkinit_para
         # Sync local network with global network
         local_net.load_state_dict(global_net.state_dict())
 
-def tester(MSEV, MSEP, avgperformances, V_vi, policy_vi, T, global_net, envinit_params, networkinit_params, worker_params, calc_MSE, performance_sampleN, final_performance_sampleN, testnum):
+def tester(MSEV, MSEP, avgperformances, V_vi, policy_vi, reachable_states, T, global_net, envinit_params, networkinit_params, worker_params, calc_MSE, performance_sampleN, final_performance_sampleN, testnum):
     """
     Test the performance of the policy network in 3 ways:
     1. Calculate the MSE of the value function
@@ -326,6 +324,7 @@ def tester(MSEV, MSEP, avgperformances, V_vi, policy_vi, T, global_net, envinit_
             local_net.load_state_dict(global_net.state_dict()) # copy global network weights
             if calc_MSE:
                 # Calculate the MSE of the value function
+                global_net()
                 #V = global_net.value_head.weight.squeeze().detach()
                 #MSEV.append(torch.mean((V - V_vi) ** 2).item())
                 MSEV[interval_idx] = 1.0
