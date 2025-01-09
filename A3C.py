@@ -233,6 +233,7 @@ def worker(global_net, optimizer, T, worker_id, envinit_params, networkinit_para
                     print(f"Global step (T) = {T.value}")
                 T.value += 1
                 adjust_learning_rate(optimizer, T, Tmax, lr, min_lr)  # Adjust learning rate dynamically
+                
                 if T.value >= Tmax:
                     return
             
@@ -300,7 +301,7 @@ def tester(MSEV, MSEP, avgperformances, V_vi, policy_vi, reachable_states, T, gl
         env = Env1_0(envinit_params['initstate'], envinit_params['parameterization_set'], envinit_params['discretization_set'])
     elif envinit_params['envID'] == 'Env1.1':
         env = Env1_1(envinit_params['initstate'], envinit_params['parameterization_set'], envinit_params['discretization_set'])
-
+    action_size = env.actionspace_dim[0]
     # initialize network
     local_net = A3CNN(
         state_size = networkinit_params['state_size'],
@@ -323,15 +324,12 @@ def tester(MSEV, MSEP, avgperformances, V_vi, policy_vi, reachable_states, T, gl
         if current_t >= intervals[interval_idx]:
             local_net.load_state_dict(global_net.state_dict()) # copy global network weights
             if calc_MSE:
+                if local_net.lstm == 0:
+                    policy, V, _ = local_net(reachable_states)
                 # Calculate the MSE of the value function
-                global_net()
-                #V = global_net.value_head.weight.squeeze().detach()
-                #MSEV.append(torch.mean((V - V_vi) ** 2).item())
-                MSEV[interval_idx] = 1.0
-                # Calculate the MSE of the policy function
-                #policy = global_net.policy_head.weight.detach()
-                #MSEP.append(torch.mean((policy - policy_vi) ** 2).item())
-                MSEP[interval_idx] = 2.0
+                MSEV[interval_idx] = torch.mean((V.T.squeeze(0) - V_vi) ** 2).item()
+                # Calculate the MSE of the policy function (compare using the expected policy)
+                MSEP[interval_idx] = torch.sum(policy[0]*torch.tensor(np.arange(0,action_size),dtype=torch.float32)).item()
             if interval_idx < testnum - 1:
                 # calculate the average reward over N episodes
                 avgperformance = 777
@@ -344,8 +342,6 @@ def tester(MSEV, MSEP, avgperformances, V_vi, policy_vi, reachable_states, T, gl
             # update interval_idx
             intervals_tested[interval_idx] = 1 # mark the interval as tested
             interval_idx += 1
-            print("MSEV after tester process:", MSEV[:])
-            print("MSEP after tester process:", MSEP[:])
             if interval_idx >= testnum:
                 break
 
