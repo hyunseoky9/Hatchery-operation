@@ -9,6 +9,7 @@ td results/
 value iter results/
 deepQN results/
 a3c results/
+.vscode/
 # Ignore Python cache files and directories
 __pycache__/
 *.pyc
