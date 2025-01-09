@@ -29,6 +29,5 @@ if __name__ == "__main__":
     lstm = 0 # lstm layer option 
     normalize = False
     calc_MSE = True
-    testnum = 20 # number of tests to do before Tmax
     SavePolicyCycle = 100 # number of T steps to save policy network (global network).
-    MSEV, MSEP, final_avgreward = A3C(env,contaction,lr,min_lr,normalize,calc_MSE,tmax,Tmax,lstm,testnum,SavePolicyCycle,seednum)
+    MSEV, MSEP, final_avgreward = A3C(env,contaction,lr,min_lr,normalize,calc_MSE,tmax,Tmax,lstm,SavePolicyCycle,seednum)

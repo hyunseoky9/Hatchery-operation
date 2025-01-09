@@ -17,7 +17,7 @@ from env1_0 import Env1_0
 from env1_1 import Env1_1
 import time
 
-def A3C(env,contaction,lr,min_lr,normalize,calc_MSE,tmax,Tmax,lstm,testnum,SavePolicyCycle,seednum):
+def A3C(env,contaction,lr,min_lr,normalize,calc_MSE,tmax,Tmax,lstm,SavePolicyCycle,seednum):
     """
     N-step Advantage Actor-Critic (A3C) algorithm
     """
@@ -88,10 +88,11 @@ def A3C(env,contaction,lr,min_lr,normalize,calc_MSE,tmax,Tmax,lstm,testnum,SaveP
     else:
         V_vi = None
         policy_vi = None
-    MSEV = torch.zeros(testnum,dtype=torch.float32).share_memory_() # MSE for value function
-    MSEP = torch.zeros(testnum,dtype=torch.float32).share_memory_() # MSE for policy function
+    numtests = len(list(range(0, Tmax+1, SavePolicyCycle)))
+    MSEV = torch.zeros(numtests,dtype=torch.float32).share_memory_() # MSE for value function
+    MSEP = torch.zeros(numtests,dtype=torch.float32).share_memory_() # MSE for policy function
     # initialize reward performance receptacle
-    avgperformances = torch.zeros(testnum,dtype=torch.float32).share_memory_() # average of rewards over 100 episodes with policy following trained Q
+    avgperformances = torch.zeros(numtests,dtype=torch.float32).share_memory_() # average of rewards over 100 episodes with policy following trained Q
     print(f'performance sampling: {performance_sampleN}/{final_performance_sampleN}')
 
     # Set multiprocessing method
@@ -138,6 +139,7 @@ def A3C(env,contaction,lr,min_lr,normalize,calc_MSE,tmax,Tmax,lstm,testnum,SaveP
         "min_lr": min_lr,
         "max_steps": max_steps,
         "testwd": './a3c results/intermediate training policy network',
+        "wd": './a3c results',
         "SavePolicyCycle": SavePolicyCycle,
         "base_seed": seednum,
         "num_workers": num_workers
@@ -313,7 +315,10 @@ def tester(MSEV, MSEP, avgperformances, V_vi, policy_vi, reachable_states, T, en
     4. test tesnum times in fixed interval
     """
     # Set seed
-    seednum = worker_params['base_seed'] + worker_params['num_workers'] + 1
+    testerseed = worker_params['base_seed'] + worker_params['num_workers'] + 1
+    random.seed(testerseed)
+    np.random.seed(testerseed)
+    torch.manual_seed(testerseed)
     # parameters
     Tmax = worker_params['Tmax']
     savecyc = worker_params['SavePolicyCycle']
@@ -330,12 +335,21 @@ def tester(MSEV, MSEP, avgperformances, V_vi, policy_vi, reachable_states, T, en
 
     # working directory to load networks from
     testwd = worker_params['testwd']
-
+    wd = worker_params['wd']
+    filenames = []
     # test if the model hasn't been tested while the counter is within the interval
     for interval in intervals:
         # load saved network
         filename = f"{testwd}/PolicyNetwork_{env.envID}_par{env.parset}_dis{env.discset}_A3C_T{interval}.pt"
-        local_net = torch.load(filename, weights_only=False)
+        filenames.append(filename)
+        trynum = 0
+        try:
+            local_net = torch.load(filename, weights_only=False)
+        except:
+            print(f'file not found at {interval}/{Tmax}, sleeping 2 sec')
+            time.sleep(2)
+            trynum += 1
+
         if calc_MSE:
             if local_net.lstm == 0:
                 policy, V, _ = local_net(reachable_states)
@@ -357,6 +371,12 @@ def tester(MSEV, MSEP, avgperformances, V_vi, policy_vi, reachable_states, T, en
         avgperformances[interval_idx] = avgperformance
         # confirm testing at the interval
         interval_idx += 1
+    
+    # save the model with the best performance
+    bestidx = np.array(avgperformances).argmax()
+    bestfilename = f"{testwd}/PolicyNetwork_{env.envID}_par{env.parset}_dis{env.discset}_A3C_T{intervals[bestidx]}.pt"
+    shutil.copy(bestfilename, f"{wd}/bestPolicyNetwork_{env.envID}_par{env.parset}_dis{env.discset}_A3C.pt")
 
+    
 
 
