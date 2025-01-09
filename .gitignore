@@ -1,6 +1,7 @@
 # jupyter notebooks.
 *.ipynb
 *.npy
+*.json
 .ipynb_checkpoints/
 # Rhistory
 .Rhistory
