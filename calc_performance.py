@@ -17,6 +17,7 @@ def calc_performance(env, device, Q=None, policy=None, episodenum=1000):
         rewards = 0
         if env.envID in ['Env1.0','Env1.1']:
             env.reset([-1,-1,-1,-1,-1,-1])
+            hx = None # for A3C + lstm
         done = False
         t = 0
         while done == False:
@@ -25,8 +26,7 @@ def calc_performance(env, device, Q=None, policy=None, episodenum=1000):
             elif policy is not None:
                 # fill this in later when you get policy gradient algorithms!
                 if policy.type == 'A3C':
-                    if policy.lstm == 0:
-                        action, _ = choose_action_a3c(env.state,policy,None)
+                    action, hx = choose_action_a3c(env.state,policy,hx)
             reward, done, _ = env.step(action)
             rewards += reward
             if t >= t_maxstep:

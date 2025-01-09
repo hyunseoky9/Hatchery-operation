@@ -351,9 +351,8 @@ def tester(MSEV, MSEP, avgperformances, V_vi, policy_vi, reachable_states, envin
             time.sleep(2)
             trynum += 1
 
-        if calc_MSE:
-            if local_net.lstm == 0:
-                policy, V, _ = local_net(reachable_states)
+        if calc_MSE: # Warning: this may only work for FF version. 
+            policy, V, _ = local_net(reachable_states)
             # Calculate the MSE of the value function
             msevval = torch.mean((V.T.squeeze(0) - V_vi) ** 2).item()
             MSEV[interval_idx] = msevval
