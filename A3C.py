@@ -17,7 +17,7 @@ from env1_0 import Env1_0
 from env1_1 import Env1_1
 import time
 
-def A3C(env,contaction,lr,min_lr,normalize,calc_MSE,tmax,Tmax,lstm,testnum,SavePolicyCycle):
+def A3C(env,contaction,lr,min_lr,normalize,calc_MSE,tmax,Tmax,lstm,testnum,SavePolicyCycle,seednum):
     """
     N-step Advantage Actor-Critic (A3C) algorithm
     """
@@ -138,12 +138,14 @@ def A3C(env,contaction,lr,min_lr,normalize,calc_MSE,tmax,Tmax,lstm,testnum,SaveP
         "min_lr": min_lr,
         "max_steps": max_steps,
         "testwd": './a3c results/intermediate training policy network',
-        "SavePolicyCycle": SavePolicyCycle
+        "SavePolicyCycle": SavePolicyCycle,
+        "base_seed": seednum,
+        "num_workers": num_workers
     }
 
     processes = []
     # Spawn tester process
-    p = mp.Process(target=tester, args=(MSEV, MSEP, avgperformances, V_vi, policy_vi, reachable_states, T, global_net, envinit_params, networkinit_params, worker_params, calc_MSE, performance_sampleN, final_performance_sampleN, testnum))
+    p = mp.Process(target=tester, args=(MSEV, MSEP, avgperformances, V_vi, policy_vi, reachable_states, T, envinit_params, worker_params, calc_MSE, performance_sampleN, final_performance_sampleN))
     p.start()
     processes.append(p)
     # Spawn worker processes
@@ -158,8 +160,11 @@ def A3C(env,contaction,lr,min_lr,normalize,calc_MSE,tmax,Tmax,lstm,testnum,SaveP
     print('workers done')
     # save the global network.
     ## save the last model
-    torch.save(global_net, f"{wd}/PolicyNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pt")
-
+    torch.save(global_net, f"{wd}/PolicyNetwork_{env.envID}_par{env.parset}_dis{env.discset}_A3C.pt")
+    ## save MSEV and MSEP
+    if calc_MSE:
+        np.save(f"{wd}/MSEV_{env.envID}_par{env.parset}_dis{env.discset}_A3C.npy", MSEV)
+        np.save(f"{wd}/MSEP_{env.envID}_par{env.parset}_dis{env.discset}_A3C.npy", MSEP)
     
     return MSEV, MSEP, avgperformances
 
@@ -172,6 +177,11 @@ def adjust_learning_rate(optimizer, T, Tmax, initial_lr, min_lr):
 def worker(global_net, optimizer, T, worker_id, envinit_params, networkinit_params, worker_params):
     """Worker proccess for A3C using Hogwild!"""
     print(f"Worker {worker_id} initiated")
+    # Set random seed
+    worker_seed = worker_params['base_seed'] + (worker_id + 1)
+    random.seed(worker_seed)
+    np.random.seed(worker_seed)
+    torch.manual_seed(worker_seed)
     # Initialize local environment and network
     initstate = envinit_params['initstate']
     if envinit_params['envID'] == 'Env1.0':
@@ -294,7 +304,7 @@ def worker(global_net, optimizer, T, worker_id, envinit_params, networkinit_para
         # Sync local network with global network
         local_net.load_state_dict(global_net.state_dict())
 
-def tester(MSEV, MSEP, avgperformances, V_vi, policy_vi, reachable_states, T, global_net, envinit_params, networkinit_params, worker_params, calc_MSE, performance_sampleN, final_performance_sampleN, testnum):
+def tester(MSEV, MSEP, avgperformances, V_vi, policy_vi, reachable_states, T, envinit_params, worker_params, calc_MSE, performance_sampleN, final_performance_sampleN):
     """
     Test the performance of the policy network in 3 ways:
     1. Calculate the MSE of the value function
@@ -302,54 +312,51 @@ def tester(MSEV, MSEP, avgperformances, V_vi, policy_vi, reachable_states, T, gl
     3. Calculate the average reward over N episodes (performance_sampleN, final_performance_sampleN)
     4. test tesnum times in fixed interval
     """
+    # Set seed
+    seednum = worker_params['base_seed'] + worker_params['num_workers'] + 1
+    # parameters
     Tmax = worker_params['Tmax']
     savecyc = worker_params['SavePolicyCycle']
     # calcualte intervals in global counter where the performance is tested once.
-
-    intervals = np.linspace(0, Tmax, testnum+1)[0:-1]
-    intervals_tested = np.zeros(testnum) # 0: not tested in the interval, 1: tested in the interval
+    intervals = list(range(0, Tmax+1, savecyc))
     interval_idx = 0
 
     # Initialize envd
-    initstate = envinit_params['initstate']
     if envinit_params['envID'] == 'Env1.0':
         env = Env1_0(envinit_params['initstate'], envinit_params['parameterization_set'], envinit_params['discretization_set'])
     elif envinit_params['envID'] == 'Env1.1':
         env = Env1_1(envinit_params['initstate'], envinit_params['parameterization_set'], envinit_params['discretization_set'])
     action_size = env.actionspace_dim[0]
 
-    while True:
-        with T.get_lock(): # safely read and update global counter
-            current_t = T.value
-        # test if the model hasn't been tested while the counter is within the interval
-        if current_t >= intervals[interval_idx]:
-            # load saved network
-            local_net = ...
-            if calc_MSE:
-                if local_net.lstm == 0:
-                    policy, V, _ = local_net(reachable_states)
-                # Calculate the MSE of the value function
-                msevval = torch.mean((V.T.squeeze(0) - V_vi) ** 2).item()
-                MSEV[interval_idx] = msevval
-                # Calculate the MSE of the policy function (compare using the expected policy)
-                action_idx_expanded = torch.tensor(np.arange(0,action_size),dtype=torch.float32).unsqueeze(0).expand(len(reachable_states),-1)
-                msepval = torch.mean((torch.sum(policy*action_idx_expanded, dim=1) - policy_vi) ** 2).item()
-                MSEP[interval_idx] = msepval
-                print(f"Interval {interval_idx}/{testnum} MSEV: {msevval}     MSEP: {msepval}")
-            if interval_idx < testnum - 1:
-                # calculate the average reward over N episodes
-                avgperformance = 777
-                #avgperformance = calc_performance(env,None,None,local_net,performance_sampleN)
-            else:
-                avgperformance = 888
-                #avgperformance = calc_performance(env,None,None,local_net,final_performance_sampleN)
-            
-            avgperformances[interval_idx] = avgperformance
-            # update interval_idx
-            intervals_tested[interval_idx] = 1 # mark the interval as tested
-            interval_idx += 1
-            if interval_idx >= testnum:
-                break
+    # working directory to load networks from
+    testwd = worker_params['testwd']
+
+    # test if the model hasn't been tested while the counter is within the interval
+    for interval in intervals:
+        # load saved network
+        filename = f"{testwd}/PolicyNetwork_{env.envID}_par{env.parset}_dis{env.discset}_A3C_T{interval}.pt"
+        local_net = torch.load(filename, weights_only=False)
+        if calc_MSE:
+            if local_net.lstm == 0:
+                policy, V, _ = local_net(reachable_states)
+            # Calculate the MSE of the value function
+            msevval = torch.mean((V.T.squeeze(0) - V_vi) ** 2).item()
+            MSEV[interval_idx] = msevval
+            # Calculate the MSE of the policy function (compare using the expected policy)
+            action_idx_expanded = torch.tensor(np.arange(0,action_size),dtype=torch.float32).unsqueeze(0).expand(len(reachable_states),-1)
+            msepval = torch.mean((torch.sum(policy*action_idx_expanded, dim=1) - policy_vi) ** 2).item()
+            MSEP[interval_idx] = msepval
+            mse_calc_str = f'MSEV: {msevval}     MSEP: {msepval}'
+        if interval_idx < len(intervals) - 1:
+            # calculate the average reward over N episodes
+            avgperformance = calc_performance(env,None,None,local_net,performance_sampleN)
+        else:
+            avgperformance = calc_performance(env,None,None,local_net,final_performance_sampleN)
+        performance_str = f"Avg Performance: {avgperformance}"
+        print(f"Testing.. {interval}/{Tmax} {mse_calc_str}     {performance_str}")
+        avgperformances[interval_idx] = avgperformance
+        # confirm testing at the interval
+        interval_idx += 1
 
 
 

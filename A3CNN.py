@@ -17,7 +17,7 @@ class A3CNN(nn.Module):
         self.state_max = state_max
         self.lstm = lstm # 1= use LSTM, 0= not use LSTM
         self.lstm_num = lstm_num # number of LSTM cells in a layer.
-
+        self.type = 'A3C'
         layers = [nn.Linear(state_size, hidden_size), nn.ReLU()]
         for _ in range(self.hidden_num - 1):
             layers.append(nn.Linear(hidden_size, hidden_size))
