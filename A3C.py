@@ -17,7 +17,7 @@ from env1_0 import Env1_0
 from env1_1 import Env1_1
 import time
 
-def A3C(env,contaction,lr,min_lr,normalize,calc_MSE,tmax,Tmax,lstm,testnum):
+def A3C(env,contaction,lr,min_lr,normalize,calc_MSE,tmax,Tmax,lstm,testnum,SavePolicyCycle):
     """
     N-step Advantage Actor-Critic (A3C) algorithm
     """
@@ -55,7 +55,9 @@ def A3C(env,contaction,lr,min_lr,normalize,calc_MSE,tmax,Tmax,lstm,testnum):
 
     # initialization
     ## start testing process
-    testwd = './a3c results/intermediate training policy network'
+    # output wd's
+    testwd = './a3c results/intermediate training policy network' # for saving intermediate policy networks
+    wd = './a3c results' # for saving all the main results
     # delete all the previous network files in the intermediate network folder to not test the old Q networks
     for file in os.listdir(testwd):
         try:
@@ -132,7 +134,9 @@ def A3C(env,contaction,lr,min_lr,normalize,calc_MSE,tmax,Tmax,lstm,testnum):
         "beta": beta,
         "lr": lr,
         "min_lr": min_lr,
-        "max_steps": max_steps
+        "max_steps": max_steps,
+        "testwd": './a3c results/intermediate training policy network',
+        "SavePolicyCycle": SavePolicyCycle
     }
 
     processes = []
@@ -151,7 +155,10 @@ def A3C(env,contaction,lr,min_lr,normalize,calc_MSE,tmax,Tmax,lstm,testnum):
         p.join()
     print('workers done')
     # save the global network.
-    db = 0
+    ## save the last model
+    torch.save(global_net, f"{wd}/PolicyNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pt")
+
+    
     return MSEV, MSEP, avgperformances
 
 def adjust_learning_rate(optimizer, T, Tmax, initial_lr, min_lr):
@@ -192,6 +199,8 @@ def worker(global_net, optimizer, T, worker_id, envinit_params, networkinit_para
     beta = worker_params['beta']
     lr = worker_params['lr']
     min_lr = worker_params['min_lr']
+    testwd = worker_params['testwd']
+    SavePolicyCycle = worker_params['SavePolicyCycle']
 
     episode_reward = 0
 
@@ -208,7 +217,7 @@ def worker(global_net, optimizer, T, worker_id, envinit_params, networkinit_para
             env.reset(initstate)
             state = torch.tensor(env.state, dtype=torch.float32)
             hidden_state = None
-            print(f"Worker {worker_id} episode {episode_count} reward: {episode_reward}")
+            #print(f"Worker {worker_id} episode {episode_count} reward: {episode_reward}")
             episode_count += 1
             episode_reward = 0
 
@@ -233,7 +242,10 @@ def worker(global_net, optimizer, T, worker_id, envinit_params, networkinit_para
                     print(f"Global step (T) = {T.value}")
                 T.value += 1
                 adjust_learning_rate(optimizer, T, Tmax, lr, min_lr)  # Adjust learning rate dynamically
-                
+                # save policy (global_net) every SavePolicyCycle
+                if T.value % SavePolicyCycle == 0:
+                    if env.envID in ['Env1.0', 'Env1.1']:
+                        torch.save(global_net, f"{testwd}/PolicyNetwork_{env.envID}_par{env.parset}_dis{env.discset}_A3C_T{T.value}.pt")
                 if T.value >= Tmax:
                     return
             
@@ -327,9 +339,13 @@ def tester(MSEV, MSEP, avgperformances, V_vi, policy_vi, reachable_states, T, gl
                 if local_net.lstm == 0:
                     policy, V, _ = local_net(reachable_states)
                 # Calculate the MSE of the value function
-                MSEV[interval_idx] = torch.mean((V.T.squeeze(0) - V_vi) ** 2).item()
+                msevval = torch.mean((V.T.squeeze(0) - V_vi) ** 2).item()
+                MSEV[interval_idx] = msevval
                 # Calculate the MSE of the policy function (compare using the expected policy)
-                MSEP[interval_idx] = torch.sum(policy[0]*torch.tensor(np.arange(0,action_size),dtype=torch.float32)).item()
+                action_idx_expanded = torch.tensor(np.arange(0,action_size),dtype=torch.float32).unsqueeze(0).expand(len(reachable_states),-1)
+                msepval = torch.mean((torch.sum(policy*action_idx_expanded, dim=1) - policy_vi) ** 2).item()
+                MSEP[interval_idx] = msepval
+                print(f"Interval {interval_idx}/{testnum} MSEV: {msevval}     MSEP: {msepval}")
             if interval_idx < testnum - 1:
                 # calculate the average reward over N episodes
                 avgperformance = 777
