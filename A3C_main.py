@@ -28,6 +28,6 @@ if __name__ == "__main__":
     Tmax = 1000 #10**7
     lstm = 0 # lstm layer option 
     normalize = False
-    calc_MSE = False
-    external_testing = False
-    MSE, final_avgreward = A3C(env,contaction,lr,min_lr,normalize,calc_MSE,external_testing,tmax,Tmax,lstm)
+    calc_MSE = True
+    testnum = 20
+    MSEV, MSEP, final_avgreward = A3C(env,contaction,lr,min_lr,normalize,calc_MSE,tmax,Tmax,lstm,testnum)
