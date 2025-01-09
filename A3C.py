@@ -99,6 +99,8 @@ def A3C(env,contaction,lr,min_lr,normalize,calc_MSE,tmax,Tmax,lstm,testnum,SaveP
 
     # Initialize shared global network and optimizer
     global_net = A3CNN(state_size, contaction, action_size, hidden_size, hidden_num, lstm, lstm_num, normalize, state_min, state_max)
+    # save the initial policy in intermediate results
+    torch.save(global_net, f"{testwd}/PolicyNetwork_{env.envID}_par{env.parset}_dis{env.discset}_A3C_T0.pt")
     global_net.share_memory() # Share network across processes
     optimizer = torch.optim.Adam(global_net.parameters(), lr=lr)
 
@@ -301,8 +303,9 @@ def tester(MSEV, MSEP, avgperformances, V_vi, policy_vi, reachable_states, T, gl
     4. test tesnum times in fixed interval
     """
     Tmax = worker_params['Tmax']
-    
+    savecyc = worker_params['SavePolicyCycle']
     # calcualte intervals in global counter where the performance is tested once.
+
     intervals = np.linspace(0, Tmax, testnum+1)[0:-1]
     intervals_tested = np.zeros(testnum) # 0: not tested in the interval, 1: tested in the interval
     interval_idx = 0
@@ -314,27 +317,14 @@ def tester(MSEV, MSEP, avgperformances, V_vi, policy_vi, reachable_states, T, gl
     elif envinit_params['envID'] == 'Env1.1':
         env = Env1_1(envinit_params['initstate'], envinit_params['parameterization_set'], envinit_params['discretization_set'])
     action_size = env.actionspace_dim[0]
-    # initialize network
-    local_net = A3CNN(
-        state_size = networkinit_params['state_size'],
-        contaction = networkinit_params['contaction'],
-        action_size = networkinit_params['action_size'],
-        hidden_size = networkinit_params['hidden_size'],
-        hidden_num = networkinit_params['hidden_num'],
-        lstm = networkinit_params['lstm'],
-        lstm_num = networkinit_params['lstm_num'],
-        normalize = networkinit_params['normalize'],
-        state_min = networkinit_params['state_min'],
-        state_max = networkinit_params['state_max'],
-    )
-    local_net.load_state_dict(global_net.state_dict()) # copy global network weights
 
     while True:
         with T.get_lock(): # safely read and update global counter
             current_t = T.value
         # test if the model hasn't been tested while the counter is within the interval
         if current_t >= intervals[interval_idx]:
-            local_net.load_state_dict(global_net.state_dict()) # copy global network weights
+            # load saved network
+            local_net = ...
             if calc_MSE:
                 if local_net.lstm == 0:
                     policy, V, _ = local_net(reachable_states)
