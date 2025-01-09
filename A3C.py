@@ -36,7 +36,7 @@ def A3C(env,contaction,lr,min_lr,normalize,calc_MSE,calc_perf,tmax,Tmax,lstm,Sav
     gamma = env.gamma # discount rate
     max_steps = 1000 # max steps per episode
     ## A3C parameters    
-    num_workers = 1 # number of workers
+    num_workers = 4 # number of workers
     #tmax = 5 # number of steps before updating the global network
     l = 0.5 # weight for value loss
     beta  = 0.01 # weight for entropy loss
@@ -118,12 +118,12 @@ def A3C(env,contaction,lr,min_lr,normalize,calc_MSE,calc_perf,tmax,Tmax,lstm,Sav
     # networkinit_params
     networkinit_params = {
         "state_size": state_size,
-        "contaction": 0,
+        "contaction": contaction,
         "action_size": action_size,
         "hidden_size": hidden_size,
         "hidden_num": hidden_num,
-        "lstm": 0,
-        "lstm_num": 0,
+        "lstm": lstm,
+        "lstm_num": lstm_num,
         "normalize": normalize,
         "state_min": state_min,
         "state_max": state_max
@@ -222,6 +222,7 @@ def worker(global_net, optimizer, T, worker_id, envinit_params, networkinit_para
     hidden_state = None
     done = True
     episode_count = 0
+    t = 0
     while True:
         # Store transitions and hidden states
         states, actions, rewards = [], [], []
@@ -231,10 +232,11 @@ def worker(global_net, optimizer, T, worker_id, envinit_params, networkinit_para
             env.reset(initstate)
             state = torch.tensor(env.state, dtype=torch.float32)
             hidden_state = None
-            if episode_count % 100 == 0:
-                print(f"Worker {worker_id} episode {episode_count} reward: {episode_reward}")
+            if episode_count % 5 == 0:
+                print(f"Worker {worker_id} episode {episode_count} (t={t}) reward: {episode_reward}")
             episode_count += 1
             episode_reward = 0
+            t = 0
 
         for _ in range(tmax):
             # Store the hidden state *before* the forward pass
@@ -245,7 +247,7 @@ def worker(global_net, optimizer, T, worker_id, envinit_params, networkinit_para
             action = torch.multinomial(policy, 1).item() # sample action
             
             reward, done, _ = env.step(action)
-
+            t += 1
             # save transition
             states.append(state)
             actions.append(action)
@@ -253,15 +255,16 @@ def worker(global_net, optimizer, T, worker_id, envinit_params, networkinit_para
             state = torch.tensor(env.state, dtype=torch.float32)
 
             with T.get_lock(): # safely read and update global counter
+                T.value += 1 # update global counter
                 if T.value % 10000 == 0:
                     print(f"Global step (T) = {T.value}")
-                T.value += 1
                 adjust_learning_rate(optimizer, T, Tmax, lr, min_lr)  # Adjust learning rate dynamically
                 # save policy (global_net) every SavePolicyCycle
                 if T.value % SavePolicyCycle == 0:
                     if env.envID in ['Env1.0', 'Env1.1']:
                         torch.save(global_net, f"{testwd}/PolicyNetwork_{env.envID}_par{env.parset}_dis{env.discset}_A3C_T{T.value}.pt")
                 if T.value >= Tmax:
+                    print(f"Worker {worker_id} done")
                     return
             
             episode_reward += reward
@@ -291,7 +294,7 @@ def worker(global_net, optimizer, T, worker_id, envinit_params, networkinit_para
             log_prob = torch.log(policy[0, a] + 1e-13)  # Use the correct action
             entropy = -torch.sum(policy * torch.log(policy + 1e-13), dim=1)  # Entropy of the policy
             advantage = R - value
-            policy_loss += -log_prob * advantage
+            policy_loss += -log_prob * advantage.detach()
             value_loss += advantage.pow(2)
             entropy_loss += entropy.mean()
         
@@ -315,6 +318,7 @@ def tester(MSEV, MSEP, avgperformances, V_vi, policy_vi, reachable_states, envin
     3. Calculate the average reward over N episodes (performance_sampleN, final_performance_sampleN)
     4. test tesnum times in fixed interval
     """
+    print(f"Tester initiated")
     # Set seed
     testerseed = worker_params['base_seed'] + worker_params['num_workers'] + 1
     random.seed(testerseed)
@@ -344,13 +348,17 @@ def tester(MSEV, MSEP, avgperformances, V_vi, policy_vi, reachable_states, envin
         filename = f"{testwd}/PolicyNetwork_{env.envID}_par{env.parset}_dis{env.discset}_A3C_T{interval}.pt"
         filenames.append(filename)
         trynum = 0
-        try:
-            local_net = torch.load(filename, weights_only=False)
-        except:
-            print(f'file not found at {interval}/{Tmax}, sleeping 2 sec')
-            time.sleep(2)
-            trynum += 1
-
+        while trynum < 10:
+            try:
+                local_net = torch.load(filename, weights_only=False)
+                break
+            except:
+                print(f'file not found at {interval}/{Tmax}, sleeping 2 sec')
+                time.sleep(2)
+                trynum += 1
+            if trynum == 10:
+                print(f'file not found at {interval}/{Tmax}, causing error')
+                raise FileNotFoundError
         if calc_MSE: # Warning: this may only work for FF version. 
             policy, V, _ = local_net(reachable_states)
             # Calculate the MSE of the value function

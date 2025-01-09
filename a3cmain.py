@@ -26,7 +26,7 @@ if __name__ == "__main__":
     min_lr = 0
     tmax = 5#5
     Tmax = 1000 #10**7
-    lstm = 0 # lstm layer option 
+    lstm = 1 # lstm layer option 
     normalize = False
     calc_MSE = True
     calc_perf = True
