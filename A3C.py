@@ -17,7 +17,7 @@ from env1_0 import Env1_0
 from env1_1 import Env1_1
 import time
 
-def A3C(env,contaction,lr,min_lr,normalize,calc_MSE,tmax,Tmax,lstm,SavePolicyCycle,seednum):
+def A3C(env,contaction,lr,min_lr,normalize,calc_MSE,calc_perf,tmax,Tmax,lstm,SavePolicyCycle,seednum):
     """
     N-step Advantage Actor-Critic (A3C) algorithm
     """
@@ -147,7 +147,7 @@ def A3C(env,contaction,lr,min_lr,normalize,calc_MSE,tmax,Tmax,lstm,SavePolicyCyc
 
     processes = []
     # Spawn tester process
-    p = mp.Process(target=tester, args=(MSEV, MSEP, avgperformances, V_vi, policy_vi, reachable_states, T, envinit_params, worker_params, calc_MSE, performance_sampleN, final_performance_sampleN))
+    p = mp.Process(target=tester, args=(MSEV, MSEP, avgperformances, V_vi, policy_vi, reachable_states, envinit_params, worker_params, calc_MSE, calc_perf, performance_sampleN, final_performance_sampleN))
     p.start()
     processes.append(p)
     # Spawn worker processes
@@ -231,7 +231,8 @@ def worker(global_net, optimizer, T, worker_id, envinit_params, networkinit_para
             env.reset(initstate)
             state = torch.tensor(env.state, dtype=torch.float32)
             hidden_state = None
-            #print(f"Worker {worker_id} episode {episode_count} reward: {episode_reward}")
+            if episode_count % 100 == 0:
+                print(f"Worker {worker_id} episode {episode_count} reward: {episode_reward}")
             episode_count += 1
             episode_reward = 0
 
@@ -306,7 +307,7 @@ def worker(global_net, optimizer, T, worker_id, envinit_params, networkinit_para
         # Sync local network with global network
         local_net.load_state_dict(global_net.state_dict())
 
-def tester(MSEV, MSEP, avgperformances, V_vi, policy_vi, reachable_states, T, envinit_params, worker_params, calc_MSE, performance_sampleN, final_performance_sampleN):
+def tester(MSEV, MSEP, avgperformances, V_vi, policy_vi, reachable_states, envinit_params, worker_params, calc_MSE, calc_perf, performance_sampleN, final_performance_sampleN):
     """
     Test the performance of the policy network in 3 ways:
     1. Calculate the MSE of the value function
@@ -361,21 +362,27 @@ def tester(MSEV, MSEP, avgperformances, V_vi, policy_vi, reachable_states, T, en
             msepval = torch.mean((torch.sum(policy*action_idx_expanded, dim=1) - policy_vi) ** 2).item()
             MSEP[interval_idx] = msepval
             mse_calc_str = f'MSEV: {msevval}     MSEP: {msepval}'
-        if interval_idx < len(intervals) - 1:
-            # calculate the average reward over N episodes
-            avgperformance = calc_performance(env,None,None,local_net,performance_sampleN)
         else:
-            avgperformance = calc_performance(env,None,None,local_net,final_performance_sampleN)
-        performance_str = f"Avg Performance: {avgperformance}"
+            mse_calc_str = ''
+        if calc_perf:
+            if interval_idx < len(intervals) - 1:
+                # calculate the average reward over N episodes
+                avgperformance = calc_performance(env,None,None,local_net,performance_sampleN)
+            else:
+                avgperformance = calc_performance(env,None,None,local_net,final_performance_sampleN)
+            performance_str = f"Avg Performance: {avgperformance}"
+        else:
+            performance_str = ''
         print(f"Testing.. {interval}/{Tmax} {mse_calc_str}     {performance_str}")
         avgperformances[interval_idx] = avgperformance
         # confirm testing at the interval
         interval_idx += 1
     
     # save the model with the best performance
-    bestidx = np.array(avgperformances).argmax()
-    bestfilename = f"{testwd}/PolicyNetwork_{env.envID}_par{env.parset}_dis{env.discset}_A3C_T{intervals[bestidx]}.pt"
-    shutil.copy(bestfilename, f"{wd}/bestPolicyNetwork_{env.envID}_par{env.parset}_dis{env.discset}_A3C.pt")
+    if calc_perf:
+        bestidx = np.array(avgperformances).argmax()
+        bestfilename = f"{testwd}/PolicyNetwork_{env.envID}_par{env.parset}_dis{env.discset}_A3C_T{intervals[bestidx]}.pt"
+        shutil.copy(bestfilename, f"{wd}/bestPolicyNetwork_{env.envID}_par{env.parset}_dis{env.discset}_A3C.pt")
 
     
 
