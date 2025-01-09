@@ -1,10 +1,11 @@
+import time
 import shutil
 import subprocess
 import os
 import torch
 from torch import nn
 from torchvision.transforms import ToTensor
-from torch.optim.lr_scheduler import ExponentialLR
+from torch.optim.lr_scheduler import ExponentialLR, LambdaLR
 import pickle
 import numpy as np
 import random
@@ -14,6 +15,7 @@ from PrioritizedMemory import *
 from nq import *
 from distributionalRL import *
 from calc_performance import *
+from choose_action import *
 
 def Rainbow(env,num_episodes,epdecayopt,
             DDQN,DuelingDQN,PrioritizedReplay,nstep,noisy,distributional,
@@ -127,9 +129,9 @@ def Rainbow(env,num_episodes,epdecayopt,
         try:
             os.remove(os.path.join(testwd,file))
         except PermissionError:
-            print(f"File {filepath} is locked. Retrying...")
-            time.sleep(5)  # Wait 1 second
-            os.remove(filepath)  # Retry deletion
+            print(f"File {testwd} is locked. Retrying...")
+            time.sleep(5)  # Wait 5 second
+            os.remove(testwd)  # Retry deletion
     # run testing script in a separate process if external testing is on
     if external_testing:
         # run the testing script in a separate process
@@ -158,7 +160,7 @@ def Rainbow(env,num_episodes,epdecayopt,
     if env.envID == 'Env1.0':
         initlist = [-1,-1,-1,-1,-1,-1] # all random
         reachables = env.reachable_state_actions()
-        reachable_states = torch.tensor([env._unflatten(i[0]) for i in reachables], dtype=torch.float32).to(device)
+        reachable_states = torch.tensor([env._unflatten(i[0]) for i in reachables], dtype=torch.float32).to(device) # states extracted from reachable state-action pairs. *there are redundant states on purpose*
         reachable_uniquestateid = torch.tensor(env.reachable_states(), dtype=torch.int64).to(device)
         reachable_actions = torch.tensor([i[1] for i in reachables], dtype=torch.int64).unsqueeze(1).to(device)
     elif env.envID == 'Env1.1':

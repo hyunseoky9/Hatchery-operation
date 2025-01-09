@@ -29,5 +29,5 @@ external testing ,FALSE,FALSE,FALSE
 normalize True,TRUE,TRUE,TRUE
 buffer size,1000,1000,1000
 batch size,100,100,100
-max R,760,763,752
+max R,760,761,752
 note,,,
