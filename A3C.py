@@ -17,7 +17,7 @@ from env1_0 import Env1_0
 from env1_1 import Env1_1
 import time
 
-def A3C(env,contaction,lr,min_lr,normalize,calc_MSE,calc_perf,tmax,Tmax,lstm,SavePolicyCycle,seednum):
+def A3C(env,contaction,lr,lrdecaytype,lrdecayrate,min_lr,normalize,calc_MSE,calc_perf,tmax,Tmax,lstm,SavePolicyCycle,seednum):
     """
     N-step Advantage Actor-Critic (A3C) algorithm
     """
@@ -28,23 +28,35 @@ def A3C(env,contaction,lr,min_lr,normalize,calc_MSE,calc_perf,tmax,Tmax,lstm,Sav
         action_size = 2
     else:
         action_size = env.actionspace_dim[0]
-    hidden_size = 20
-    hidden_num = 3
+    hidden_size = 10
+    hidden_num = 2
     ## LSTM parameters
-    lstm_num = 20
+    lstm_num = 2
 
     gamma = env.gamma # discount rate
     max_steps = 1000 # max steps per episode
     ## A3C parameters    
-    num_workers = 4 # number of workers
+    num_workers = 10 # number of workers
     #tmax = 5 # number of steps before updating the global network
-    l = 0.5 # weight for value loss
-    beta  = 0.01 # weight for entropy loss
+    l = 1 # weight for value loss
+    beta  = 0.1 # weight for entropy loss
 
     ## performance testing sample size
     performance_sampleN = 1000
     final_performance_sampleN = 1000
 
+    # parameter print out
+    print(f'env: {env.envID}  parset: {env.parset}  discset: {env.discset}')
+    print(f'lr: {lr}  min_lr: {min_lr}  ')
+    print(f'normalize: {normalize}')
+    print(f'tmax: {tmax}  Tmax: {Tmax}')
+    print(f'l: {l}  beta: {beta}')
+    print(f'hiddensize: {hidden_size}  hiddennum: {hidden_num}')
+    print(f'lstm: {lstm}')
+    if lstm:
+        print(f'lstm_num: {lstm_num}')
+    print(f'num_workers: {num_workers}')
+    print(f'calc_MSE: {calc_MSE}  calc_perf: {calc_perf}')
     ## normalization parameters
     if env.envID == 'Env1.0': # for discrete states
         state_max = (torch.tensor(env.statespace_dim, dtype=torch.float32) - 1)
@@ -94,7 +106,7 @@ def A3C(env,contaction,lr,min_lr,normalize,calc_MSE,calc_perf,tmax,Tmax,lstm,Sav
     # initialize reward performance receptacle
     avgperformances = torch.zeros(numtests,dtype=torch.float32).share_memory_() # average of rewards over 100 episodes with policy following trained Q
     print(f'performance sampling: {performance_sampleN}/{final_performance_sampleN}')
-
+    print('---------------------------------------------')
     # Set multiprocessing method
     mp.set_start_method("spawn", force=True)
 
@@ -136,6 +148,8 @@ def A3C(env,contaction,lr,min_lr,normalize,calc_MSE,calc_perf,tmax,Tmax,lstm,Sav
         "l": l,
         "beta": beta,
         "lr": lr,
+        "lrdecaytype": lrdecaytype,
+        "lrdecayrate": lrdecayrate,
         "min_lr": min_lr,
         "max_steps": max_steps,
         "testwd": './a3c results/intermediate training policy network',
@@ -145,6 +159,8 @@ def A3C(env,contaction,lr,min_lr,normalize,calc_MSE,calc_perf,tmax,Tmax,lstm,Sav
         "num_workers": num_workers
     }
 
+    # start timer
+    start_time = time.time()
     processes = []
     # Spawn tester process
     p = mp.Process(target=tester, args=(MSEV, MSEP, avgperformances, V_vi, policy_vi, reachable_states, envinit_params, worker_params, calc_MSE, calc_perf, performance_sampleN, final_performance_sampleN))
@@ -167,12 +183,19 @@ def A3C(env,contaction,lr,min_lr,normalize,calc_MSE,calc_perf,tmax,Tmax,lstm,Sav
     if calc_MSE:
         np.save(f"{wd}/MSEV_{env.envID}_par{env.parset}_dis{env.discset}_A3C.npy", MSEV)
         np.save(f"{wd}/MSEP_{env.envID}_par{env.parset}_dis{env.discset}_A3C.npy", MSEP)
-    
+    # finish timer and print
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    minutes, seconds = divmod(elapsed_time, 60)
+    print(f"Time elapsed: {int(minutes)} minutes and {int(seconds)} seconds")
     return MSEV, MSEP, avgperformances
 
-def adjust_learning_rate(optimizer, T, Tmax, initial_lr, min_lr):
+def adjust_learning_rate(optimizer, T, Tmax, initial_lr, lrdecaytype, lrdecayrate, min_lr):
     """Adjust learning rate based on the global step."""
-    lr = initial_lr * (1 - T.value / Tmax)
+    if lrdecaytype == 'lin':
+        lr = initial_lr * (1 - T.value / Tmax)
+    elif lrdecaytype == 'exp':
+        lr = initial_lr * lrdecayrate
     for param_group in optimizer.param_groups:
         param_group['lr'] = max(lr, min_lr)
 
@@ -212,10 +235,12 @@ def worker(global_net, optimizer, T, worker_id, envinit_params, networkinit_para
     l = worker_params['l']
     beta = worker_params['beta']
     lr = worker_params['lr']
+    lrdecaytype = worker_params['lrdecaytype']
+    lrdecayrate = worker_params['lrdecayrate']
     min_lr = worker_params['min_lr']
     testwd = worker_params['testwd']
     SavePolicyCycle = worker_params['SavePolicyCycle']
-
+    max_steps = worker_params['max_steps']
     episode_reward = 0
 
     # Initialize LSTM hidden state
@@ -232,8 +257,8 @@ def worker(global_net, optimizer, T, worker_id, envinit_params, networkinit_para
             env.reset(initstate)
             state = torch.tensor(env.state, dtype=torch.float32)
             hidden_state = None
-            if episode_count % 5 == 0:
-                print(f"Worker {worker_id} episode {episode_count} (t={t}) reward: {episode_reward}")
+            #if episode_count % 100 == 0:
+            #    print(f"Worker {worker_id} episode {episode_count} (t={t}) reward: {episode_reward}")
             episode_count += 1
             episode_reward = 0
             t = 0
@@ -248,23 +273,27 @@ def worker(global_net, optimizer, T, worker_id, envinit_params, networkinit_para
             
             reward, done, _ = env.step(action)
             t += 1
+            if t >= max_steps:
+                done = True
             # save transition
             states.append(state)
             actions.append(action)
             rewards.append(reward)
             state = torch.tensor(env.state, dtype=torch.float32)
 
-            with T.get_lock(): # safely read and update global counter
+            # read and update global counter
+            with T.get_lock(): 
                 T.value += 1 # update global counter
+                adjust_learning_rate(optimizer, T, Tmax, lr, lrdecaytype, lrdecayrate, min_lr)  # Adjust learning rate dynamically
                 if T.value % 10000 == 0:
-                    print(f"Global step (T) = {T.value}")
-                adjust_learning_rate(optimizer, T, Tmax, lr, min_lr)  # Adjust learning rate dynamically
+                    print(f"Global step (T) = {T.value},   learning rate:{optimizer.param_groups[0]['lr']}")
+                
                 # save policy (global_net) every SavePolicyCycle
                 if T.value % SavePolicyCycle == 0:
                     if env.envID in ['Env1.0', 'Env1.1']:
                         torch.save(global_net, f"{testwd}/PolicyNetwork_{env.envID}_par{env.parset}_dis{env.discset}_A3C_T{T.value}.pt")
                 if T.value >= Tmax:
-                    print(f"Worker {worker_id} done")
+                    print(f"Worker {worker_id} done. did {episode_count} episodes")
                     return
             
             episode_reward += reward
@@ -353,14 +382,15 @@ def tester(MSEV, MSEP, avgperformances, V_vi, policy_vi, reachable_states, envin
                 local_net = torch.load(filename, weights_only=False)
                 break
             except:
-                print(f'file not found at {interval}/{Tmax}, sleeping 2 sec')
+                #print(f'file not found at {interval}/{Tmax}, sleeping 2 sec')
                 time.sleep(2)
                 trynum += 1
             if trynum == 10:
-                print(f'file not found at {interval}/{Tmax}, causing error')
+                #print(f'file not found at {interval}/{Tmax}, causing error')
                 raise FileNotFoundError
-        if calc_MSE: # Warning: this may only work for FF version. 
-            policy, V, _ = local_net(reachable_states)
+        if calc_MSE: # Warning: this may only work for FF version.
+            with torch.no_grad():
+                policy, V, _ = local_net(reachable_states)
             # Calculate the MSE of the value function
             msevval = torch.mean((V.T.squeeze(0) - V_vi) ** 2).item()
             MSEV[interval_idx] = msevval
@@ -378,10 +408,10 @@ def tester(MSEV, MSEP, avgperformances, V_vi, policy_vi, reachable_states, envin
             else:
                 avgperformance = calc_performance(env,None,None,local_net,final_performance_sampleN)
             performance_str = f"Avg Performance: {avgperformance}"
+            avgperformances[interval_idx] = avgperformance
         else:
             performance_str = ''
         print(f"Testing.. {interval}/{Tmax} {mse_calc_str}     {performance_str}")
-        avgperformances[interval_idx] = avgperformance
         # confirm testing at the interval
         interval_idx += 1
     

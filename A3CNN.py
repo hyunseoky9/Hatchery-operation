@@ -2,7 +2,6 @@ import torch
 from torch import nn
 from torchvision.transforms import ToTensor
 from torch.optim.lr_scheduler import ExponentialLR, StepLR
-from NoisyLinear import NoisyLinear
 
 class A3CNN(nn.Module):
     def __init__(self, state_size, contaction, action_size, hidden_size, hidden_num, lstm, lstm_num, normalize, state_min, state_max):

@@ -14,7 +14,9 @@ from rich.traceback import install
 install()
 
 if __name__ == "__main__":
-    seednum = 12 #random.randint(0,1000) # 12
+
+    seednum = 432 #random.randint(0,1000)
+    
     print(f'seed: {seednum}')
     random.seed(seednum)
     np.random.seed(seednum)
@@ -22,13 +24,15 @@ if __name__ == "__main__":
 
     env = Env1_0([-1,-1,-1,-1,-1,-1],2,1)
     contaction = 0
-    lr = 0.01 
+    lr = 0.00002
+    lrdecaytype = 'lin' # exp= exponential, lin= linear (original paper)
+    lrdecayrate = 0.9992
     min_lr = 0
-    tmax = 5#5
-    Tmax = 1000 #10**7
-    lstm = 1 # lstm layer option 
+    tmax = 4
+    Tmax = 1000000 #10**7
+    lstm = 0 # lstm layer option 
     normalize = False
     calc_MSE = True
     calc_perf = True
-    SavePolicyCycle = 100 # number of T steps to save policy network (global network).
-    MSEV, MSEP, final_avgreward = A3C(env,contaction,lr,min_lr,normalize,calc_MSE,calc_perf,tmax,Tmax,lstm,SavePolicyCycle,seednum)
+    SavePolicyCycle = int(Tmax/20) # number of T steps to save policy network (global network).
+    MSEV, MSEP, final_avgreward = A3C(env,contaction,lr,lrdecaytype,lrdecayrate,min_lr,normalize,calc_MSE,calc_perf,tmax,Tmax,lstm,SavePolicyCycle,seednum)
