@@ -18,7 +18,11 @@ class Env2_0:
                 "tau": [0, 1]  # 0 for Fall, 1 for Spring
             }
             self.observations = {
-                "y": [-1, 0, 15, 30, 45] # observed catch from fall monitoring. -1= no observed catch (for spring); 45 is actually anything gretaer than 45
+                "y": [-1, 0, 15, 30, 45], # observed catch from fall monitoring. -1= no observed catch (for spring); 45 is actually anything gretaer than 45
+                "ONH": [0, 75000, 150000, 225000, 300000], # observed hatchery fish
+                "OH": [0.56, 0.61, 0.66, 0.71, 0.76, 0.81, 0.86], # observed heterozygosity
+                "Oq": [65, 322, 457, 592, 848], # observed spring flow
+                "Otau": [0, 1]  # observed season
             }
             self.actions = {
                 "a": [0, 75000, 150000, 225000, 300000]
@@ -58,11 +62,13 @@ class Env2_0:
     def reset(self, initstate):
         # Initialize state variables
         new_state = []
+        new_obs = []
         if initstate[5] == -1:
             season  = random.choice([0,1])
         else:
             season = initstate[5]
         if season == 0: # spring
+            new_obs.append(0) # no observed catch in spring
             if initstate[0] == -1:
                 new_state.append(random.choice(np.arange(1, len(self.states["NW"])))) # don't start from the smallest population size
             else: 
@@ -73,19 +79,26 @@ class Env2_0:
                 new_state.append(initstate[1])
             if initstate[2] == -1:
                 new_state.append(0) # start from no hatchery fish
+                new_obs.append(0)
             else:
                 new_state.append(initstate[2])
+                new_obs.append(initstate[2])
             if initstate[3] == -1:
-                new_state.append(random.choice(np.arange(0, len(self.states["H"]))))
+                idx3 = random.choice(np.arange(0, len(self.states["H"])))
+                new_state.append(idx3)
+                new_obs.append(idx3)
             else: 
                 new_state.append(initstate[3])
+                new_obs.append(initstate[3])
             if initstate[4] == -1:
-                new_state.append(random.choice(np.arange(0, len(self.states["q"]))))
+                idx4 = random.choice(np.arange(0, len(self.states["q"])))
+                new_state.append(idx4)
+                new_obs.append(idx4)
             else:
                 new_state.append(initstate[4])
-
-            self.obs = 0 # no observed catch in spring
+                new_obs.append(initstate[4])
         else: # fall
+            new_obs.append(random.choice(np.arange(1, len(self.observations["y"])))) # observed catch in fall (not -1)
             if initstate[0] == -1:
                 new_state.append(random.choice(np.arange(1, len(self.states["NW"])))) # don't start from the smallest population size
             else:
@@ -95,21 +108,29 @@ class Env2_0:
             else:
                 new_state.append(initstate[1])
             if initstate[2] == -1:
-                new_state.append(random.choice(np.arange(0, len(self.states["NH"]))))
+                idx2 = random.choice(np.arange(0, len(self.states["NH"])))
+                new_state.append(idx2)
+                new_obs.append(idx2)
             else:  
                 new_state.append(initstate[2])
+                new_obs.append(initstate[2])
             if initstate[3] == -1:
-                new_state.append(random.choice(np.arange(0, len(self.states["H"]))))
+                idx3 = random.choice(np.arange(0, len(self.states["H"])))
+                new_state.append(idx3)
+                new_obs.append(idx3)
             else: 
                 new_state.append(initstate[3])
+                new_obs.append(initstate[3])
             if initstate[4] == -1:
                 new_state.append(0) # spring flow state is not relevant in fall
+                new_obs.append(0) 
             else:
                 new_state.append(initstate[4])
-
-            self.obs = random.choice(np.arange(1, len(self.observations["y"]))) # observed catch in fall (not -1)
+                new_obs.append(initstate[4])
         new_state.append(season)
+        new_obs.append(season)
         self.state = new_state
+        self.obs = new_obs
         return self.state, self.obs
     
     def step(self, action):
