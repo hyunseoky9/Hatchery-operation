@@ -165,8 +165,7 @@ class Env2_0:
                 NH_next = a
                 # Reward
                 reward = self.p - self.c if a > 0 else self.p
-                # Observation
-                y_next = self._fallmonitoring(NW_next)
+
 
             else:  # Winter-Spring (fall)
                 H_next = self._update_heterozygosity(H, NW, a)
@@ -186,11 +185,15 @@ class Env2_0:
                 y_next = -1 # no observed catch in spring
 
             # put it into defined discrete states
-            if y_next >= 0:
-                y_next = self._discretize(y_next, self.observations['y'])
             NW_next = self._discretize(NW_next, self.states['NW'])
             H_next = self._discretize(H_next, self.states['H'])
             q_next = self._discretize(q_next, self.states['q'])
+
+            # observation is based on monitoring if fall
+            if tau == 0: # conditional is tau==0 because the next season is fall
+                y_next = self._fallmonitoring(NW_next)
+                y_next = self._discretize(y_next, self.observations['y'])
+                
             # Update state
             NW_next_idx = np.where(np.array(self.states['NW']) == NW_next)[0][0]
             NWm1_next = np.where(np.array(self.states['NWm1']) == NWm1_next)[0][0]
@@ -199,10 +202,8 @@ class Env2_0:
             q_next_idx = np.where(np.array(self.states['q']) == q_next)[0][0]
             tau_next_idx = np.where(np.array(self.states['tau']) == tau_next)[0][0]
             y_next_idx = np.where(np.array(self.observations['y']) == y_next)[0][0]
-            display(y_next_idx)
-            display(NW_next_idx)
             self.state = [NW_next_idx, NWm1_next, NH_next, H_next_idx, q_next_idx, tau_next_idx]
-            self.obs = y_next_idx
+            self.obs = [y_next_idx, NH_next, H_next_idx, q_next_idx, tau_next_idx]
             # Check termination
             done  = False
         else:
