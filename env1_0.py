@@ -153,7 +153,7 @@ class Env1_0:
             # Update season
             tau_next = 1 - tau
             # Transition logic
-            if tau == 0:  # Spring-Fall
+            if tau == 0:  # Spring-Fall (spring)
                 F = self._recruitment_rate(q)
                 H_next = self._nextgen_heterozygosity(H,NW,NWm1)
                 s = self._survival_rate(H_next) # survival rate dependent on the next generation's heterozygosity
@@ -170,7 +170,7 @@ class Env1_0:
                 # Reward
                 reward = self.p - self.c if a > 0 else self.p
 
-            else:  # Winter-Spring
+            else:  # Winter-Spring (fall)
                 H_next = self._update_heterozygosity(H, NW, a)
                 if a <= NH:
                     s = self._survival_rate(H_next) # survival rate dependent on the mixed population's heterozygosity
