@@ -7,5 +7,5 @@ the latex document env1.0-mock pop
 2,"parameterization derived from the default one (1).
  Diverges from realistic parameter values in order to
  have more variable dynamics in the population and
- larger influence of genetics on survivability.",0,7,0.1,0.00001,400,0.1,457,250,300000,1000,0.1,1,0.5,0.99,-100,0.0005,20
+ larger influence of genetics on survivability.",0,7,0.1,0.00001,400,0.1,457,250,300000,1000,0.1,100,0.5,0.99,0,0.0005,20
 3,same as 2 but different reward structure,0,7,0.1,0.00001,400,0.1,457,250,300000,1000,0.1,20,20,0.99,-100,0.0005,20

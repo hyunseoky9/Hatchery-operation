@@ -109,14 +109,14 @@ class value_iteration(Env1_0):
         # probability of spring flow q constant so set it here now (env.1.0)
         if self.envID == 'Env1.0':
             q_prob = self._qprobcalc()
-            with open(f"NWprob(tau0)_Env1.0_par1_dis{self.discset}.pkl", "rb") as file:
-                NWt0prob_lookuptable = pickle.load(file)
-            with open(f"NWprob(tau1)_Env1.0_par1_dis{self.discset}.pkl", "rb") as file:
-                NWt1prob_lookuptable = pickle.load(file)
-            with open(f"Hprob(tau0)_Env1.0_par1_dis{self.discset}.pkl", "rb") as file:
-                Ht0prob_lookuptable = pickle.load(file)
-            with open(f"Hprob(tau1)_Env1.0_par1_dis{self.discset}.pkl", "rb") as file:
-                Ht1prob_lookuptable = pickle.load(file)
+            #with open(f"NWprob(tau0)_Env1.0_par1_dis{self.discset}.pkl", "rb") as file:
+            #    NWt0prob_lookuptable = pickle.load(file)
+            #with open(f"NWprob(tau1)_Env1.0_par1_dis{self.discset}.pkl", "rb") as file:
+            #    NWt1prob_lookuptable = pickle.load(file)
+            #with open(f"Hprob(tau0)_Env1.0_par1_dis{self.discset}.pkl", "rb") as file:
+            #    Ht0prob_lookuptable = pickle.load(file)
+            #with open(f"Hprob(tau1)_Env1.0_par1_dis{self.discset}.pkl", "rb") as file:
+            #    Ht1prob_lookuptable = pickle.load(file)
         transition_prob = [[0 for i in range(actionspace_size)] for j in range(statespace_size)]
         #measure time
         start = time.time()
@@ -134,16 +134,16 @@ class value_iteration(Env1_0):
                 else:
                     transition_prob[i][j] = ()
                 # print progress every 1000th iteration of i
-            if i % 1000 == 0:
-                print(f"i={i}")
+            if i % 5 == 0:
+                print(f"i={i}/{statespace_size}")
 
         finish = time.time()
         # print time in minutes
         print(f"Time taken: {(finish-start)/60} minutes")
         
         # save transitionprobability as pickle
-        #with open(f"transition_prob{self.envID}_par{self.parset}_dis{self.discset}.pkl", "wb") as file:
-        #    pickle.dump(transition_prob, file)
+        with open(f"transiti    on_prob{self.envID}_par{self.parset}_dis{self.discset}.pkl", "wb") as file:
+            pickle.dump(transition_prob, file)
         
         return transition_prob
     

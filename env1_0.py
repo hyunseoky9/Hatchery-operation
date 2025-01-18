@@ -36,16 +36,16 @@ class Env1_0:
             }
         elif discretization_set == 2:
             self.states = {
-                "NW": [1000, 2500000, 5000000, 7500000, 10000000], # Population size
-                "NWm1": [2500000, 5000000, 7500000, 10000000], # Population size
-                "NH": [0, 100000, 200000, 300000], # hatchery population size
-                "H": [0.56, 0.66, 0.76, 0.86], # Heterozygosity
-                "q": [65, 322, 457, 592, 848], # Spring Flow
+                "NW": [1000, 2500000, 5000000], # Population size
+                "NWm1": [2500000, 5000000], # Population size
+                "NH": [0, 100000, 200000], # hatchery population size
+                "H": [0.56, 0.71, 0.86], # Heterozygosity
+                "q": [65, 322, 457], # Spring Flow
                 "tau": [0, 1]  # 0 for Fall, 1 for Spring
             }
 
             self.actions = {
-                "a": [0, 100000, 200000, 300000]
+                "a": [0, 100000, 200000]
             }
 
         self.statespace_dim = list(map(lambda x: len(x[1]), self.states.items()))

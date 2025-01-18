@@ -27,6 +27,25 @@ class Env2_0:
             self.actions = {
                 "a": [0, 75000, 150000, 225000, 300000]
             }
+        elif discretization_set == 1:
+            self.states = {
+                "NW": [1000, 2500000, 5000000], # Population size
+                "NWm1": [2500000, 5000000], # Population size
+                "NH": [0, 100000, 200000], # hatchery population size
+                "H": [0.56, 0.71, 0.86], # Heterozygosity
+                "q": [65, 322, 457], # Spring Flow
+                "tau": [0, 1]  # 0 for Fall, 1 for Spring
+            }
+            self.observations = {
+                "y": [-1, 0, 30], # observed catch from fall monitoring. -1= no observed catch (for spring); 45 is actually anything gretaer than 45
+                "ONH": [0, 100000, 200000], # hatchery population size
+                "OH": [0.56, 0.71, 0.86], # Heterozygosity
+                "Oq": [65, 322, 457], # Spring Flow
+                "Otau": [0, 1]  # 0 for Fall, 1 for Spring
+            }
+            self.actions = {
+                "a": [0, 100000, 200000]
+            }
 
         self.statespace_dim = list(map(lambda x: len(x[1]), self.states.items()))
         self.actionspace_dim = list(map(lambda x: len(x[1]), self.actions.items()))
@@ -144,10 +163,9 @@ class Env2_0:
         tau = self.states["tau"][self.state[5]]
         a = self.actions["a"][action]
         # Check termination
+        # Update season
+        tau_next = 1 - tau
         if NW > self.Nth:  # Extinction threshold
-                    
-            # Update season
-            tau_next = 1 - tau
             # Transition logic
             if tau == 0:  # Spring-Fall (spring)
                 F = self._recruitment_rate(q)
@@ -165,8 +183,6 @@ class Env2_0:
                 NH_next = a
                 # Reward
                 reward = self.p - self.c if a > 0 else self.p
-
-
             else:  # Winter-Spring (fall)
                 H_next = self._update_heterozygosity(H, NW, a)
                 if a <= NH:
@@ -193,7 +209,7 @@ class Env2_0:
             if tau == 0: # conditional is tau==0 because the next season is fall
                 y_next = self._fallmonitoring(NW_next)
                 y_next = self._discretize(y_next, self.observations['y'])
-                
+            
             # Update state
             NW_next_idx = np.where(np.array(self.states['NW']) == NW_next)[0][0]
             NWm1_next = np.where(np.array(self.states['NWm1']) == NWm1_next)[0][0]
@@ -207,8 +223,34 @@ class Env2_0:
             # Check termination
             done  = False
         else:
+            # Transition logic
+            if tau == 0:  # Spring-Fall (spring)
+                q_next = self.states['q'][0] #max(np.random.normal(self.muq, self.sigq),0) # q initialized
+                NH_next = a
+            else:  # Winter-Spring (fall)
+                q_next =  max(np.random.normal(self.muq, self.sigq),0)
+                q_next = self._discretize(q_next, self.states['q'])
+
+                NH_next = 0 # all hatchery fish that aren't released are discarded
+                # Observation
+                y_next = -1 # no observed catch in spring
+
+            # observation is based on monitoring if fall
+            if tau == 0: # conditional is tau==0 because the next season is fall
+                y_next = 0
+            
+            # Update state
+            NW_next_idx = 0
+            NWm1_next = 0
+            NH_next = np.where(np.array(self.states['NH']) == NH_next)[0][0]
+            H_next_idx = 0
+            q_next_idx = np.where(np.array(self.states['q']) == q_next)[0][0]
+            tau_next_idx = np.where(np.array(self.states['tau']) == tau_next)[0][0]
+            y_next_idx = np.where(np.array(self.observations['y']) == y_next)[0][0]
+            self.state = [NW_next_idx, NWm1_next, NH_next, H_next_idx, q_next_idx, tau_next_idx]
+            self.obs = [y_next_idx, NH_next, H_next_idx, q_next_idx, tau_next_idx]
             # extinction
-            done = True
+            done = False
             reward = self.extpenalty
             s = 0
 
@@ -317,6 +359,19 @@ class Env2_0:
                                         state = [NW, NWm1, NH, H, 0, tau]
                                         sapair.append((self._flatten(state), a))
         return sapair
+    
+    def observation_prob(self):
+        sample = 10000
+        y_prob = np.zeros([len(self.states['NW']),len(self.observations['y'])])
+        for i in range(len(self.states['NW'])):
+            for _ in range(sample):
+                y_next = self._fallmonitoring(self.states['NW'][i])
+                y_next = self._discretize(y_next, self.observations['y'])
+                y_next_idx = np.where(np.array(self.observations['y']) == y_next)[0][0]
+                y_prob[i,y_next_idx] += 1
+            y_prob[i] /= sample
+            print(f'NW[{i}] done')
+        return y_prob
     
     def Qsubcalc(self, Q, ranges):
         #, NWrange, NWm1range, NHrange, Hrange, qrange, taurange
