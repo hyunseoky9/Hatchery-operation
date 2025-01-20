@@ -188,15 +188,15 @@ class Env2_0:
                 if a <= NH:
                     s = self._survival_rate(H_next) # survival rate dependent on the mixed population's heterozygosity
                     NW_next = np.random.binomial(NW + a, s)
-                    reward = self.p
                 else: # action is invalid
                     # penalty for invalid action: reward is -p and the episode ends
-                    reward = 0
                     NW_next = 0
                     s = 0
                 NWm1_next = NWm1 # not updated
                 q_next =  max(np.random.normal(self.muq, self.sigq),0)
                 NH_next = 0 # all hatchery fish that aren't released are discarded
+                # Reward
+                reward = self.p
                 # Observation
                 y_next = -1 # no observed catch in spring
 
