@@ -6,6 +6,7 @@ import pandas as pd
 class Env1_0:
     def __init__(self,initstate,parameterization_set,discretization_set):
         self.envID = 'Env1.0'
+        self.partial = False
         self.discset = discretization_set
         # Define state space and action space based on your document
         if discretization_set == 0:
