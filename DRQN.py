@@ -179,12 +179,8 @@ def DRQN(env,num_episodes,epdecayopt,
             # train network
             if j % training_cycle == 0:
                 # Sample mini-batch from memory
-                if PrioritizedReplay:
-                    mini_batch, idxs, weights = memory.sample(batch_size, beta)
-                    states, actions, rewards, next_states, dones = zip(*mini_batch)
-                    dones = np.array(dones)
-                    actions = torch.tensor(actions, dtype=torch.int64).unsqueeze(1).to(device)
-                else:
+                memory.sample(batch_size)
+
                     states, actions, rewards, next_states, dones = memory.sample(batch_size)
                     weights = np.ones(batch_size)
                     actions = torch.tensor(actions, dtype=torch.int64).to(device)
@@ -216,6 +212,7 @@ def DRQN(env,num_episodes,epdecayopt,
                         if dones.any():
                             target_Qs[episode_ends] = torch.zeros(action_size, device=device)
                         targets = rewards + (gamma**nstep) * torch.max(target_Qs, dim=1)[0]
+                td_error = train_model(Q, [(states, actions, targets)], weights, device)
 
             # update target network
             if j % target_update_cycle == 0:
@@ -317,14 +314,16 @@ class Memory():
         self.index = (self.index + 1) % self.buffer_size
         self.size = min(self.size + 1, self.buffer_size)
 
-    def sample(self, batch_size):
-        indices = np.random.choice(self.size, batch_size, replace=True)
-        states = self.states_buffer[indices]
-        actions = self.actions_buffer[indices]
-        rewards = self.rewards_buffer[indices]
-        next_states = self.next_states_buffer[indices]
-        done = self.done_buffer[indices]
-        return states, actions, rewards, next_states, done
+    def sample_sequence(self, batch_size, seql):
+        """
+        Sample a batch of sequence-length seql from single-step transitions stored
+        in the buffer. We do NOT cross a 'done=True' boundary. If we hit 'done'
+        or run out of space, we pad the remainder of the sequence.
+        
+        Returns: Tensors of shape (batch_size X seq_len, *)
+                 - states, actions, rewards, next_states, done_flags
+        """
+
     
 def pretrain(env, nq, memory, max_steps, batch_size, PrioritizedReplay, max_priority):
     # Make a bunch of random actions from a random state and store the experiences

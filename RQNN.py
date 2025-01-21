@@ -63,7 +63,6 @@ class RQNN(nn.Module):
                                     torch.zeros(1, self.batch_size, self.lstm_num, device=x.device, dtype=x.dtype))
 
         x, hidden = self.lstm_layer(x,hidden) # pass through LSTM layer
-        x = x[:, -1, :] # Extract last time step
         logits = self.head(x)
         
         if self.distributional:
