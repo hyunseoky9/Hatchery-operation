@@ -18,7 +18,7 @@ from choose_action import *
 def DRQN(env,num_episodes,epdecayopt,
             DDQN,nstep,distributional,
             lrdecayrate,lr,min_lr,
-            training_cycle,target_update_cycle, batch_size, seql, burninl, 
+            training_cycle,target_update_cycle, 
             calc_MSE, external_testing, normalize, bestQinit):
     # train using Deep Q Network
     # env: environment class object
@@ -48,6 +48,9 @@ def DRQN(env,num_episodes,epdecayopt,
     lstm_num = 20
     ## memory parameters
     memory_size = 1000 # memory capacity
+    batch_size = 4 # mini-batch size
+    seql = 10 # sequence length for LSTM. each mini-batch has batch_size number of sequences
+    burninl = 10 # burn-in length for DRQN
     ## distributional RL atoms size
     Vmin = -104
     Vmax = 1002
@@ -177,10 +180,10 @@ def DRQN(env,num_episodes,epdecayopt,
             else:
                 a = random.randint(0, action_size-1) # first action in the episode is random for added exploration
             reward, done, _ = env.step(a) # take a step
-            nq.add(S, a, reward, env.state, done, memory, PrioritizedReplay) # add transition to queue
-            S = env.state #  update state
             if t >= max_steps: # finish episode if max steps reached even if terminal state not reached
                 done = True
+            nq.add(S, a, reward, env.state, done, memory, PrioritizedReplay) # add transition to queue
+            S = env.state #  update state
             # train network
             if j % training_cycle == 0:
                 # Sample mini-batch from memory
