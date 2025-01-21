@@ -18,7 +18,7 @@ from choose_action import *
 def DRQN(env,num_episodes,epdecayopt,
             DDQN,nstep,distributional,
             lrdecayrate,lr,min_lr,
-            training_cycle,target_update_cycle, seql, burninl, 
+            training_cycle,target_update_cycle, batch_size, seql, burninl, 
             calc_MSE, external_testing, normalize, bestQinit):
     # train using Deep Q Network
     # env: environment class object
@@ -37,7 +37,7 @@ def DRQN(env,num_episodes,epdecayopt,
 
     # parameters
     ## NN parameters
-    # DQN
+    # RDQN
     if env.partial == True:
         state_size = len(env.statespace_dim)
     else:
@@ -45,6 +45,7 @@ def DRQN(env,num_episodes,epdecayopt,
     action_size = env.actionspace_dim[0]
     hidden_size = 20
     hidden_num = 3
+    lstm_num = 20
     ## memory parameters
     memory_size = 1000 # memory capacity
     ## distributional RL atoms size
@@ -82,10 +83,10 @@ def DRQN(env,num_episodes,epdecayopt,
         print(f'Vmin: {Vmin}, Vmax: {Vmax}, atom N: {atomn}')
     print(f'lr: {lr}, lrdecayrate: {lrdecayrate}, min_lr: {min_lr}')
     ## initialize NN
-    Q = RQNN(state_size, action_size, hidden_size, hidden_num, lr, state_min, state_max,
-            lrdecayrate,noisy, distributional, atomn, Vmin, Vmax, normalize).to(device)
-    Q_target = RQNN(state_size, action_size, hidden_size, hidden_num, lr, state_min, 
-                    state_max,lrdecayrate,noisy, distributional, atomn, Vmin, Vmax, normalize).to(device)
+    Q = RQNN(state_size, action_size, hidden_size, hidden_num, lstm_num, batch_size, seql, lr, state_min,
+              state_max, lrdecayrate, distributional, atomn, Vmin, Vmax, normalize).to(device)
+    Q_target = RQNN(state_size, action_size, hidden_size, hidden_num, lstm_num, batch_size, seql, lr, state_min,
+              state_max, lrdecayrate, distributional, atomn, Vmin, Vmax, normalize).to(device)
     if bestQinit:
         # initialize Q with the best Q network from the previous run
         with open(f"DRQN results/bestQNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DRQN.pt", "rb") as file:

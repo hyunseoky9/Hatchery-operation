@@ -202,10 +202,10 @@ def Rainbow(env,num_episodes,epdecayopt,
             else:
                 a = random.randint(0, action_size-1) # first action in the episode is random for added exploration
             reward, done, _ = env.step(a) # take a step
-            nq.add(S, a, reward, env.state, done, memory, PrioritizedReplay) # add transition to queue
-            S = env.state #  update state
             if t >= max_steps: # finish episode if max steps reached even if terminal state not reached
                 done = True
+            nq.add(S, a, reward, env.state, done, memory, PrioritizedReplay) # add transition to queue
+            S = env.state #  update state
             # train network
             if j % training_cycle == 0:
                 # Sample mini-batch from memory
