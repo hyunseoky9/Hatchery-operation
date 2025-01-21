@@ -83,7 +83,10 @@ def Rainbow(env,num_episodes,epdecayopt,
     elif env.envID in ['Env1.1','Env1.2']: # for continuous states
         state_max = torch.tensor([env.states[key][1] for key in env.states.keys()], dtype=torch.float32).to(device)
         state_min = torch.tensor([env.states[key][0] for key in env.states.keys()], dtype=torch.float32).to(device)
-        
+    elif env.envID == 'Env2.0': # state is really observation in env2.0. We'll call the actual states as hidden states. This is done to make the code consistent with env1.0
+        state_max = (torch.tensor(env.obsspace_dim, dtype=torch.float32)).to(device)
+        state_min = (torch.tensor(env.obsspace_dim, dtype=torch.float32)).to(device) 
+
     # initialization
     ## print out extension feature usage
     print(f'DuelingDQN: {DuelingDQN}\nDDQN: {DDQN}\nPrioritizedReplay: {PrioritizedReplay}\nnstep: {nstep}\nnoisynet: {noisy}\ndistributional RL: {distributional}')
@@ -192,7 +195,10 @@ def Rainbow(env,num_episodes,epdecayopt,
             ep = epsilon_update(i,epdecayopt,num_episodes) 
         # initialize state that doesn't start from terminal
         env.reset(initlist) # random initialization
-        S = env.state
+        if env.partial == False:
+            S = env.state
+        else:
+            S = env.obs
         done = False
         
         t = 0 # timestep num
@@ -204,8 +210,12 @@ def Rainbow(env,num_episodes,epdecayopt,
             reward, done, _ = env.step(a) # take a step
             if t >= max_steps: # finish episode if max steps reached even if terminal state not reached
                 done = True
-            nq.add(S, a, reward, env.state, done, memory, PrioritizedReplay) # add transition to queue
-            S = env.state #  update state
+            if env.partial == False:
+                nq.add(S, a, reward, env.state, done, memory, PrioritizedReplay) # add transition to queue
+                S = env.state #  update state
+            else:
+                nq.add(S, a, reward, env.obs, done, memory, PrioritizedReplay)
+                S = env.obs
             # train network
             if j % training_cycle == 0:
                 # Sample mini-batch from memory

@@ -11,6 +11,7 @@ class Env1_1:
     """
     def __init__(self,initstate,parameterization_set,discretization_set):
         self.envID = 'Env1.1'
+        self.partial = False
         self.discset = discretization_set
 
         # Define parameters
