@@ -9,9 +9,7 @@ from torch.optim.lr_scheduler import ExponentialLR, LambdaLR
 import pickle
 import numpy as np
 import random
-from QNN import QNN
-from DuelQNN import DuelQNN
-from PrioritizedMemory import *
+from RQNN import *
 from nq import *
 from distributionalRL import *
 from calc_performance import *
@@ -21,7 +19,7 @@ def DRQN(env,num_episodes,epdecayopt,
             DDQN,nstep,distributional,
             lrdecayrate,lr,min_lr,
             training_cycle,target_update_cycle, seql, burninl, 
-            calc_MSE, external_testing, normalize):
+            calc_MSE, external_testing, normalize, bestQinit):
     # train using Deep Q Network
     # env: environment class object
     # num_episodes: number of episodes to train 
@@ -40,7 +38,10 @@ def DRQN(env,num_episodes,epdecayopt,
     # parameters
     ## NN parameters
     # DQN
-    state_size = len(env.statespace_dim)
+    if env.partial == True:
+        state_size = len(env.statespace_dim)
+    else:
+        state_size = len(env.obsspace_dim)
     action_size = env.actionspace_dim[0]
     hidden_size = 20
     hidden_num = 3
@@ -72,33 +73,22 @@ def DRQN(env,num_episodes,epdecayopt,
     elif env.envID in ['Env1.1','Env1.2']: # for continuous states
         state_max = torch.tensor([env.states[key][1] for key in env.states.keys()], dtype=torch.float32).to(device)
         state_min = torch.tensor([env.states[key][0] for key in env.states.keys()], dtype=torch.float32).to(device)
-        
+    elif env.envID == 'Env2.0': # state is really observation in env2.0. We'll call the actual states as hidden states. This is done to make the code consistent with env1.0
+        state_max = (torch.tensor(env.observation_space, dtype=torch.float32)).to(device)
+        state_min = (torch.tensor(env.observation_space, dtype=torch.float32)).to(device) 
     # initialization
     ## print out extension feature usage
-    print(f'DuelingDQN: {DuelingDQN}\nDDQN: {DDQN}\nPrioritizedReplay: {PrioritizedReplay}\nnstep: {nstep}\nnoisynet: {noisy}\ndistributional RL: {distributional}')
-    if DuelingDQN:
-        print(f'hidden_size_shared: {hidden_size_shared}, hidden_size_split: {hidden_size_split}, hidden_num_shared: {hidden_num_shared}, hidden_num_split: {hidden_num_split}')
-    else:
-        print(f'hidden_size: {hidden_size}, hidden_num: {hidden_num}')
-    if PrioritizedReplay:
-        print(f'alpha: {alpha}, beta0: {beta0}, per_epsilon: {per_epsilon}')
     if distributional:
         print(f'Vmin: {Vmin}, Vmax: {Vmax}, atom N: {atomn}')
     print(f'lr: {lr}, lrdecayrate: {lrdecayrate}, min_lr: {min_lr}')
     ## initialize NN
-    if DuelingDQN:
-        Q = DuelQNN(state_size, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared,
-                     hidden_num_split, lr, state_min, state_max,lrdecayrate,noisy,distributional,atomn, Vmin, Vmax, normalize).to(device)
-        Q_target = DuelQNN(state_size, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared,
-                            hidden_num_split, lr, state_min, state_max,lrdecayrate,noisy,distributional,atomn, Vmin, Vmax, normalize).to(device)
-    else:
-        Q = QNN(state_size, action_size, hidden_size, hidden_num, lr, state_min, state_max,
-                lrdecayrate,noisy, distributional, atomn, Vmin, Vmax, normalize).to(device)
-        Q_target = QNN(state_size, action_size, hidden_size, hidden_num, lr, state_min, 
-                       state_max,lrdecayrate,noisy, distributional, atomn, Vmin, Vmax, normalize).to(device)
+    Q = RQNN(state_size, action_size, hidden_size, hidden_num, lr, state_min, state_max,
+            lrdecayrate,noisy, distributional, atomn, Vmin, Vmax, normalize).to(device)
+    Q_target = RQNN(state_size, action_size, hidden_size, hidden_num, lr, state_min, 
+                    state_max,lrdecayrate,noisy, distributional, atomn, Vmin, Vmax, normalize).to(device)
     if bestQinit:
         # initialize Q with the best Q network from the previous run
-        with open(f"deepQN results/bestQNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pt", "rb") as file:
+        with open(f"DRQN results/bestQNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DRQN.pt", "rb") as file:
             initQ = torch.load(file,weights_only=False)
         print('initializing Q with the best Q network from the previous run')
         Q.load_state_dict(initQ.state_dict())
@@ -112,7 +102,7 @@ def DRQN(env,num_episodes,epdecayopt,
     
 
    ## start testing process
-    testwd = './deepQN results/intermediate training Q network'
+    testwd = './DRQN results/intermediate training Q network'
     # delete all the previous network files in the intermediate network folder to not test the old Q networks
     for file in os.listdir(testwd):
         try:
@@ -136,13 +126,8 @@ def DRQN(env,num_episodes,epdecayopt,
     ## intialize nstep queue
     nq = Nstepqueue(nstep, gamma)
     ## initialize memory
-    if PrioritizedReplay:
-        memory = PMemory(memory_size, alpha, per_epsilon, max_abstd)
-        beta = beta0
-        pretrain(env,nq,memory,batch_size,PrioritizedReplay,memory.max_abstd) # prepopulate memory
-    else:
-        memory = Memory(memory_size, state_size, len(env.actionspace_dim))
-        pretrain(env,nq,memory,batch_size,PrioritizedReplay,0) # prepopulate memory
+    memory = Memory(memory_size, state_size, len(env.actionspace_dim))
+    pretrain(env,nq,memory,batch_size,PrioritizedReplay,0) # prepopulate memory
     print(f'Pretraining memory with {batch_size} experiences (buffer size: {memory_size})')
 
     ## state initialization setting 
