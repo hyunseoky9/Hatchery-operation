@@ -19,7 +19,7 @@ def DRQN(env,num_episodes,epdecayopt,
             DDQN,nstep,distributional,
             lrdecayrate,lr,min_lr,
             training_cycle,target_update_cycle, 
-            calc_MSE, external_testing, normalize, bestQinit):
+            external_testing, normalize, bestQinit):
     # train using Deep Q Network
     # env: environment class object
     # num_episodes: number of episodes to train 
@@ -38,7 +38,7 @@ def DRQN(env,num_episodes,epdecayopt,
     # parameters
     ## NN parameters
     # RDQN
-    if env.partial == True:
+    if env.partial == False:
         state_size = len(env.statespace_dim)
     else:
         state_size = len(env.obsspace_dim)
@@ -49,8 +49,8 @@ def DRQN(env,num_episodes,epdecayopt,
     ## memory parameters
     memory_size = 1000 # memory capacity
     batch_size = 4 # mini-batch size
-    seql = 10 # sequence length for LSTM. each mini-batch has batch_size number of sequences
-    burninl = 10 # burn-in length for DRQN
+    seql = 6 # sequence length for LSTM. each mini-batch has batch_size number of sequences
+    burninl = 5 # maximmum burn-in length for DRQN
     ## distributional RL atoms size
     Vmin = -104
     Vmax = 1002
@@ -60,7 +60,7 @@ def DRQN(env,num_episodes,epdecayopt,
     #lr = 0.01
     #min_lr = 1e-6
     gamma = env.gamma # discount rate
-    max_steps = 1000 # max steps per episode
+    max_steps = 100 # max steps per episode
     ## cycles
     #training_cycle = 7 # number of steps where the network is trained
     #target_update_cycle = 10 # number of steps where the target network is updated
@@ -78,8 +78,8 @@ def DRQN(env,num_episodes,epdecayopt,
         state_max = torch.tensor([env.states[key][1] for key in env.states.keys()], dtype=torch.float32).to(device)
         state_min = torch.tensor([env.states[key][0] for key in env.states.keys()], dtype=torch.float32).to(device)
     elif env.envID == 'Env2.0': # state is really observation in env2.0. We'll call the actual states as hidden states. This is done to make the code consistent with env1.0
-        state_max = (torch.tensor(env.observation_space, dtype=torch.float32)).to(device)
-        state_min = (torch.tensor(env.observation_space, dtype=torch.float32)).to(device) 
+        state_max = (torch.tensor(env.obsspace_dim, dtype=torch.float32)).to(device)
+        state_min = (torch.tensor(env.obsspace_dim, dtype=torch.float32)).to(device) 
     # initialization
     ## print out extension feature usage
     if distributional:
@@ -131,7 +131,7 @@ def DRQN(env,num_episodes,epdecayopt,
     nq = Nstepqueue(nstep, gamma)
     ## initialize memory
     memory = Memory(memory_size, state_size, len(env.actionspace_dim))
-    pretrain(env,nq,memory,batch_size,PrioritizedReplay,0) # prepopulate memory
+    pretrain(env,nq,memory,max_steps,batch_size,PrioritizedReplay=0,max_priority=0) # prepopulate memory
     print(f'Pretraining memory with {batch_size} experiences (buffer size: {memory_size})')
 
     ## state initialization setting 
@@ -143,15 +143,10 @@ def DRQN(env,num_episodes,epdecayopt,
         reachable_actions = torch.tensor([i[1] for i in reachables], dtype=torch.int64).unsqueeze(1).to(device)
     elif env.envID == 'Env1.1':
         initlist = [-1,-1,-1,-1,-1,-1]
-    
+    elif env.envID == 'Env2.0':
+        initlist = [-1,-1,-1,-1,-1,-1]
+
     ## initialize performance metrics
-    # load Q function from the value iteration for calculating MSE
-    if calc_MSE:
-        if env.envID == 'Env1.0':
-            with open(f"value iter results/Q_Env1.0_par{env.parset}_dis{env.discset}_valiter.pkl", "rb") as file:
-                Q_vi = pickle.load(file)
-            Q_vi = torch.tensor(Q_vi[reachable_uniquestateid].flatten(), dtype=torch.float32).to(device)
-    MSE = []
     # initialize reward performance receptacle
     avgperformances = [] # average of rewards over 100 episodes with policy following trained Q
     final_avgreward = 0
@@ -164,10 +159,7 @@ def DRQN(env,num_episodes,epdecayopt,
     # run through the episodes
     while i < num_episodes: #delta > theta:
         # update epsilon
-        if noisy: # turn off epsilon greedy for noisy nets
-            ep = 0
-        else:
-            ep = epsilon_update(i,epdecayopt,num_episodes) 
+        ep = epsilon_update(i,epdecayopt,num_episodes) 
         # initialize state that doesn't start from terminal
         env.reset(initlist) # random initialization
         S = env.state
@@ -182,7 +174,7 @@ def DRQN(env,num_episodes,epdecayopt,
             reward, done, _ = env.step(a) # take a step
             if t >= max_steps: # finish episode if max steps reached even if terminal state not reached
                 done = True
-            nq.add(S, a, reward, env.state, done, memory, PrioritizedReplay) # add transition to queue
+            nq.add(S, a, reward, env.state, done, memory, PrioritizedReplay=0) # add transition to queue
             S = env.state #  update state
             # train network
             if j % training_cycle == 0:
@@ -224,13 +216,6 @@ def DRQN(env,num_episodes,epdecayopt,
                         if dones.any():
                             target_Qs[episode_ends] = torch.zeros(action_size, device=device)
                         targets = rewards + (gamma**nstep) * torch.max(target_Qs, dim=1)[0]
-                td_error = train_model(Q, [(states, actions, targets)], weights, device)
-
-                # Update priorities
-                if PrioritizedReplay:
-                    td_error = np.abs(td_error.detach().cpu().numpy())
-                    memory.update_priorities(idxs, td_error)
-                    memory.max_abstd = max(memory.max_abstd, np.max(td_error))
 
             # update target network
             if j % target_update_cycle == 0:
@@ -238,18 +223,11 @@ def DRQN(env,num_episodes,epdecayopt,
                 
             t += 1 # update timestep
             j += 1 # update training cycle
-        # beta update for prioritized replay
-        if PrioritizedReplay: 
-            beta += (1.0 - beta0)/num_episodes
         # Decay the learning rate
         Q.scheduler.step() 
         if Q.optimizer.param_groups[0]['lr'] < min_lr:
             Q.optimizer.param_groups[0]['lr'] = min_lr
 
-        if i % 100 == 0: # MSE calculation
-            if calc_MSE:
-                mse_value = test_model(Q, reachable_states, reachable_actions, Q_vi, noisy, device)
-                MSE.append(mse_value)
         if i % 1000 == 0: # calculate average reward every 1000 episodes
             if not external_testing:
                 avgperformance = calc_performance(env,device,Q,None,performance_sampleN)
@@ -261,30 +239,7 @@ def DRQN(env,num_episodes,epdecayopt,
             current_lr = Q.optimizer.param_groups[0]['lr']
             if external_testing:
                 avgperformance = 'using external testing'
-
-            if calc_MSE:
-                print(f"Episode {i}, Learning Rate: {current_lr} MSE: {round(mse_value,2)} Avg Performance: {avgperformance}")
-            else:
-                print(f"Episode {i}, Learning Rate: {current_lr} Avg Performance: {avgperformance}")
-
-            meansig = 0
-            if noisy:
-                if DuelingDQN:
-                    for layer in Q.shared_linear_relu_stack:
-                        if hasattr(layer, 'mu'):
-                            meansig += layer.sigma.mean().item()
-                    for layer in Q.value_linear_relu_stack:
-                        if hasattr(layer, 'mu'):
-                            meansig += layer.sigma.mean().item()
-                    for layer in Q.advantage_linear_relu_stack:
-                        if hasattr(layer, 'mu'):
-                            meansig += layer.sigma.mean().item()
-                else:
-                    for layer in Q.linear_relu_stack:
-                        if hasattr(layer, 'mu'):
-                            meansig += layer.sigma.mean().item()
-                print(f"avg sigma: {layer.sigma.mean().item()}")
-            print('-----------------------------------')        
+            print(f"Episode {i}, Learning Rate: {current_lr} Avg Performance: {avgperformance}")
         i += 1 # update episode number
 
     # calculate final average reward
@@ -325,12 +280,7 @@ def DRQN(env,num_episodes,epdecayopt,
     ## save performance
     if external_testing == False:
         np.save(f"{wd}/rewards_{env.envID}_par{env.parset}_dis{env.discset}_DQN.npy", avgperformances)
-    ## save MSE
-    if calc_MSE:
-        np.save(f"{wd}/MSE_{env.envID}_par{env.parset}_dis{env.discset}_DQN.npy", MSE)
-    return Q_discrete, policy, MSE, avgperformances, final_avgreward
-
-
+    return Q_discrete, policy, avgperformances, final_avgreward
 
 def _make_discrete_Q(Q,env,device):
     # make a discrete Q table
@@ -376,7 +326,7 @@ class Memory():
         done = self.done_buffer[indices]
         return states, actions, rewards, next_states, done
     
-def pretrain(env, nq, memory, batch_size, PrioritizedReplay, max_priority):
+def pretrain(env, nq, memory, max_steps, batch_size, PrioritizedReplay, max_priority):
     # Make a bunch of random actions from a random state and store the experiences
     reset = True
     memadd = 0 # number of transitions added to memory
@@ -387,9 +337,17 @@ def pretrain(env, nq, memory, batch_size, PrioritizedReplay, max_priority):
                 env.reset([-1,-1,-1,-1,-1,-1])
                 state = env.state
                 reset = False
+            elif env.envID == 'Env2.0':
+                env.reset([-1,-1,-1,-1,-1,-1])
+                state = env.obs
+                reset = False
+            t = 0
         # Make a random action
         action = np.random.randint(0, env.actionspace_dim[0])
         reward, done, _ = env.step(action)
+        if t >= max_steps:
+            done = True
+        t += 1
         next_state = env.state
         if done:
             nq.add(state, action, reward, next_state, done, memory, PrioritizedReplay)
@@ -483,19 +441,3 @@ def compute_loss(Q, states, actions, targetQs):
         selected_q_values = q_values.gather(1, actions).squeeze(1) # Get Q-values for the selected actions
         loss = Q.loss_fn(selected_q_values, targetQs) # Compute the loss
     return loss
-
-def test_model(Q, reachable_states, reachable_actions, Qopt, noisy, device):
-    """
-    If there is a optimal Q calculate (perhaps from value iteration) MSE loss compared to the optimal Q.
-    """
-    Q.eval()
-    if noisy: # disable noise when evaluating
-        Q.disable_noise()
-        with torch.no_grad():
-            testloss = compute_loss(Q, reachable_states, reachable_actions, Qopt).item()
-        Q.enable_noise()
-    else:
-        with torch.no_grad():
-            testloss = compute_loss(Q, reachable_states, reachable_actions, Qopt).item()
-    return testloss
-    #print(f"Test Error Avg loss: {test_loss:>8f}\n")

@@ -42,7 +42,7 @@ def Rainbow(env,num_episodes,epdecayopt,
     # DQN
     state_size = len(env.statespace_dim)
     action_size = env.actionspace_dim[0]
-    hidden_size = 20
+    hidden_size = 40
     hidden_num = 3
     # Dueling DQN
     hidden_num_shared = 1
@@ -59,8 +59,8 @@ def Rainbow(env,num_episodes,epdecayopt,
     batch_size = 100 # experience mini-batch size
     ## distributional RL atoms size
     Vmin = -104
-    Vmax = 1002
-    atomn = 32
+    Vmax = 70
+    atomn = 16
 
     ## etc.
     #lr = 0.01
@@ -150,10 +150,10 @@ def Rainbow(env,num_episodes,epdecayopt,
     if PrioritizedReplay:
         memory = PMemory(memory_size, alpha, per_epsilon, max_abstd)
         beta = beta0
-        pretrain(env,nq,memory,batch_size,PrioritizedReplay,memory.max_abstd) # prepopulate memory
+        pretrain(env,nq,memory,max_steps,batch_size,PrioritizedReplay,memory.max_abstd) # prepopulate memory
     else:
         memory = Memory(memory_size, state_size, len(env.actionspace_dim))
-        pretrain(env,nq,memory,batch_size,PrioritizedReplay,0) # prepopulate memory
+        pretrain(env,nq,memory,max_steps,batch_size,PrioritizedReplay,0) # prepopulate memory
     print(f'Pretraining memory with {batch_size} experiences (buffer size: {memory_size})')
 
     ## state initialization setting 
@@ -398,7 +398,7 @@ class Memory():
         done = self.done_buffer[indices]
         return states, actions, rewards, next_states, done
     
-def pretrain(env, nq, memory, batch_size, PrioritizedReplay, max_priority):
+def pretrain(env, nq, memory, max_steps, batch_size, PrioritizedReplay, max_priority):
     # Make a bunch of random actions from a random state and store the experiences
     reset = True
     memadd = 0 # number of transitions added to memory
@@ -409,9 +409,17 @@ def pretrain(env, nq, memory, batch_size, PrioritizedReplay, max_priority):
                 env.reset([-1,-1,-1,-1,-1,-1])
                 state = env.state
                 reset = False
+            if env.envID in ['Env2.0']:
+                env.reset([-1,-1,-1,-1,-1,-1])
+                state = env.obs
+                reset = False
+            t = 0
         # Make a random action
         action = np.random.randint(0, env.actionspace_dim[0])
         reward, done, _ = env.step(action)
+        if t >= max_steps:
+            done = True
+        t += 1
         next_state = env.state
         if done:
             nq.add(state, action, reward, next_state, done, memory, PrioritizedReplay)
