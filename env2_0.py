@@ -22,7 +22,6 @@ class Env2_0:
             }
             self.observations = {
                 "y": [0, 15, 30, 45], # observed catch from fall monitoring. -1= no observed catch (for spring); 45 is actually anything gretaer than 45
-                "yobs": [0, 1], # 0= no observation 1= observation
                 "ONH": [0, 75000, 150000, 225000, 300000], # observed hatchery fish
                 "OH": [0.56, 0.61, 0.66, 0.71, 0.76, 0.81, 0.86], # observed heterozygosity
                 "Oq": [65, 322, 457, 592, 848], # observed spring flow
@@ -94,7 +93,6 @@ class Env2_0:
             season = initstate[5]
         if season == 0: # spring
             new_obs.append(0) # no observed catch in spring (fixed arbitrarily to 0)
-            new_obs.append(0) # no observed catch in spring (yobs=0)
             if initstate[0] == -1:
                 new_state.append(random.choice(np.arange(1, len(self.states["NW"])))) # don't start from the smallest population size
             else: 
@@ -134,7 +132,6 @@ class Env2_0:
             new_y = self._discretize(new_y, self.observations['y'])
             new_y = np.where(np.array(self.observations['y']) == new_y)[0][0]
             new_obs.append(new_y) # observed catch in fall
-            new_obs.append(1) # observed catch in fall (yobs=1)
             if initstate[1] == -1:
                 new_state.append(random.choice(np.arange(0, len(self.states["NWm1"]))))
             else:
@@ -194,8 +191,6 @@ class Env2_0:
                 NWm1_next = NW
                 q_next = 0 #max(np.random.normal(self.muq, self.sigq),0) # q initialized
                 NH_next = action
-                # Observation: yes observation catch in fall
-                yobs_next = 1
                 # Reward
                 reward = self.p - self.c if a > 0 else self.p
             else:  # Winter-Spring (fall)
@@ -213,8 +208,7 @@ class Env2_0:
                 # Reward
                 reward = self.p
                 # Observation
-                y_next = 0 # no observed catch in spring
-                yobs_next = 0 
+                y_next = 0 # no observed catch in spring. * tau acts as a one hot encoder for observation or no observation. No need for seaparate observation variable for existence of observation.
 
             # put it into defined discrete states
             NW_next = self._discretize(NW_next, self.states['NW'])
@@ -233,7 +227,7 @@ class Env2_0:
             q_next_idx = np.where(np.array(self.states['q']) == q_next)[0][0]
             y_next_idx = np.where(np.array(self.observations['y']) == y_next)[0][0]
             self.state = [NW_next_idx, NWm1_next, NH_next, H_next_idx, q_next_idx, tau_next]
-            self.obs = [y_next_idx, yobs_next, NH_next, H_next_idx, q_next_idx, tau_next]
+            self.obs = [y_next_idx, NH_next, H_next_idx, q_next_idx, tau_next]
             # Check termination
             done  = False
         else:
@@ -241,8 +235,6 @@ class Env2_0:
             if tau == 0:  # Spring-Fall (spring)
                 q_next = self.states['q'][0] #max(np.random.normal(self.muq, self.sigq),0) # q initialized
                 NH_next = action
-                # Observation: yes observation catch in fall
-                yobs_next = 1
 
             else:  # Winter-Spring (fall)
                 q_next =  max(np.random.normal(self.muq, self.sigq),0)
@@ -251,7 +243,6 @@ class Env2_0:
                 NH_next = 0 # all hatchery fish that aren't released are discarded
                 # Observation
                 y_next = 0 # no observed catch in spring
-                yobs_next = 0
 
             # observation is based on monitoring in fall
             if tau == 0: # conditional is tau==0 because the next season is fall
@@ -264,7 +255,7 @@ class Env2_0:
             q_next_idx = np.where(np.array(self.states['q']) == q_next)[0][0]
             y_next_idx = np.where(np.array(self.observations['y']) == y_next)[0][0]
             self.state = [NW_next_idx, NWm1_next, NH_next, H_next_idx, q_next_idx, tau_next]
-            self.obs = [y_next_idx, yobs_next, NH_next, H_next_idx, q_next_idx, tau_next]
+            self.obs = [y_next_idx, NH_next, H_next_idx, q_next_idx, tau_next]
             # extinction
             done = False
             reward = self.extpenalty
