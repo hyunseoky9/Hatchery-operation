@@ -13,6 +13,7 @@ class Env1_2:
         self.envID = 'Env1.2'
         self.partial = False
         self.discset = discretization_set
+        self.episodic = True
 
         # Define parameters
         # call in parameterization dataset csv

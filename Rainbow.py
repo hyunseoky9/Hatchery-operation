@@ -16,7 +16,8 @@ from nq import *
 from distributionalRL import *
 from calc_performance import *
 from choose_action import *
-
+from absorbing import *
+from pretrain import *
 def Rainbow(env,num_episodes,epdecayopt,
             DDQN,DuelingDQN,PrioritizedReplay,nstep,noisy,distributional,
             lrdecayrate,lr,min_lr,
@@ -408,42 +409,7 @@ class Memory():
         done = self.done_buffer[indices]
         return states, actions, rewards, next_states, done
     
-def pretrain(env, nq, memory, max_steps, batch_size, PrioritizedReplay, max_priority):
-    # Make a bunch of random actions from a random state and store the experiences
-    reset = True
-    memadd = 0 # number of transitions added to memory
-    n = nq.n
-    while memadd < batch_size:
-        if reset == True:
-            if env.envID in ['Env1.0', 'Env1.1']:
-                env.reset([-1,-1,-1,-1,-1,-1])
-                state = env.state
-                reset = False
-            if env.envID in ['Env2.0']:
-                env.reset([-1,-1,-1,-1,-1,-1])
-                state = env.obs
-                reset = False
-            t = 0
-        # Make a random action
-        action = np.random.randint(0, env.actionspace_dim[0])
-        reward, done, _ = env.step(action)
-        if t >= max_steps:
-            done = True
-        t += 1
-        next_state = env.state
-        if done:
-            nq.add(state, action, reward, next_state, done, memory, PrioritizedReplay)
-            reset = True
-            memadd += n
-        else:
-            # increase memadd by 1 if nq is full
-            if len(nq.queue) == n-1:
-                memadd += 1
-            nq.add(state, action, reward, next_state, done, memory, PrioritizedReplay)
-            state = next_state
-    nq.queue = [] # clear the n-step queue
-    nq.rqueue = [] 
-    
+
 
 def epsilon_update(i,option,num_episodes):
     # update epsilon

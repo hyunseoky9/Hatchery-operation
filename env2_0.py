@@ -7,6 +7,8 @@ class Env2_0:
     def __init__(self,initstate,parameterization_set,discretization_set):
         self.envID = 'Env2.0'
         self.partial = True
+        self.episodic = False
+        self.absorbing_cut = True # has an absorbing state and the episode should be cut shortly after reaching it.
         self.discset = discretization_set
         # Define state space and action space based on your document
         if discretization_set == 0:
@@ -52,8 +54,6 @@ class Env2_0:
         self.actionspace_dim = list(map(lambda x: len(x[1]), self.actions.items()))
         self.obsspace_dim  = list(map(lambda x: len(x[1]), self.observations.items()))
 
-        # Initialize state and observation
-        self.state, self.obs = self.reset(initstate)
         
         # Define parameters
         # call in parameterization dataset csv
@@ -78,6 +78,10 @@ class Env2_0:
         self.extpenalty = paramdf['extpenalty'][parameterization_set - 1] # Penalty for extinction
         self.theta = paramdf['theta'][parameterization_set - 1] # detection probability
         self.sigy = paramdf['sigy'][parameterization_set - 1] # overdispersion parameter for observed catch
+
+        # Initialize state and observation
+        self.state, self.obs = self.reset(initstate)
+
 
     def reset(self, initstate):
         # Initialize state variables
@@ -118,11 +122,17 @@ class Env2_0:
                 new_state.append(initstate[4])
                 new_obs.append(initstate[4])
         else: # fall
-            new_obs.append(random.choice(np.arange(1, len(self.observations["y"])))) # observed catch in fall (not -1)
+
             if initstate[0] == -1:
                 new_state.append(random.choice(np.arange(1, len(self.states["NW"])))) # don't start from the smallest population size
             else:
                 new_state.append(initstate[0])
+
+            new_y = self._fallmonitoring(self.states["NW"][new_state[0]])
+            new_y = self._discretize(new_y, self.observations['y'])
+            new_y = np.where(np.array(self.observations['y']) == new_y)[0][0]
+            new_obs.append(new_y) # observed catch in fall (not -1)
+            
             if initstate[1] == -1:
                 new_state.append(random.choice(np.arange(0, len(self.states["NWm1"]))))
             else:

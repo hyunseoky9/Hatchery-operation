@@ -14,7 +14,8 @@ from nq import *
 from distributionalRL import *
 from calc_performance import *
 from choose_action import *
-
+from absorbing import *
+from pretrain import *
 def DRQN(env,num_episodes,epdecayopt,
             DDQN,nstep,distributional,
             lrdecayrate,lr,min_lr,
@@ -67,8 +68,6 @@ def DRQN(env,num_episodes,epdecayopt,
     ## performance testing sample size
     performance_sampleN = 1000
     final_performance_sampleN = 1000
-
- 
 
     ## normalization parameters
     if env.envID == 'Env1.0': # for discrete states
@@ -131,8 +130,8 @@ def DRQN(env,num_episodes,epdecayopt,
     nq = Nstepqueue(nstep, gamma)
     ## initialize memory
     memory = Memory(memory_size, state_size, len(env.actionspace_dim))
-    pretrain(env,nq,memory,max_steps,batch_size,PrioritizedReplay=0,max_priority=0) # prepopulate memory
-    print(f'Pretraining memory with {batch_size} experiences (buffer size: {memory_size})')
+    pretrain(env,nq,memory,max_steps,batch_size*(seql+burninl),PrioritizedReplay=0,max_priority=0) # prepopulate memory
+    print(f'Pretraining memory with {batch_size*(seql+burninl)} experiences (buffer size: {memory_size})')
 
     ## state initialization setting 
     if env.envID == 'Env1.0':
@@ -166,12 +165,18 @@ def DRQN(env,num_episodes,epdecayopt,
         done = False
         
         t = 0 # timestep num
+        
         while done == False:    
             if t > 0:
                 a = choose_action(S, Q, ep, action_size,distributional,device)
             else:
                 a = random.randint(0, action_size-1) # first action in the episode is random for added exploration
             reward, done, _ = env.step(a) # take a step
+            if env.episodic == False and env.absorbing_cut == True: # if continuous task
+                if absorbing(env) == True:
+                    termination_t += 1
+                    if termination_t >= 5:
+                        done = True
             if t >= max_steps: # finish episode if max steps reached even if terminal state not reached
                 done = True
             nq.add(S, a, reward, env.state, done, memory, PrioritizedReplay=0) # add transition to queue
@@ -181,9 +186,10 @@ def DRQN(env,num_episodes,epdecayopt,
                 # Sample mini-batch from memory
                 memory.sample(batch_size)
 
-                    states, actions, rewards, next_states, dones = memory.sample(batch_size)
-                    weights = np.ones(batch_size)
-                    actions = torch.tensor(actions, dtype=torch.int64).to(device)
+                states, actions, rewards, next_states, dones = memory.sample(batch_size)
+                weights = np.ones(batch_size)
+                actions = torch.tensor(actions, dtype=torch.int64).to(device)
+
                 states = torch.tensor(states, dtype=torch.float32).to(device)
                 rewards = torch.tensor(rewards, dtype=torch.float32).to(device)
                 next_states = torch.tensor(next_states, dtype=torch.float32).to(device)
@@ -323,44 +329,6 @@ class Memory():
         Returns: Tensors of shape (batch_size X seq_len, *)
                  - states, actions, rewards, next_states, done_flags
         """
-
-    
-def pretrain(env, nq, memory, max_steps, batch_size, PrioritizedReplay, max_priority):
-    # Make a bunch of random actions from a random state and store the experiences
-    reset = True
-    memadd = 0 # number of transitions added to memory
-    n = nq.n
-    while memadd < batch_size:
-        if reset == True:
-            if env.envID in ['Env1.0', 'Env1.1']:
-                env.reset([-1,-1,-1,-1,-1,-1])
-                state = env.state
-                reset = False
-            elif env.envID == 'Env2.0':
-                env.reset([-1,-1,-1,-1,-1,-1])
-                state = env.obs
-                reset = False
-            t = 0
-        # Make a random action
-        action = np.random.randint(0, env.actionspace_dim[0])
-        reward, done, _ = env.step(action)
-        if t >= max_steps:
-            done = True
-        t += 1
-        next_state = env.state
-        if done:
-            nq.add(state, action, reward, next_state, done, memory, PrioritizedReplay)
-            reset = True
-            memadd += n
-        else:
-            # increase memadd by 1 if nq is full
-            if len(nq.queue) == n-1:
-                memadd += 1
-            nq.add(state, action, reward, next_state, done, memory, PrioritizedReplay)
-            state = next_state
-    nq.queue = [] # clear the n-step queue
-    nq.rqueue = [] 
-    
 
 def epsilon_update(i,option,num_episodes):
     # update epsilon
