@@ -21,7 +21,8 @@ class Env2_0:
                 "tau": [0, 1]  # 0 for Fall, 1 for Spring
             }
             self.observations = {
-                "y": [-1, 0, 15, 30, 45], # observed catch from fall monitoring. -1= no observed catch (for spring); 45 is actually anything gretaer than 45
+                "y": [0, 15, 30, 45], # observed catch from fall monitoring. -1= no observed catch (for spring); 45 is actually anything gretaer than 45
+                "yobs": [0, 1], # 0= no observation 1= observation
                 "ONH": [0, 75000, 150000, 225000, 300000], # observed hatchery fish
                 "OH": [0.56, 0.61, 0.66, 0.71, 0.76, 0.81, 0.86], # observed heterozygosity
                 "Oq": [65, 322, 457, 592, 848], # observed spring flow
@@ -92,7 +93,8 @@ class Env2_0:
         else:
             season = initstate[5]
         if season == 0: # spring
-            new_obs.append(0) # no observed catch in spring
+            new_obs.append(0) # no observed catch in spring (fixed arbitrarily to 0)
+            new_obs.append(0) # no observed catch in spring (yobs=0)
             if initstate[0] == -1:
                 new_state.append(random.choice(np.arange(1, len(self.states["NW"])))) # don't start from the smallest population size
             else: 
@@ -131,8 +133,8 @@ class Env2_0:
             new_y = self._fallmonitoring(self.states["NW"][new_state[0]])
             new_y = self._discretize(new_y, self.observations['y'])
             new_y = np.where(np.array(self.observations['y']) == new_y)[0][0]
-            new_obs.append(new_y) # observed catch in fall (not -1)
-            
+            new_obs.append(new_y) # observed catch in fall
+            new_obs.append(1) # observed catch in fall (yobs=1)
             if initstate[1] == -1:
                 new_state.append(random.choice(np.arange(0, len(self.states["NWm1"]))))
             else:
@@ -191,7 +193,9 @@ class Env2_0:
                     #display(f's={s:.2f}, F={F:.2f}, spawner={spawner}, recruitment={recruitment}, normal used, NW_next={NW_next}')
                 NWm1_next = NW
                 q_next = 0 #max(np.random.normal(self.muq, self.sigq),0) # q initialized
-                NH_next = a
+                NH_next = action
+                # Observation: yes observation catch in fall
+                yobs_next = 1
                 # Reward
                 reward = self.p - self.c if a > 0 else self.p
             else:  # Winter-Spring (fall)
@@ -209,14 +213,15 @@ class Env2_0:
                 # Reward
                 reward = self.p
                 # Observation
-                y_next = -1 # no observed catch in spring
+                y_next = 0 # no observed catch in spring
+                yobs_next = 0 
 
             # put it into defined discrete states
             NW_next = self._discretize(NW_next, self.states['NW'])
             H_next = self._discretize(H_next, self.states['H'])
             q_next = self._discretize(q_next, self.states['q'])
 
-            # observation is based on monitoring if fall
+            # observation is based on monitoring in fall
             if tau == 0: # conditional is tau==0 because the next season is fall
                 y_next = self._fallmonitoring(NW_next)
                 y_next = self._discretize(y_next, self.observations['y'])
@@ -224,42 +229,42 @@ class Env2_0:
             # Update state
             NW_next_idx = np.where(np.array(self.states['NW']) == NW_next)[0][0]
             NWm1_next = np.where(np.array(self.states['NWm1']) == NWm1_next)[0][0]
-            NH_next = np.where(np.array(self.states['NH']) == NH_next)[0][0]
             H_next_idx = np.where(np.array(self.states['H']) == H_next)[0][0]
             q_next_idx = np.where(np.array(self.states['q']) == q_next)[0][0]
-            tau_next_idx = np.where(np.array(self.states['tau']) == tau_next)[0][0]
             y_next_idx = np.where(np.array(self.observations['y']) == y_next)[0][0]
-            self.state = [NW_next_idx, NWm1_next, NH_next, H_next_idx, q_next_idx, tau_next_idx]
-            self.obs = [y_next_idx, NH_next, H_next_idx, q_next_idx, tau_next_idx]
+            self.state = [NW_next_idx, NWm1_next, NH_next, H_next_idx, q_next_idx, tau_next]
+            self.obs = [y_next_idx, yobs_next, NH_next, H_next_idx, q_next_idx, tau_next]
             # Check termination
             done  = False
         else:
             # Transition logic
             if tau == 0:  # Spring-Fall (spring)
                 q_next = self.states['q'][0] #max(np.random.normal(self.muq, self.sigq),0) # q initialized
-                NH_next = a
+                NH_next = action
+                # Observation: yes observation catch in fall
+                yobs_next = 1
+
             else:  # Winter-Spring (fall)
                 q_next =  max(np.random.normal(self.muq, self.sigq),0)
                 q_next = self._discretize(q_next, self.states['q'])
 
                 NH_next = 0 # all hatchery fish that aren't released are discarded
                 # Observation
-                y_next = -1 # no observed catch in spring
+                y_next = 0 # no observed catch in spring
+                yobs_next = 0
 
-            # observation is based on monitoring if fall
+            # observation is based on monitoring in fall
             if tau == 0: # conditional is tau==0 because the next season is fall
-                y_next = 0
+                y_next = 0 # 0 catch when extinct.
             
             # Update state
             NW_next_idx = 0
             NWm1_next = 0
-            NH_next = np.where(np.array(self.states['NH']) == NH_next)[0][0]
             H_next_idx = 0
             q_next_idx = np.where(np.array(self.states['q']) == q_next)[0][0]
-            tau_next_idx = np.where(np.array(self.states['tau']) == tau_next)[0][0]
             y_next_idx = np.where(np.array(self.observations['y']) == y_next)[0][0]
-            self.state = [NW_next_idx, NWm1_next, NH_next, H_next_idx, q_next_idx, tau_next_idx]
-            self.obs = [y_next_idx, NH_next, H_next_idx, q_next_idx, tau_next_idx]
+            self.state = [NW_next_idx, NWm1_next, NH_next, H_next_idx, q_next_idx, tau_next]
+            self.obs = [y_next_idx, yobs_next, NH_next, H_next_idx, q_next_idx, tau_next]
             # extinction
             done = False
             reward = self.extpenalty

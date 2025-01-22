@@ -166,13 +166,14 @@ def DRQN(env,num_episodes,epdecayopt,
             S = env.state
         else:
             S = env.obs
+
+        online_hidden = None # hidden state for simulation
         done = False
-        
         t = 0 # timestep num
         
         while done == False:    
             if t > 0:
-                a = choose_action(S, Q, ep, action_size,distributional,device)
+                a, online_hidden = choose_action(S, Q, ep, action_size,distributional,device,True,online_hidden)
             else:
                 a = random.randint(0, action_size-1) # first action in the episode is random for added exploration
             reward, done, _ = env.step(a) # take a step

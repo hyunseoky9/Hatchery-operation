@@ -168,7 +168,7 @@ class Env1_0:
                     #display(f's={s:.2f}, F={F:.2f}, spawner={spawner}, recruitment={recruitment}, normal used, NW_next={NW_next}')
                 NWm1_next = NW
                 q_next = 0 #max(np.random.normal(self.muq, self.sigq),0) # q initialized
-                NH_next = a
+                NH_next = action
                 # Reward
                 reward = self.p - self.c if a > 0 else self.p
 
@@ -194,11 +194,9 @@ class Env1_0:
             # Update state
             NW_next_idx = np.where(np.array(self.states['NW']) == NW_next)[0][0]
             NWm1_next = np.where(np.array(self.states['NWm1']) == NWm1_next)[0][0]
-            NH_next = np.where(np.array(self.states['NH']) == NH_next)[0][0]
             H_next_idx = np.where(np.array(self.states['H']) == H_next)[0][0]
             q_next_idx = np.where(np.array(self.states['q']) == q_next)[0][0]
-            tau_next_idx = np.where(np.array(self.states['tau']) == tau_next)[0][0]
-            self.state = [NW_next_idx, NWm1_next, NH_next, H_next_idx, q_next_idx, tau_next_idx]
+            self.state = [NW_next_idx, NWm1_next, NH_next, H_next_idx, q_next_idx, tau_next]
             # Check termination
             done  = False
         else:
