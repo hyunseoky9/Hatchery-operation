@@ -410,7 +410,8 @@ class Memory():
         batch_actions = torch.tensor(batch_actions, dtype=torch.float32)
         batch_rewards = torch.tensor(batch_rewards, dtype=torch.float32)
         batch_next_states = torch.tensor(batch_next_states, dtype=torch.float32)
-        batch_dones = torch.tensor(batch_dones, dtype=torch.bool)
+        # * dones do not need to be converted to pytorch tensors
+
         # covert lengths into numpy arrays
         burnin_lens = np.array(burnin_lens)
         training_lens = np.array(training_lens)
