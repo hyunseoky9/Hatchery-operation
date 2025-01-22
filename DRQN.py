@@ -366,22 +366,18 @@ class Memory():
             #    but not crossing an episode boundary (done=True).
             
             # We'll gather them in reverse, then flip.
-            burnin_indices = []
-            cur_idx = train_start - 1
-            
-            for _ in range(burn_in_len):
-                if cur_idx < 0:
-                    # Reached start of buffer (no wrap-around to avoid crossing episodes)
-                    break
-                if self.done_buffer[cur_idx]:
-                    # If we see a done, we stop because that's a boundary
-                    break
-                burnin_indices.append(cur_idx)
-                cur_idx -= 1
-            
-            # burnin_indices are in reverse order, so reverse them
-            burnin_indices.reverse()
+            burnin_indices = list(np.arange(max(train_start-burn_in_len,0),train_start))
+            donecheck = np.where(self.done_buffer[burnin_indices]==True)
+            if len(donecheck[0]) > 0:
+                burnin_indices = burnin_indices[donecheck[0][-1]+1:]
 
+            # 3) Gather the L training steps, but stop if we see 'done'
+            train_indices = np.arange(train_start, min(train_start + seq_len, self.size))
+            donecheck = np.where(self.done_buffer[train_indices]==True)
+            if len(donecheck[0]) > 0:
+                train_indices = train_indices[:donecheck[0][0]+1]
+
+                        
 
 
 
