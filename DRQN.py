@@ -184,10 +184,10 @@ def DRQN(env,num_episodes,epdecayopt,
                 done = True
 
             if env.partial == False:
-                nq.add(S, a, reward, env.state, done, memory, PrioritizedReplay=0) # add transition to queue
+                nq.add(S, a, reward, env.state, done, memory, per=0) # add transition to queue
                 S = env.state #  update state
             else:
-                nq.add(S, a, reward, env.obs, done, memory, PrioritizedReplay=0)
+                nq.add(S, a, reward, env.obs, done, memory, per=0)
                 S = env.obs
 
             # train network
@@ -329,15 +329,61 @@ class Memory():
         self.index = (self.index + 1) % self.buffer_size
         self.size = min(self.size + 1, self.buffer_size)
 
-    def sample_sequence(self, batch_size, seql):
+    def sample(self, batch_size, seq_len, burn_in_len):
         """
-        Sample a batch of sequence-length seql from single-step transitions stored
-        in the buffer. We do NOT cross a 'done=True' boundary. If we hit 'done'
-        or run out of space, we pad the remainder of the sequence.
+        Sample a batch of sequences for DRQN with burn-in:
+          - Pick a 'training start' for the L-length portion.
+          - Prepend up to 'burn_in_len' transitions before training start.
+          - If we hit the beginning of an episode or the memory, we reduce the burn-in portion.
+          - If we hit done, we stop and pad if the sequence does not meet seql
         
-        Returns: Tensors of shape (batch_size X seq_len, *)
-                 - states, actions, rewards, next_states, done_flags
+        The final length of each sequence = (burn_in_part + training_part).
+        We'll do *one* combined sequence, but only compute loss on the training part of the sequences.
+        
+        Returns:
+          states, actions, rewards, next_states, done_flags
+          each of shape (batch_size, total_seq, dimension of each element (e.g. state, action, reward, etc.))
+          where total_seq <= burn_in_len + seq_len (it can be shorter if we hit the end of the episode).
+          
+          We also return indices to indicate which part is burn-in vs. training, and indices to indicate 
+          which part is padding.
         """
+        # Prepare lists for the final batch
+        batch_states = []
+        batch_actions = []
+        batch_rewards = []
+        batch_next_states = []
+        batch_dones = []
+        burnin_lens = []
+        training_lens = []
+        for b in range(batch_size):
+            # 1) Randomly pick a training start index (the first frame to be used for loss).
+            #    ensure there's at least 1 valid transition at or after train_start.
+            
+            train_start = np.random.randint(0, self.size)  # random index in [0, size)
+
+            # 2) We want to gather up to 'burn_in_len' transitions BEFORE train_start
+            #    but not crossing an episode boundary (done=True).
+            
+            # We'll gather them in reverse, then flip.
+            burnin_indices = []
+            cur_idx = train_start - 1
+            
+            for _ in range(burn_in_len):
+                if cur_idx < 0:
+                    # Reached start of buffer (no wrap-around to avoid crossing episodes)
+                    break
+                if self.done_buffer[cur_idx]:
+                    # If we see a done, we stop because that's a boundary
+                    break
+                burnin_indices.append(cur_idx)
+                cur_idx -= 1
+            
+            # burnin_indices are in reverse order, so reverse them
+            burnin_indices.reverse()
+
+
+
 
 def epsilon_update(i,option,num_episodes):
     # update epsilon
