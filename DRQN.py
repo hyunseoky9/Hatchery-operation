@@ -350,11 +350,14 @@ class Memory():
           which part is padding.
         """
         # Prepare lists for the final batch
-        batch_states = []
-        batch_actions = []
-        batch_rewards = []
-        batch_next_states = []
-        batch_dones = []
+        state_dim = self.states_buffer.shape[1]
+        action_dim = self.actions_buffer.shape[1]        
+        totlen = seq_len + burn_in_len
+        batch_states = np.zeros((batch_size, totlen, state_dim), dtype=np.float32)
+        batch_actions = np.zeros((batch_size, totlen, action_dim), dtype=np.float32)
+        batch_rewards = np.zeros((batch_size, totlen), dtype=np.float32)
+        batch_next_states = np.zeros((batch_size, totlen, state_dim), dtype=np.float32)
+        batch_dones = np.zeros((batch_size, totlen), dtype=bool)
         burnin_lens = []
         total_lens = []
         training_lens = []
@@ -395,22 +398,25 @@ class Memory():
             rewards_seq = self.rewards_buffer[full_indices]
             next_states_seq = self.next_states_buffer[full_indices]
             done_seq = self.done_buffer[full_indices]
+            
+            batch_states[b, :len(full_indices)] = states_seq
+            batch_actions[b, :len(full_indices)] = actions_seq
+            batch_rewards[b, :len(full_indices)] = rewards_seq
+            batch_next_states[b, :len(full_indices)] = next_states_seq
+            batch_dones[b, :len(full_indices)] = done_seq
+            
+        # convert them into pytorch tensors
+        batch_states = torch.tensor(batch_states, dtype=torch.float32)
+        batch_actions = torch.tensor(batch_actions, dtype=torch.float32)
+        batch_rewards = torch.tensor(batch_rewards, dtype=torch.float32)
+        batch_next_states = torch.tensor(batch_next_states, dtype=torch.float32)
+        batch_dones = torch.tensor(batch_dones, dtype=torch.bool)
+        # covert lengths into numpy arrays
+        burnin_lens = np.array(burnin_lens)
+        training_lens = np.array(training_lens)
+        total_lens = np.array(total_lens)
 
-            batch_states.append(states_seq)
-            batch_actions.append(actions_seq)
-            batch_rewards.append(rewards_seq)
-            batch_next_states.append(next_states_seq)
-            batch_dones.append(done_seq)
-        
-        # Now we have a list of variable-length sequences for each batch element
-        # We'll pad them to the max length in the batch (if you want fixed shape).
-        
-        # 4) Figure out the max sequence length in this batch
-        max_length = max(len(seq) for seq in batch_states) if len(batch_states) > 0 else 0
-        
-
-                        
-
+        return batch_states, batch_actions, batch_rewards, batch_next_states, batch_dones, burnin_lens, training_lens, total_lens
 
 
 def epsilon_update(i,option,num_episodes):
