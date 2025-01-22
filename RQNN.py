@@ -2,7 +2,7 @@ import torch
 from torch import nn
 from torchvision.transforms import ToTensor
 from torch.optim.lr_scheduler import ExponentialLR, StepLR
-
+from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 # Define model
 class RQNN(nn.Module):
     def __init__(self, state_size, action_size, hidden_size, hidden_num, lstm_num, batch_size, seql, learning_rate, state_min, state_max, lrdecayrate, distributional, atomn, Vmin, Vmax, normalize):
@@ -51,24 +51,34 @@ class RQNN(nn.Module):
         self.optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
         self.scheduler = ExponentialLR(self.optimizer, gamma=lrdecayrate)  # Exponential decay
         #self.scheduler = StepLR(self.optimizer, step_size=1, gamma=0.1)  # Halve LR every 10 steps
-        
-    def forward(self, x, hidden=None):
+    def forward(self, x, training=True ,hidden=None, lengths=None):
         if self.normalization:
             x = self.normalize(x)
 
-        x = self.stack(x) # pass through the FF stack
-        x = x.view(self.batch_size, self.seql, -1) # reshape for LSTM
-        if hidden is None:
+        if hidden is None: # initialize hidden state
             hidden = (torch.zeros(1, self.batch_size, self.lstm_num, device=x.device, dtype=x.dtype),
                                     torch.zeros(1, self.batch_size, self.lstm_num, device=x.device, dtype=x.dtype))
 
-        x, hidden = self.lstm_layer(x,hidden) # pass through LSTM layer
-        logits = self.head(x)
-        
+        x = self.stack(x) # pass through the FF stack
+        if training: # if training data coming in as a batch.
+            x = x.view(self.batch_size, self.seql, -1) # reshape for LSTM
+            # Pack the feedforward output
+            x = pack_padded_sequence(x, lengths, batch_first=True, enforce_sorted=False)
+            x, hidden = self.lstm_layer(x,hidden) # pass through LSTM layer
+            x, unpacked_lengths = pad_packed_sequence(x, batch_first=True)
+            logits = self.head(x)
+
+        else: # if not training (simulation or evaluation), then x is a single state
+            if len(x.shape) == 2: # if input is a single state (most likely when choosing an action during evaluation or online simulation)
+                x = x.unsqueeze(0) # add batch dimension 
+            x, hidden = self.lstm_layer(x,hidden) # pass through LSTM layer
+            logits = self.head(x)
+
         if self.distributional:
             logits = logits.view(-1, self.action_size, self.atomn)  # Reshape for actions and atoms
             probabilities = torch.softmax(logits, dim=-1)  # Apply softmax across the atoms
-            return probabilities, hidden
+            if training:
+                return probabilities, hidden
         else:
             return logits, hidden
 
