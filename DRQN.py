@@ -353,10 +353,10 @@ class Memory():
         state_dim = self.states_buffer.shape[1]
         action_dim = self.actions_buffer.shape[1]        
         totlen = seq_len + burn_in_len
-        batch_states = np.zeros((batch_size, totlen, state_dim), dtype=np.float32)
-        batch_actions = np.zeros((batch_size, totlen, action_dim), dtype=np.float32)
-        batch_rewards = np.zeros((batch_size, totlen), dtype=np.float32)
-        batch_next_states = np.zeros((batch_size, totlen, state_dim), dtype=np.float32)
+        batch_states = np.ones((batch_size, totlen, state_dim), dtype=np.float32)*(-1)
+        batch_actions = np.ones((batch_size, totlen, action_dim), dtype=np.float32)*(-1)
+        batch_rewards = np.ones((batch_size, totlen), dtype=np.float32)*(-1)
+        batch_next_states = np.ones((batch_size, totlen, state_dim), dtype=np.float32)*(-1)
         batch_dones = np.zeros((batch_size, totlen), dtype=bool)
         burnin_lens = []
         total_lens = []
@@ -365,19 +365,19 @@ class Memory():
             # 1) Gather the training steps, but stop if we see 'done' or end of the memory. Randomly pick a training start index (the first frame to be used for loss).
             # Randomly pick a training start index
             # ensure there's at least min_seq_len number of valid transition from the train_start.
-            enough_seq = 0
-            while enough_seq <= 100:
+            found_valid_seq = False
+            for tries in range(100):
                 train_start = np.random.randint(0, self.size)  # random index in [0, size)
-                train_indices = list(np.arange(train_start, min(train_start + seq_len, self.size)))
-                donecheck = np.where(self.done_buffer[train_indices]==True)
-                if len(donecheck[0]) > 0:
+                train_indices = list(np.arange(train_start, min(train_start + seq_len, self.size))) # check that train indices don't go over the buffer size
+                donecheck = np.where(self.done_buffer[train_indices]==True) # check if there's a done in the train indices
+                if len(donecheck[0]) > 0: # if there are dones in the train indices cut the train indices to the first done.
                     train_indices = train_indices[:donecheck[0][0]+1]
-                training_lens.append(len(train_indices))
-                if len(train_indices) < min_seq_len:
-                    enough_seq += 1
-            if len(train_indices) < min_seq_len:
-                # cause error
-                print('SEQUENCE LENGTH ERROR')
+                if len(train_indices) >= min_seq_len:
+                    found_valid_seq = True
+                    break
+            training_lens.append(len(train_indices))
+            if not found_valid_seq:
+                raise ValueError("SEQUENCE LENGTH ERROR")
                 
 
             # 2) Gather the burnin steps, but stop if we see done or beginning of the memory.
