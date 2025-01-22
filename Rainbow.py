@@ -209,8 +209,14 @@ def Rainbow(env,num_episodes,epdecayopt,
             else:
                 a = random.randint(0, action_size-1) # first action in the episode is random for added exploration
             reward, done, _ = env.step(a) # take a step
+            if env.episodic == False and env.absorbing_cut == True: # if continuous task and absorbing state is defined
+                if absorbing(env,S) == True: # terminate shortly after the absorbing state is reached.
+                    termination_t += 1
+                    if termination_t >= 5: # termination after 5 steps (6 because we started ticking termination_t on the next state)
+                        done = True
             if t >= max_steps: # finish episode if max steps reached even if terminal state not reached
                 done = True
+
             if env.partial == False:
                 nq.add(S, a, reward, env.state, done, memory, PrioritizedReplay) # add transition to queue
                 S = env.state #  update state

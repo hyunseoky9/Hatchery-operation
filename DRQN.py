@@ -161,7 +161,10 @@ def DRQN(env,num_episodes,epdecayopt,
         ep = epsilon_update(i,epdecayopt,num_episodes) 
         # initialize state that doesn't start from terminal
         env.reset(initlist) # random initialization
-        S = env.state
+        if env.partial == False:
+            S = env.state
+        else:
+            S = env.obs
         done = False
         
         t = 0 # timestep num
@@ -173,14 +176,20 @@ def DRQN(env,num_episodes,epdecayopt,
                 a = random.randint(0, action_size-1) # first action in the episode is random for added exploration
             reward, done, _ = env.step(a) # take a step
             if env.episodic == False and env.absorbing_cut == True: # if continuous task
-                if absorbing(env) == True:
+                if absorbing(env,S) == True:
                     termination_t += 1
                     if termination_t >= 5:
                         done = True
             if t >= max_steps: # finish episode if max steps reached even if terminal state not reached
                 done = True
-            nq.add(S, a, reward, env.state, done, memory, PrioritizedReplay=0) # add transition to queue
-            S = env.state #  update state
+
+            if env.partial == False:
+                nq.add(S, a, reward, env.state, done, memory, PrioritizedReplay=0) # add transition to queue
+                S = env.state #  update state
+            else:
+                nq.add(S, a, reward, env.obs, done, memory, PrioritizedReplay=0)
+                S = env.obs
+
             # train network
             if j % training_cycle == 0:
                 # Sample mini-batch from memory

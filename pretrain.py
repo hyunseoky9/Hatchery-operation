@@ -20,13 +20,12 @@ def pretrain(env, nq, memory, max_steps, batch_size, PrioritizedReplay, max_prio
             termination_t = 0
         # Make a random action
         action = np.random.randint(0, env.actionspace_dim[0])
-
-
         reward, done, _ = env.step(action)
+
         if env.episodic == False and env.absorbing_cut == True: # if continuous task and absorbing state is defined
-            if absorbing(env) == True: # terminate shortly after the absorbing state is reached.
+            if absorbing(env,state) == True: # terminate shortly after the absorbing state is reached.
                 termination_t += 1
-                if termination_t >= 5:
+                if termination_t >= 5: # termination after 5 steps (6 because we started ticking termination_t on the next state)
                     done = True
         if t >= max_steps:
             done = True
