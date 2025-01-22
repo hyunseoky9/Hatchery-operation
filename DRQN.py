@@ -51,6 +51,7 @@ def DRQN(env,num_episodes,epdecayopt,
     memory_size = 1000 # memory capacity
     batch_size = 4 # mini-batch size
     seql = 6 # sequence length for LSTM. each mini-batch has batch_size number of sequences
+    min_seql = 3 # minimum sequence length for training sequence.
     burninl = 5 # maximmum burn-in length for DRQN
     ## distributional RL atoms size
     Vmin = -104
@@ -329,7 +330,7 @@ class Memory():
         self.index = (self.index + 1) % self.buffer_size
         self.size = min(self.size + 1, self.buffer_size)
 
-    def sample(self, batch_size, seq_len, burn_in_len):
+    def sample(self, batch_size, seq_len, min_seq_len, burn_in_len):
         """
         Sample a batch of sequences for DRQN with burn-in:
           - Pick a 'training start' for the L-length portion.
@@ -355,27 +356,58 @@ class Memory():
         batch_next_states = []
         batch_dones = []
         burnin_lens = []
+        total_lens = []
         training_lens = []
         for b in range(batch_size):
-            # 1) Randomly pick a training start index (the first frame to be used for loss).
-            #    ensure there's at least 1 valid transition at or after train_start.
-            
-            train_start = np.random.randint(0, self.size)  # random index in [0, size)
+            # 1) Gather the training steps, but stop if we see 'done' or end of the memory. Randomly pick a training start index (the first frame to be used for loss).
+            # Randomly pick a training start index
+            # ensure there's at least min_seq_len number of valid transition from the train_start.
+            enough_seq = 0
+            while enough_seq <= 100:
+                train_start = np.random.randint(0, self.size)  # random index in [0, size)
+                train_indices = list(np.arange(train_start, min(train_start + seq_len, self.size)))
+                donecheck = np.where(self.done_buffer[train_indices]==True)
+                if len(donecheck[0]) > 0:
+                    train_indices = train_indices[:donecheck[0][0]+1]
+                training_lens.append(len(train_indices))
+                if len(train_indices) < min_seq_len:
+                    enough_seq += 1
+            if len(train_indices) < min_seq_len:
+                # cause error
+                print('SEQUENCE LENGTH ERROR')
+                
 
-            # 2) We want to gather up to 'burn_in_len' transitions BEFORE train_start
-            #    but not crossing an episode boundary (done=True).
-            
+            # 2) Gather the burnin steps, but stop if we see done or beginning of the memory.
             # We'll gather them in reverse, then flip.
             burnin_indices = list(np.arange(max(train_start-burn_in_len,0),train_start))
             donecheck = np.where(self.done_buffer[burnin_indices]==True)
             if len(donecheck[0]) > 0:
                 burnin_indices = burnin_indices[donecheck[0][-1]+1:]
+            burnin_lens.append(len(burnin_indices))
 
-            # 3) Gather the L training steps, but stop if we see 'done'
-            train_indices = np.arange(train_start, min(train_start + seq_len, self.size))
-            donecheck = np.where(self.done_buffer[train_indices]==True)
-            if len(donecheck[0]) > 0:
-                train_indices = train_indices[:donecheck[0][0]+1]
+            # The combined sequence = burnin + training
+            full_indices = burnin_indices + train_indices
+            total_lens.append(len(full_indices))
+
+            # We'll store the transitions from these indices
+            states_seq = self.states_buffer[full_indices]
+            actions_seq = self.actions_buffer[full_indices]
+            rewards_seq = self.rewards_buffer[full_indices]
+            next_states_seq = self.next_states_buffer[full_indices]
+            done_seq = self.done_buffer[full_indices]
+
+            batch_states.append(states_seq)
+            batch_actions.append(actions_seq)
+            batch_rewards.append(rewards_seq)
+            batch_next_states.append(next_states_seq)
+            batch_dones.append(done_seq)
+        
+        # Now we have a list of variable-length sequences for each batch element
+        # We'll pad them to the max length in the batch (if you want fixed shape).
+        
+        # 4) Figure out the max sequence length in this batch
+        max_length = max(len(seq) for seq in batch_states) if len(batch_states) > 0 else 0
+        
 
                         
 
