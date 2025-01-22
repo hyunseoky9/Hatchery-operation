@@ -89,7 +89,7 @@ def DRQN(env,num_episodes,epdecayopt,
     else:
         input_max = state_max
         input_min = state_min
-        
+
     # initialization
     ## print out extension feature usage
     if distributional:
@@ -326,6 +326,7 @@ def _make_discrete_Q(Q,env,device):
 class Memory():
     def __init__(self, max_size, state_dim, action_dim):
         # Preallocate memory
+        
         self.states_buffer = np.ones((max_size, state_dim), dtype=np.float32)*-2
         self.actions_buffer = np.ones((max_size, action_dim), dtype=np.float32)*-2
         self.rewards_buffer = np.ones(max_size, dtype=np.float32)*-2
