@@ -20,7 +20,7 @@ def DRQN(env,num_episodes,epdecayopt,
             DDQN,nstep,distributional,
             lrdecayrate,lr,min_lr,
             training_cycle,target_update_cycle, 
-            external_testing, normalize, bestQinit):
+            external_testing, normalize, bestQinit, actioninput):
     # train using Deep Q Network
     # env: environment class object
     # num_episodes: number of episodes to train 
@@ -57,6 +57,8 @@ def DRQN(env,num_episodes,epdecayopt,
     Vmin = -104
     Vmax = 1002
     atomn = 32
+    ## actioninput
+    actioninputsize = int(actioninput)*len(env.actionspace_dim)
 
     ## etc.
     #lr = 0.01
@@ -72,24 +74,32 @@ def DRQN(env,num_episodes,epdecayopt,
 
     ## normalization parameters
     if env.envID == 'Env1.0': # for discrete states
-        state_max = (torch.tensor(env.statespace_dim, dtype=torch.float32) - 1).to(device)
+        state_max = (torch.tensor(np.array(env.statespace_dim)-1, dtype=torch.float32) - 1).to(device)
         state_min = torch.zeros([len(env.statespace_dim)], dtype=torch.float32).to(device)
     elif env.envID in ['Env1.1','Env1.2']: # for continuous states
         state_max = torch.tensor([env.states[key][1] for key in env.states.keys()], dtype=torch.float32).to(device)
         state_min = torch.tensor([env.states[key][0] for key in env.states.keys()], dtype=torch.float32).to(device)
     elif env.envID == 'Env2.0': # state is really observation in env2.0. We'll call the actual states as hidden states. This is done to make the code consistent with env1.0
-        state_max = (torch.tensor(env.obsspace_dim, dtype=torch.float32)).to(device)
-        state_min = (torch.tensor(env.obsspace_dim, dtype=torch.float32)).to(device) 
+        state_max = (torch.tensor(np.array(env.obsspace_dim)-1, dtype=torch.float32)).to(device)
+        state_min = (torch.zeros([len(env.obsspace_dim)], dtype=torch.float32)).to(device) 
+    # append action input
+    if actioninput:
+        input_max = torch.cat((state_max,torch.ones(actioninputsize)*(np.array(env.actionspace_dim)-1)),0)
+        input_min = torch.cat((state_min,torch.zeros(actioninputsize)),0)
+    else:
+        input_max = state_max
+        input_min = state_min
+        
     # initialization
     ## print out extension feature usage
     if distributional:
         print(f'Vmin: {Vmin}, Vmax: {Vmax}, atom N: {atomn}')
     print(f'lr: {lr}, lrdecayrate: {lrdecayrate}, min_lr: {min_lr}')
     ## initialize NN
-    Q = RQNN(state_size, action_size, hidden_size, hidden_num, lstm_num, batch_size, seql, lr, state_min,
-              state_max, lrdecayrate, distributional, atomn, Vmin, Vmax, normalize).to(device)
-    Q_target = RQNN(state_size, action_size, hidden_size, hidden_num, lstm_num, batch_size, seql, lr, state_min,
-              state_max, lrdecayrate, distributional, atomn, Vmin, Vmax, normalize).to(device)
+    Q = RQNN(state_size+actioninputsize, action_size, hidden_size, hidden_num, lstm_num, batch_size, seql, lr, input_min,
+              input_max, lrdecayrate, distributional, atomn, Vmin, Vmax, normalize).to(device)
+    Q_target = RQNN(state_size+actioninputsize, action_size, hidden_size, hidden_num, lstm_num, batch_size, seql, lr, input_min,
+              input_max, lrdecayrate, distributional, atomn, Vmin, Vmax, normalize).to(device)
     if bestQinit:
         # initialize Q with the best Q network from the previous run
         with open(f"DRQN results/bestQNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DRQN.pt", "rb") as file:
@@ -176,6 +186,9 @@ def DRQN(env,num_episodes,epdecayopt,
                 a, online_hidden = choose_action(S, Q, ep, action_size,distributional,device,True,online_hidden)
             else:
                 a = random.randint(0, action_size-1) # first action in the episode is random for added exploration
+                # even if taking random action, run the network anyway to get the update on hidden state.
+                _, online_hidden = choose_action(S, Q, ep, action_size,distributional,device,True,online_hidden)
+
             reward, done, _ = env.step(a) # take a step
             if env.episodic == False and env.absorbing_cut == True: # if continuous task
                 if absorbing(env,S) == True:

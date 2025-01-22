@@ -6,7 +6,12 @@ def choose_action(state, Q, epsilon, action_size, distributional,device, drqn=Fa
     # Choose an action
     if random.random() < epsilon:
         action = random.randint(0, action_size-1)
-        return action
+        if drqn == True:
+            with torch.no_grad():
+                Qs, hidden = Q(state, training=False, hidden=hidden)
+            return action, hidden
+        else:
+            return action
     
     else:
         state = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(device)  # Add batch dimension
