@@ -65,12 +65,12 @@ def DRQN(env,num_episodes,epdecayopt,
     #min_lr = 1e-6
     gamma = env.gamma # discount rate
     max_steps = 100 # max steps per episode
-    ## cycles
-    #training_cycle = 7 # number of steps where the network is trained
-    #target_update_cycle = 10 # number of steps where the target network is updated
     ## performance testing sample size
     performance_sampleN = 1000
     final_performance_sampleN = 1000
+    ## number of steps to run in the absorbing state before terminating the episode
+    postterm_len = 3 
+
 
     ## normalization parameters
     if env.envID == 'Env1.0': # for discrete states
@@ -141,7 +141,7 @@ def DRQN(env,num_episodes,epdecayopt,
     nq = Nstepqueue(nstep, gamma)
     ## initialize memory
     memory = Memory(memory_size, state_size, len(env.actionspace_dim))
-    pretrain(env,nq,memory,max_steps,batch_size*(seql+burninl),PrioritizedReplay=0,max_priority=0) # prepopulate memory
+    pretrain(env,nq,memory,max_steps,batch_size*(seql+burninl),0,0,postterm_len) # prepopulate memory
     print(f'Pretraining memory with {batch_size*(seql+burninl)} experiences (buffer size: {memory_size})')
 
     ## state initialization setting 
@@ -188,12 +188,12 @@ def DRQN(env,num_episodes,epdecayopt,
                 a = random.randint(0, action_size-1) # first action in the episode is random for added exploration
                 # even if taking random action, run the network anyway to get the update on hidden state.
                 _, online_hidden = choose_action(S, Q, ep, action_size,distributional,device,True,online_hidden)
-
+            true_state = env.state
             reward, done, _ = env.step(a) # take a step
             if env.episodic == False and env.absorbing_cut == True: # if continuous task
-                if absorbing(env,S) == True:
+                if absorbing(env,true_state) == True:
                     termination_t += 1
-                    if termination_t >= 5:
+                    if termination_t >= postterm_len: # run x steps once in absorbing state and then terminate
                         done = True
             if t >= max_steps: # finish episode if max steps reached even if terminal state not reached
                 done = True

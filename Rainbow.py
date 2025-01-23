@@ -74,6 +74,9 @@ def Rainbow(env,num_episodes,epdecayopt,
     ## performance testing sample size
     performance_sampleN = 1000
     final_performance_sampleN = 1000
+    ## number of steps to run in the absorbing state before terminating the episode
+    postterm_len = 3 
+
 
  
 
@@ -154,10 +157,10 @@ def Rainbow(env,num_episodes,epdecayopt,
     if PrioritizedReplay:
         memory = PMemory(memory_size, alpha, per_epsilon, max_abstd)
         beta = beta0
-        pretrain(env,nq,memory,max_steps,batch_size,PrioritizedReplay,memory.max_abstd) # prepopulate memory
+        pretrain(env,nq,memory,max_steps,batch_size,PrioritizedReplay,memory.max_abstd,postterm_len) # prepopulate memory
     else:
         memory = Memory(memory_size, state_size, len(env.actionspace_dim))
-        pretrain(env,nq,memory,max_steps,batch_size,PrioritizedReplay,0) # prepopulate memory
+        pretrain(env,nq,memory,max_steps,batch_size,PrioritizedReplay,0,postterm_len) # prepopulate memory
     print(f'Pretraining memory with {batch_size} experiences (buffer size: {memory_size})')
 
     ## state initialization setting 
@@ -209,11 +212,12 @@ def Rainbow(env,num_episodes,epdecayopt,
                 a = choose_action(S, Q, ep, action_size,distributional,device)
             else:
                 a = random.randint(0, action_size-1) # first action in the episode is random for added exploration
+            true_state = env.state
             reward, done, _ = env.step(a) # take a step
             if env.episodic == False and env.absorbing_cut == True: # if continuous task and absorbing state is defined
-                if absorbing(env,S) == True: # terminate shortly after the absorbing state is reached.
+                if absorbing(env,true_state) == True: # terminate shortly after the absorbing state is reached.
                     termination_t += 1
-                    if termination_t >= 5: # termination after 5 steps (6 because we started ticking termination_t on the next state)
+                    if termination_t >= postterm_len: # run x steps once in absorbing state and then terminate
                         done = True
             if t >= max_steps: # finish episode if max steps reached even if terminal state not reached
                 done = True
