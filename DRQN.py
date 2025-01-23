@@ -209,12 +209,12 @@ def DRQN(env,num_episodes,epdecayopt,
             if j % training_cycle == 0:
                 # Sample mini-batch from memory
                 memory.sample(batch_size,seql, min_seql, burninl)
-                states, actions, rewards, next_states, dones, previous_actions, burnin_lens, training_lens, total_lens = memory.sample(batch_size)
-                # Train network
+                states, actions, rewards, next_states, dones, previous_actions, burnin_lens, training_lens, total_lens = memory.sample(batch_size,seql, min_seql, burninl)
 
+                # Train network
                 # Set target_Qs to 0 for states where episode ends
                 episode_ends = np.where(dones == True)[0]
-                target_Qs = Q_target(next_states)
+                target_Qs, _ = Q_target(next_states, training=True, hidden=None, lengths=total_lens)
                 if DDQN:
                     if distributional:
                         next_EQ = torch.sum(target_Qs * Q.z, dim=-1)  # Expected Q-values for each action

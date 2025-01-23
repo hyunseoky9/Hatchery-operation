@@ -1,4 +1,3 @@
-from IPython.display import display
 import numpy as np
 from absorbing import *
 
@@ -29,7 +28,6 @@ def pretrain(env, nq, memory, max_steps, batch_size, PrioritizedReplay, max_prio
         if env.episodic == False and env.absorbing_cut == True: # if continuous task and absorbing state is defined
             if absorbing(env,true_state) == True: # terminate shortly after the absorbing state is reached.
                 termination_t += 1
-                print(termination_t)
                 if termination_t >= postterm_len: # run x steps once in absorbing state and then terminate
                     done = True
         if t >= max_steps:
@@ -51,8 +49,6 @@ def pretrain(env, nq, memory, max_steps, batch_size, PrioritizedReplay, max_prio
             nq.add(state, action, reward, next_state, done, previous_action, memory, PrioritizedReplay)
             state = next_state
             previous_action = action
-        print(memory.rewards_buffer[0:10])
-        print(memory.states_buffer[0:10])
 
     nq.queue = [] # clear the n-step queue
     nq.rqueue = [] 
