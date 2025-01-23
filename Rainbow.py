@@ -200,6 +200,7 @@ def Rainbow(env,num_episodes,epdecayopt,
             S = env.state
         else:
             S = env.obs
+        previous_a = 0
         done = False
         
         t = 0 # timestep num
@@ -223,6 +224,7 @@ def Rainbow(env,num_episodes,epdecayopt,
             else:
                 nq.add(S, a, reward, env.obs, done, memory, PrioritizedReplay)
                 S = env.obs
+            previous_a = a
             # train network
             if j % training_cycle == 0:
                 # Sample mini-batch from memory
@@ -399,7 +401,8 @@ class Memory():
         self.buffer_size = max_size
 
     def add(self, state, action, reward, next_state, done, previous_action):
-        self.data = (state, action, reward, next_state, done, previous_action)
+        transition = (state, action, reward, next_state, done, previous_action)
+        self.data[self.index] = transition
         self.states_buffer[self.index] = state
         self.actions_buffer[self.index] = action
         self.rewards_buffer[self.index] = reward
