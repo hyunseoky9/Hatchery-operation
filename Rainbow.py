@@ -219,10 +219,10 @@ def Rainbow(env,num_episodes,epdecayopt,
                 done = True
 
             if env.partial == False:
-                nq.add(S, a, reward, env.state, done, memory, PrioritizedReplay) # add transition to queue
+                nq.add(S, a, reward, env.state, done, previous_a, memory, PrioritizedReplay) # add transition to queue
                 S = env.state #  update state
             else:
-                nq.add(S, a, reward, env.obs, done, memory, PrioritizedReplay)
+                nq.add(S, a, reward, env.obs, done, previous_a, memory, PrioritizedReplay)
                 S = env.obs
             previous_a = a
             # train network
@@ -230,16 +230,18 @@ def Rainbow(env,num_episodes,epdecayopt,
                 # Sample mini-batch from memory
                 if PrioritizedReplay:
                     mini_batch, idxs, weights = memory.sample(batch_size, beta)
-                    states, actions, rewards, next_states, dones = zip(*mini_batch)
+                    states, actions, rewards, next_states, dones, previous_actions = zip(*mini_batch)
                     dones = np.array(dones)
                     actions = torch.tensor(actions, dtype=torch.int64).unsqueeze(1).to(device)
                 else:
-                    states, actions, rewards, next_states, dones = memory.sample(batch_size)
+                    states, actions, rewards, next_states, dones, previous_actions = memory.sample(batch_size)
                     weights = np.ones(batch_size)
-                    actions = torch.tensor(actions, dtype=torch.int64).to(device)
+                    actions = torch.tensor(actions, dtype=torch.int64).unsqueeze(1).to(device)
+                    dones = np.array(dones)
                 states = torch.tensor(states, dtype=torch.float32).to(device)
                 rewards = torch.tensor(rewards, dtype=torch.float32).to(device)
                 next_states = torch.tensor(next_states, dtype=torch.float32).to(device)
+                previous_actions = torch.tensor(previous_actions, dtype=torch.float32).to(device)
                 weights = torch.tensor(weights, dtype=torch.float32).to(device)
                 # Train network
 
@@ -413,12 +415,14 @@ class Memory():
 
     def sample(self, batch_size):
         indices = np.random.choice(self.size, batch_size, replace=True)
-        states = self.states_buffer[indices]
-        actions = self.actions_buffer[indices]
-        rewards = self.rewards_buffer[indices]
-        next_states = self.next_states_buffer[indices]
-        done = self.done_buffer[indices]
-        return states, actions, rewards, next_states, done
+        mini_batch = self.data[indices]
+        states, actions, rewards, next_states, dones, previous_actions = zip(*mini_batch)
+        #states = self.states_buffer[indices]
+        #actions = self.actions_buffer[indices]
+        #rewards = self.rewards_buffer[indices]
+        #next_states = self.next_states_buffer[indices]
+        #done = self.done_buffer[indices]
+        return states, actions, rewards, next_states, dones, previous_actions
     
 
 
