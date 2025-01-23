@@ -209,14 +209,7 @@ def DRQN(env,num_episodes,epdecayopt,
             if j % training_cycle == 0:
                 # Sample mini-batch from memory
                 memory.sample(batch_size,seql, min_seql, burninl)
-                states, actions, rewards, next_states, dones, previous_actions = memory.sample(batch_size)
-                weights = np.ones(batch_size)
-                actions = torch.tensor(actions, dtype=torch.int64).to(device)
-                states = torch.tensor(states, dtype=torch.float32).to(device)
-                rewards = torch.tensor(rewards, dtype=torch.float32).to(device)
-                next_states = torch.tensor(next_states, dtype=torch.float32).to(device)
-                previous_actions = torch.tensor(previous_actions, dtype=torch.float32).to(device)
-                weights = torch.tensor(weights, dtype=torch.float32).to(device)
+                states, actions, rewards, next_states, dones, previous_actions, burnin_lens, training_lens, total_lens = memory.sample(batch_size)
                 # Train network
 
                 # Set target_Qs to 0 for states where episode ends
@@ -383,7 +376,7 @@ class Memory():
             # ensure there's at least min_seq_len number of valid transition from the train_start.
             found_valid_seq = False
             for tries in range(100):
-                train_start = np.random.randint(0, self.size)  # random index in [0, size)
+                train_start = np.random.randint(0, self.size - min_seq_len + 1)  # random index in [0, size)
                 train_indices = list(np.arange(train_start, min(train_start + seq_len, self.size))) # check that train indices don't go over the buffer size
                 donecheck = np.where(self.done_buffer[train_indices]==True) # check if there's a done in the train indices
                 if len(donecheck[0]) > 0: # if there are dones in the train indices cut the train indices to the first done.
@@ -423,7 +416,7 @@ class Memory():
             batch_next_states[b, :len(full_indices)] = next_states_seq
             batch_dones[b, :len(full_indices)] = done_seq
             batch_previous_actions[b, :len(full_indices)] = previous_actions_seq
-            
+
         # convert them into pytorch tensors
         batch_states = torch.tensor(batch_states, dtype=torch.float32)
         batch_actions = torch.tensor(batch_actions, dtype=torch.float32)
@@ -436,7 +429,7 @@ class Memory():
         training_lens = np.array(training_lens)
         total_lens = np.array(total_lens)
 
-        return batch_states, batch_actions, batch_rewards, batch_next_states, batch_dones, burnin_lens, training_lens, total_lens
+        return batch_states, batch_actions, batch_rewards, batch_next_states, batch_dones, batch_previous_actions, burnin_lens, training_lens, total_lens
 
 
 def epsilon_update(i,option,num_episodes):
