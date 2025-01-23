@@ -8,7 +8,7 @@ def choose_action(state, Q, epsilon, action_size, distributional,device, drqn=Fa
         action = random.randint(0, action_size-1)
         if drqn == True:
             with torch.no_grad():
-                Qs, hidden = Q(state, training=False, hidden=hidden)
+                _, hidden = Q(state, training=False, hidden=hidden)
             return action, hidden
         else:
             return action

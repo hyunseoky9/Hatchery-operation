@@ -234,7 +234,7 @@ def DRQN(env,num_episodes,epdecayopt,
                         if dones.any():
                             target_Qs[episode_ends] = torch.zeros(action_size, device=device)
                         targets = rewards + (gamma**nstep) * torch.max(target_Qs, dim=1)[0]
-                td_error = train_model(Q, [(states, actions, targets)], weights, device)
+                td_error = train_model(Q, [(states, actions, targets)], device)
 
             # update target network
             if j % target_update_cycle == 0:
@@ -463,7 +463,7 @@ def _get_policy(env,Q):
         policy[i] = np.argmax(Q[i,:])
     return policy
 
-def train_model(Q, data, weights, device):
+def train_model(Q, data, device):
     Q.train()
     for batch, (states, actions, targets) in enumerate(data):
         states, actions, targets = states.to(device), actions.to(device), targets.to(device)

@@ -61,7 +61,6 @@ class RQNN(nn.Module):
             if hidden is None: # initialize hidden state
                 hidden = (torch.zeros(1, self.batch_size, self.lstm_num, device=x.device, dtype=x.dtype),
                                         torch.zeros(1, self.batch_size, self.lstm_num, device=x.device, dtype=x.dtype))
-            x = x.view(self.batch_size, self.seql, -1) # reshape for LSTM
             # Pack the feedforward output
             x = pack_padded_sequence(x, lengths, batch_first=True, enforce_sorted=False)
             x, hidden = self.lstm_layer(x,hidden) # pass through LSTM layer
