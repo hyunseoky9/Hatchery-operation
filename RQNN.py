@@ -55,12 +55,12 @@ class RQNN(nn.Module):
         if self.normalization:
             x = self.normalize(x)
 
-        if hidden is None: # initialize hidden state
-            hidden = (torch.zeros(1, self.batch_size, self.lstm_num, device=x.device, dtype=x.dtype),
-                                    torch.zeros(1, self.batch_size, self.lstm_num, device=x.device, dtype=x.dtype))
 
         x = self.stack(x) # pass through the FF stack
         if training: # if training data coming in as a batch.
+            if hidden is None: # initialize hidden state
+                hidden = (torch.zeros(1, self.batch_size, self.lstm_num, device=x.device, dtype=x.dtype),
+                                        torch.zeros(1, self.batch_size, self.lstm_num, device=x.device, dtype=x.dtype))
             x = x.view(self.batch_size, self.seql, -1) # reshape for LSTM
             # Pack the feedforward output
             x = pack_padded_sequence(x, lengths, batch_first=True, enforce_sorted=False)
@@ -69,6 +69,10 @@ class RQNN(nn.Module):
             logits = self.head(x)
 
         else: # if not training (simulation or evaluation), then x is a single state
+            if hidden is None: # initialize hidden state
+                hidden = (torch.zeros(1, 1, self.lstm_num, device=x.device, dtype=x.dtype),
+                                        torch.zeros(1, 1, self.lstm_num, device=x.device, dtype=x.dtype))
+
             if len(x.shape) == 2: # if input is a single state (most likely when choosing an action during evaluation or online simulation)
                 x = x.unsqueeze(0) # add batch dimension 
             x, hidden = self.lstm_layer(x,hidden) # pass through LSTM layer

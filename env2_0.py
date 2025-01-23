@@ -230,12 +230,12 @@ class Env2_0:
             self.obs = [y_next_idx, NH_next, H_next_idx, q_next_idx, tau_next]
             # Check termination
             done  = False
-        else:
+        else: # extinct.
             # Transition logic
             if tau == 0:  # Spring-Fall (spring)
                 q_next = self.states['q'][0] #max(np.random.normal(self.muq, self.sigq),0) # q initialized
                 NH_next = action
-
+                reward = self.extpenalty - self.c if a > 0 else self.extpenalty
             else:  # Winter-Spring (fall)
                 q_next =  max(np.random.normal(self.muq, self.sigq),0)
                 q_next = self._discretize(q_next, self.states['q'])
@@ -243,6 +243,7 @@ class Env2_0:
                 NH_next = 0 # all hatchery fish that aren't released are discarded
                 # Observation
                 y_next = 0 # no observed catch in spring
+                reward = self.extpenalty
 
             # observation is based on monitoring in fall
             if tau == 0: # conditional is tau==0 because the next season is fall
@@ -258,7 +259,6 @@ class Env2_0:
             self.obs = [y_next_idx, NH_next, H_next_idx, q_next_idx, tau_next]
             # extinction
             done = False
-            reward = self.extpenalty
             s = 0
 
         return reward, done, s

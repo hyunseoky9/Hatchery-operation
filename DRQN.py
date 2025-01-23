@@ -176,7 +176,7 @@ def DRQN(env,num_episodes,epdecayopt,
             S = env.state
         else:
             S = env.obs
-
+        previous_a = 0
         online_hidden = None # hidden state for simulation
         done = False
         t = 0 # timestep num
@@ -199,24 +199,25 @@ def DRQN(env,num_episodes,epdecayopt,
                 done = True
 
             if env.partial == False:
-                nq.add(S, a, reward, env.state, done, memory, per=0) # add transition to queue
+                nq.add(S, a, reward, env.state, previous_a, done, memory, per=0) # add transition to queue
                 S = env.state #  update state
             else:
-                nq.add(S, a, reward, env.obs, done, memory, per=0)
+                nq.add(S, a, reward, env.obs, previous_a, done, memory, per=0)
                 S = env.obs
-
+            previous_a = a 
             # train network
             if j % training_cycle == 0:
                 # Sample mini-batch from memory
-                memory.sample(batch_size)
-
-                states, actions, rewards, next_states, dones = memory.sample(batch_size)
+                memory.sample(batch_size,seql, min_seql, burninl)
+                states, actions, rewards, next_states, dones, previous_actions = memory.sample(batch_size)
                 weights = np.ones(batch_size)
-                actions = torch.tensor(actions, dtype=torch.int64).to(device)
+                actions = torch.tensor(actions, dtype=torch.int64).unsqueeze(1).to(device)
+                dones = np.array(dones)
 
                 states = torch.tensor(states, dtype=torch.float32).to(device)
                 rewards = torch.tensor(rewards, dtype=torch.float32).to(device)
                 next_states = torch.tensor(next_states, dtype=torch.float32).to(device)
+                previous_actions = torch.tensor(previous_actions, dtype=torch.float32).to(device)
                 weights = torch.tensor(weights, dtype=torch.float32).to(device)
                 # Train network
 
@@ -327,21 +328,14 @@ class Memory():
     def __init__(self, max_size, state_dim, action_dim):
         # Preallocate memory
         self.data = np.zeros(max_size, dtype=object)
-        self.states_buffer = np.ones((max_size, state_dim), dtype=np.float32)*-2
-        self.actions_buffer = np.ones((max_size, action_dim), dtype=np.float32)*-2
-        self.rewards_buffer = np.ones(max_size, dtype=np.float32)*-2
-        self.next_states_buffer = np.ones((max_size, state_dim), dtype=np.float32)*-2
         self.done_buffer = np.zeros(max_size, dtype=np.bool_)
         self.index = 0
         self.size = 0
         self.buffer_size = max_size
 
     def add(self, state, action, reward, next_state, done, previous_action=None):
-        self.data[self.index] = (state,action,)
-        self.states_buffer[self.index] = state
-        self.actions_buffer[self.index] = action
-        self.rewards_buffer[self.index] = reward
-        self.next_states_buffer[self.index] = next_state
+        transition = (state, action, reward, next_state, done, previous_action)
+        self.data[self.index] = transition
         self.done_buffer[self.index] = done
         self.index = (self.index + 1) % self.buffer_size
         self.size = min(self.size + 1, self.buffer_size)
@@ -366,13 +360,17 @@ class Memory():
           which part is padding.
         """
         # Prepare lists for the final batch
-        state_dim = self.states_buffer.shape[1]
-        action_dim = self.actions_buffer.shape[1]        
+        state_dim = len(self.data[0][0])
+        if type(self.data[0][1]) == int:
+            action_dim = 1
+        else:
+            action_dim = len(self.data[0][1])
         totlen = seq_len + burn_in_len
         batch_states = np.ones((batch_size, totlen, state_dim), dtype=np.float32)*(-1)
         batch_actions = np.ones((batch_size, totlen, action_dim), dtype=np.float32)*(-1)
         batch_rewards = np.ones((batch_size, totlen), dtype=np.float32)*(-1)
         batch_next_states = np.ones((batch_size, totlen, state_dim), dtype=np.float32)*(-1)
+        batch_previous_actions = np.ones((batch_size, totlen, action_dim), dtype=np.float32)*(-1)
         batch_dones = np.zeros((batch_size, totlen), dtype=bool)
         burnin_lens = []
         total_lens = []
@@ -409,6 +407,7 @@ class Memory():
             total_lens.append(len(full_indices))
 
             # We'll store the transitions from these indices
+
             states_seq = self.states_buffer[full_indices]
             actions_seq = self.actions_buffer[full_indices]
             rewards_seq = self.rewards_buffer[full_indices]

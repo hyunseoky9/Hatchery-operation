@@ -393,11 +393,11 @@ class Memory():
     def __init__(self, max_size, state_dim, action_dim):
         # Preallocate memory
         self.data = np.zeros(max_size, dtype=object)
-        self.states_buffer = np.ones((max_size, state_dim), dtype=np.float32)*-2
-        self.actions_buffer = np.ones((max_size, action_dim), dtype=np.float32)*-2
-        self.rewards_buffer = np.ones(max_size, dtype=np.float32)*-2
-        self.next_states_buffer = np.ones((max_size, state_dim), dtype=np.float32)*-2
-        self.done_buffer = np.zeros(max_size, dtype=np.bool_)
+        #self.states_buffer = np.ones((max_size, state_dim), dtype=np.float32)*-2
+        #self.actions_buffer = np.ones((max_size, action_dim), dtype=np.float32)*-2
+        #self.rewards_buffer = np.ones(max_size, dtype=np.float32)*-2
+        #self.next_states_buffer = np.ones((max_size, state_dim), dtype=np.float32)*-2
+        #self.done_buffer = np.zeros(max_size, dtype=np.bool_)
         self.index = 0
         self.size = 0
         self.buffer_size = max_size
@@ -405,11 +405,11 @@ class Memory():
     def add(self, state, action, reward, next_state, done, previous_action):
         transition = (state, action, reward, next_state, done, previous_action)
         self.data[self.index] = transition
-        self.states_buffer[self.index] = state
-        self.actions_buffer[self.index] = action
-        self.rewards_buffer[self.index] = reward
-        self.next_states_buffer[self.index] = next_state
-        self.done_buffer[self.index] = done
+        #self.states_buffer[self.index] = state
+        #self.actions_buffer[self.index] = action
+        #self.rewards_buffer[self.index] = reward
+        #self.next_states_buffer[self.index] = next_state
+        #self.done_buffer[self.index] = done
         self.index = (self.index + 1) % self.buffer_size
         self.size = min(self.size + 1, self.buffer_size)
 
