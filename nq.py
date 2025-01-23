@@ -11,11 +11,12 @@ class Nstepqueue:
         self.queue = []  # Temporary queue to hold transitions for n-step calculation
         self.rqueue = []  # Temporary queue to hold rewards for calculating cumulative rewards
 
-    def add(self, state, action, reward, next_state, done, memory, per):
+    def add(self, state, action, reward, next_state, done, previous_action, memory, per):
         # Add to n-step queue
         # If the queue becomes length of n, add a transition to memory.
         # Also, if the episode is done, add rest of the queue to memory.
-        self.queue.append((state, action, reward, next_state, done))
+        transition = (state, action, reward, next_state, done, previous_action)
+        self.queue.append(transition)
         self.rqueue.append(reward)
         # If n-step queue is ready, calculate n-step return
         if len(self.queue) >= self.n:
@@ -30,11 +31,11 @@ class Nstepqueue:
             
     def add2mem(self, memory, per):
         G = sum(self.gamma**np.arange(len(self.queue)) * self.rqueue)
-        state, action, _, _, _ = self.queue[0]  # Take the first state-action pair
-        _, _, _, next_state, done = self.queue[-1]  # Take the last next_state and done
+        state, action, _, _, _, previous_action = self.queue[0]  # Take the first state-action pair
+        _, _, _, next_state, done, _ = self.queue[-1]  # Take the last next_state and done
         if per: # prioritized experience replay
-            memory.add(memory.max_abstd, (state, action, G, next_state, done)) # add experience to memory
+            memory.add(memory.max_abstd, (state, action, G, next_state, done, previous_action)) # add experience to memory
         else: # vanilla experience replay
-            memory.add(state, action, G, next_state, done) # add experience to memory
+            memory.add(state, action, G, next_state, done, previous_action) # add experience to memory
         self.queue.pop(0) # Remove the oldest transition from the n-step queue
         self.rqueue.pop(0) # Remove the oldest transition from the n-step queue

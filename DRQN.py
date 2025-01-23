@@ -326,7 +326,7 @@ def _make_discrete_Q(Q,env,device):
 class Memory():
     def __init__(self, max_size, state_dim, action_dim):
         # Preallocate memory
-        
+        self.data = np.zeros(max_size, dtype=object)
         self.states_buffer = np.ones((max_size, state_dim), dtype=np.float32)*-2
         self.actions_buffer = np.ones((max_size, action_dim), dtype=np.float32)*-2
         self.rewards_buffer = np.ones(max_size, dtype=np.float32)*-2
@@ -336,7 +336,8 @@ class Memory():
         self.size = 0
         self.buffer_size = max_size
 
-    def add(self, state, action, reward, next_state, done):
+    def add(self, state, action, reward, next_state, done, previous_action=None):
+        self.data[self.index] = (state,action,)
         self.states_buffer[self.index] = state
         self.actions_buffer[self.index] = action
         self.rewards_buffer[self.index] = reward

@@ -11,10 +11,12 @@ def pretrain(env, nq, memory, max_steps, batch_size, PrioritizedReplay, max_prio
             if env.envID in ['Env1.0', 'Env1.1']:
                 env.reset([-1,-1,-1,-1,-1,-1])
                 state = env.state
+                previous_action = 0
                 reset = False
             elif env.envID in ['Env2.0']:
                 env.reset([-1,-1,-1,-1,-1,-1])
                 state = env.obs
+                previous_action = 0
                 reset = False
             t = 0
             termination_t = 0
@@ -36,15 +38,16 @@ def pretrain(env, nq, memory, max_steps, batch_size, PrioritizedReplay, max_prio
             next_state = env.obs
 
         if done:
-            nq.add(state, action, reward, next_state, done, memory, PrioritizedReplay)
+            nq.add(state, action, reward, next_state, done, previous_action, memory, PrioritizedReplay)
             reset = True
             memadd += n
         else:
             # increase memadd by 1 if nq is full
             if len(nq.queue) == n-1:
                 memadd += 1
-            nq.add(state, action, reward, next_state, done, memory, PrioritizedReplay)
+            nq.add(state, action, reward, next_state, done, previous_action, memory, PrioritizedReplay)
             state = next_state
+            previous_action = action
     nq.queue = [] # clear the n-step queue
     nq.rqueue = [] 
     
