@@ -211,9 +211,7 @@ def DRQN(env,num_episodes,epdecayopt,
                 memory.sample(batch_size,seql, min_seql, burninl)
                 states, actions, rewards, next_states, dones, previous_actions = memory.sample(batch_size)
                 weights = np.ones(batch_size)
-                actions = torch.tensor(actions, dtype=torch.int64).unsqueeze(1).to(device)
-                dones = np.array(dones)
-
+                actions = torch.tensor(actions, dtype=torch.int64).to(device)
                 states = torch.tensor(states, dtype=torch.float32).to(device)
                 rewards = torch.tensor(rewards, dtype=torch.float32).to(device)
                 next_states = torch.tensor(next_states, dtype=torch.float32).to(device)
@@ -327,16 +325,23 @@ def _make_discrete_Q(Q,env,device):
 class Memory():
     def __init__(self, max_size, state_dim, action_dim):
         # Preallocate memory
-        self.data = np.zeros(max_size, dtype=object)
+        self.states_buffer = np.ones((max_size, state_dim), dtype=np.float32)*-2
+        self.actions_buffer = np.ones((max_size, action_dim), dtype=np.float32)*-2
+        self.rewards_buffer = np.ones(max_size, dtype=np.float32)*-2
+        self.next_states_buffer = np.ones((max_size, state_dim), dtype=np.float32)*-2
         self.done_buffer = np.zeros(max_size, dtype=np.bool_)
+        self.previous_actions_buffer = np.ones((max_size, action_dim), dtype=np.float32)*-2
         self.index = 0
         self.size = 0
         self.buffer_size = max_size
 
     def add(self, state, action, reward, next_state, done, previous_action=None):
-        transition = (state, action, reward, next_state, done, previous_action)
-        self.data[self.index] = transition
+        self.states_buffer[self.index] = state
+        self.actions_buffer[self.index] = action
+        self.rewards_buffer[self.index] = reward
+        self.next_states_buffer[self.index] = next_state
         self.done_buffer[self.index] = done
+        self.previous_actions_buffer[self.index] = action
         self.index = (self.index + 1) % self.buffer_size
         self.size = min(self.size + 1, self.buffer_size)
 
@@ -360,11 +365,8 @@ class Memory():
           which part is padding.
         """
         # Prepare lists for the final batch
-        state_dim = len(self.data[0][0])
-        if type(self.data[0][1]) == int:
-            action_dim = 1
-        else:
-            action_dim = len(self.data[0][1])
+        state_dim = self.states_buffer.shape[1]
+        action_dim = self.actions_buffer.shape[1]
         totlen = seq_len + burn_in_len
         batch_states = np.ones((batch_size, totlen, state_dim), dtype=np.float32)*(-1)
         batch_actions = np.ones((batch_size, totlen, action_dim), dtype=np.float32)*(-1)
@@ -413,12 +415,14 @@ class Memory():
             rewards_seq = self.rewards_buffer[full_indices]
             next_states_seq = self.next_states_buffer[full_indices]
             done_seq = self.done_buffer[full_indices]
+            previous_actions_seq = self.previous_actions_buffer[full_indices]
             
             batch_states[b, :len(full_indices)] = states_seq
             batch_actions[b, :len(full_indices)] = actions_seq
             batch_rewards[b, :len(full_indices)] = rewards_seq
             batch_next_states[b, :len(full_indices)] = next_states_seq
             batch_dones[b, :len(full_indices)] = done_seq
+            batch_previous_actions[b, :len(full_indices)] = previous_actions_seq
             
         # convert them into pytorch tensors
         batch_states = torch.tensor(batch_states, dtype=torch.float32)

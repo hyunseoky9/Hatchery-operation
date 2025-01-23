@@ -236,8 +236,7 @@ def Rainbow(env,num_episodes,epdecayopt,
                 else:
                     states, actions, rewards, next_states, dones, previous_actions = memory.sample(batch_size)
                     weights = np.ones(batch_size)
-                    actions = torch.tensor(actions, dtype=torch.int64).unsqueeze(1).to(device)
-                    dones = np.array(dones)
+                    actions = torch.tensor(actions, dtype=torch.int64).to(device)
                 states = torch.tensor(states, dtype=torch.float32).to(device)
                 rewards = torch.tensor(rewards, dtype=torch.float32).to(device)
                 next_states = torch.tensor(next_states, dtype=torch.float32).to(device)
@@ -392,36 +391,34 @@ def _make_discrete_Q(Q,env,device):
 class Memory():
     def __init__(self, max_size, state_dim, action_dim):
         # Preallocate memory
-        self.data = np.zeros(max_size, dtype=object)
-        #self.states_buffer = np.ones((max_size, state_dim), dtype=np.float32)*-2
-        #self.actions_buffer = np.ones((max_size, action_dim), dtype=np.float32)*-2
-        #self.rewards_buffer = np.ones(max_size, dtype=np.float32)*-2
-        #self.next_states_buffer = np.ones((max_size, state_dim), dtype=np.float32)*-2
-        #self.done_buffer = np.zeros(max_size, dtype=np.bool_)
+        self.states_buffer = np.ones((max_size, state_dim), dtype=np.float32)*-2
+        self.actions_buffer = np.ones((max_size, action_dim), dtype=np.float32)*-2
+        self.rewards_buffer = np.ones(max_size, dtype=np.float32)*-2
+        self.next_states_buffer = np.ones((max_size, state_dim), dtype=np.float32)*-2
+        self.done_buffer = np.zeros(max_size, dtype=np.bool_)
+        self.previous_actions_buffer = np.ones((max_size, action_dim), dtype=np.float32)*-2
         self.index = 0
         self.size = 0
         self.buffer_size = max_size
 
     def add(self, state, action, reward, next_state, done, previous_action):
-        transition = (state, action, reward, next_state, done, previous_action)
-        self.data[self.index] = transition
-        #self.states_buffer[self.index] = state
-        #self.actions_buffer[self.index] = action
-        #self.rewards_buffer[self.index] = reward
-        #self.next_states_buffer[self.index] = next_state
-        #self.done_buffer[self.index] = done
+        self.states_buffer[self.index] = state
+        self.actions_buffer[self.index] = action
+        self.rewards_buffer[self.index] = reward
+        self.next_states_buffer[self.index] = next_state
+        self.done_buffer[self.index] = done
+        self.previous_actions_buffer[self.index] = action
         self.index = (self.index + 1) % self.buffer_size
         self.size = min(self.size + 1, self.buffer_size)
 
     def sample(self, batch_size):
         indices = np.random.choice(self.size, batch_size, replace=True)
-        mini_batch = self.data[indices]
-        states, actions, rewards, next_states, dones, previous_actions = zip(*mini_batch)
-        #states = self.states_buffer[indices]
-        #actions = self.actions_buffer[indices]
-        #rewards = self.rewards_buffer[indices]
-        #next_states = self.next_states_buffer[indices]
-        #done = self.done_buffer[indices]
+        states = self.states_buffer[indices]
+        actions = self.actions_buffer[indices]
+        rewards = self.rewards_buffer[indices]
+        next_states = self.next_states_buffer[indices]
+        dones = self.done_buffer[indices]
+        previous_actions = self.previous_actions_buffer[indices]
         return states, actions, rewards, next_states, dones, previous_actions
     
 
