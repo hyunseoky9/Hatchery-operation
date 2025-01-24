@@ -6,7 +6,7 @@ def pretrain(env, nq, memory, max_steps, batch_size, PrioritizedReplay, max_prio
     reset = True
     memadd = 0 # number of transitions added to memory
     n = nq.n
-    while memadd <= batch_size:
+    while memadd < batch_size:
         if reset == True:
             if env.envID in ['Env1.0', 'Env1.1']:
                 env.reset([-1,-1,-1,-1,-1,-1])
