@@ -213,8 +213,9 @@ def DRQN(env,num_episodes,epdecayopt,
 
                 # Train network
                 # Set target_Qs to 0 for states where episode ends
-                episode_ends = np.where(dones == True)[0]
-                target_Qs, _ = Q_target(next_states, training=True, hidden=None, lengths=total_lens)
+                episode_ends = np.where(dones == True)
+                with torch.no_grad():
+                    target_Qs, _ = Q_target(next_states, training=True, hidden=None, lengths=total_lens)
                 if DDQN:
                     if distributional:
                         next_EQ = torch.sum(target_Qs * Q.z, dim=-1)  # Expected Q-values for each action
@@ -233,7 +234,7 @@ def DRQN(env,num_episodes,epdecayopt,
                     else:
                         if dones.any():
                             target_Qs[episode_ends] = torch.zeros(action_size, device=device)
-                        targets = rewards + (gamma**nstep) * torch.max(target_Qs, dim=1)[0]
+                        targets = rewards[:,:target_Qs.shape[1]] + (gamma**nstep) * torch.max(target_Qs, dim=2)[0]
                 td_error = train_model(Q, [(states, actions, targets)], device)
 
             # update target network
@@ -481,7 +482,7 @@ def train_model(Q, data, device):
             # loss = Q.loss_fn(predictions, targets) # Compute the loss
             predictions = predictions.gather(1, actions).squeeze(1) # Get Q-values for the selected actions
             td_errors = targets - predictions
-            loss = (weights * (td_errors ** 2)).mean()
+            loss = (td_errors ** 2).mean()
 
         # Backpropagation
         loss.backward()

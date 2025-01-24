@@ -6,7 +6,7 @@ def pretrain(env, nq, memory, max_steps, batch_size, PrioritizedReplay, max_prio
     reset = True
     memadd = 0 # number of transitions added to memory
     n = nq.n
-    while memadd < batch_size:
+    while memadd <= batch_size:
         if reset == True:
             if env.envID in ['Env1.0', 'Env1.1']:
                 env.reset([-1,-1,-1,-1,-1,-1])
@@ -43,6 +43,8 @@ def pretrain(env, nq, memory, max_steps, batch_size, PrioritizedReplay, max_prio
             reset = True
             memadd += n
         else:
+            if env.episodic == False and memadd == (batch_size - 1): # if continuous task AND this is the last transition to be added on the memory AND it's not done, make it done for marking episode ends properly.
+                done = True
             # increase memadd by 1 if nq is full
             if len(nq.queue) == n-1:
                 memadd += 1
