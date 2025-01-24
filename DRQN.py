@@ -227,9 +227,9 @@ def DRQN(env,num_episodes,epdecayopt,
                         if dones.any():
                             target_Qs[episode_ends] = torch.zeros(action_size, device=device)
                         with torch.no_grad():
-                            action_Qs = Q(next_states)
-                        next_actions = torch.argmax(action_Qs, dim=1)
-                        targets = rewards + (gamma**nstep) * target_Qs.gather(1, next_actions.unsqueeze(1)).squeeze(1)
+                            action_Qs, _ = Q(next_states, training=True, hidden=None, lengths=total_lens)
+                        next_actions = torch.argmax(action_Qs, dim=2)
+                        targets = rewards[:,:target_Qs.shape[1]] + (gamma**nstep) * target_Qs.gather(2, next_actions.unsqueeze(2)).squeeze(2)
                 else:
                     if distributional:
                         next_EQ = torch.sum(target_Qs * Q.z, dim=-1)  # Expected Q-values for each action
