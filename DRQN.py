@@ -256,7 +256,7 @@ def DRQN(env,num_episodes,epdecayopt,
             if not external_testing:
                 avgperformance = calc_performance(env,device,Q,None,performance_sampleN,max_steps,True)
                 avgperformances.append(avgperformance)
-            if env.envID in ['Env1.0', 'Env1.1']:
+            if env.envID in ['Env1.0', 'Env1.1', 'Env2.0', 'Env2.1']:
                 torch.save(Q, f"{testwd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DRQN_episode{i}.pt")
 
         if i % 1000 == 0: # print outs
