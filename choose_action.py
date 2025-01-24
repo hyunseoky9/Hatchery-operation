@@ -5,8 +5,10 @@ import numpy as np
 def choose_action(state, Q, epsilon, action_size, distributional,device, drqn=False, hidden=None):
     # Choose an action
     if random.random() < epsilon:
+        
         action = random.randint(0, action_size-1)
         if drqn == True:
+            state = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(device)  # Add batch dimension
             with torch.no_grad():
                 _, hidden = Q(state, training=False, hidden=hidden)
             return action, hidden

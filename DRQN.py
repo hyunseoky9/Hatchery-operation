@@ -106,7 +106,7 @@ def DRQN(env,num_episodes,epdecayopt,
             initQ = torch.load(file,weights_only=False)
         print('initializing Q with the best Q network from the previous run')
         Q.load_state_dict(initQ.state_dict())
-        initperform = calc_performance(env,device,Q,None,performance_sampleN) # initial Q's performance
+        initperform = calc_performance(env,device,Q,None,performance_sampleN,max_steps) # initial Q's performance
         print(f'performance of the initial Q network: {initperform}')
     else:
         initperform = -100000000
@@ -132,7 +132,7 @@ def DRQN(env,num_episodes,epdecayopt,
         script_name = "performance_tester.py"
         args = ["--num_episodes", f"{num_episodes}", "--DQNorPolicy", "0", "--envID", f"{env.envID}",
                  "--parset", f"{env.parset+1}", "--discset", f"{env.discset}", "--midsample", f"{performance_sampleN}",
-                 "--finalsample", f"{final_performance_sampleN}","--initQperformance", f"{initperform}"]
+                 "--finalsample", f"{final_performance_sampleN}","--initQperformance", f"{initperform}","--maxstep", f"{max_steps}","--drqn", "1"]
         # Run the script independently with arguments
         #subprocess.Popen(["python", script_name] + args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         subprocess.Popen(["python", script_name] + args)
@@ -254,10 +254,10 @@ def DRQN(env,num_episodes,epdecayopt,
 
         if i % 1000 == 0: # calculate average reward every 1000 episodes
             if not external_testing:
-                avgperformance = calc_performance(env,device,Q,None,performance_sampleN)
+                avgperformance = calc_performance(env,device,Q,None,performance_sampleN,max_steps,True)
                 avgperformances.append(avgperformance)
             if env.envID in ['Env1.0', 'Env1.1']:
-                torch.save(Q, f"{testwd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN_episode{i}.pt")
+                torch.save(Q, f"{testwd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DRQN_episode{i}.pt")
 
         if i % 1000 == 0: # print outs
             current_lr = Q.optimizer.param_groups[0]['lr']
@@ -269,46 +269,46 @@ def DRQN(env,num_episodes,epdecayopt,
     # calculate final average reward
     print('calculating the average reward with the final Q network')
     if external_testing == False:
-        final_avgreward = calc_performance(env,device,Q,None,final_performance_sampleN)
+        final_avgreward = calc_performance(env,device,Q,None,final_performance_sampleN,max_steps,True)
         avgperformances.append(final_avgreward)
         print(f'final average reward: {final_avgreward}')
-    torch.save(Q, f"{testwd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN_episode{i}.pt")
+    torch.save(Q, f"{testwd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DRQN_episode{i}.pt")
 
     # save results and performance metrics.
     ## save last model and the best model (in terms of rewards)
-    if env.envID in ['Env1.0','Env1.1']:
+    if env.envID in ['Env1.0','Env1.1','Env2.0']:
         # last model
-        wd = './deepQN results'
-        torch.save(Q, f"{wd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pt")
+        wd = './DRQN results'
+        torch.save(Q, f"{wd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DRQN.pt")
         # best model
         if not external_testing:
             if max(avgperformances) > initperform:
                 bestidx = np.array(avgperformances).argmax()
-                bestfilename = f"{testwd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN_episode{bestidx*1000}.pt"
-                shutil.copy(bestfilename, f"{wd}/bestQNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pt")
+                bestfilename = f"{testwd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DRQN_episode{bestidx*1000}.pt"
+                shutil.copy(bestfilename, f"{wd}/bestQNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DRQN.pt")
             else:
                 print(f'no improvement in the performance from training')
 
     ## make a discrete Q table if the environment is discrete and save it
-    if env.envID == 'Env1.0':
+    if env.envID in ['Env1.0']:
         Q_discrete = _make_discrete_Q(Q,env,device)
         policy = _get_policy(env,Q_discrete)
-        wd = './deepQN results'
-        with open(f"{wd}/Q_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pkl", "wb") as file:
+        wd = './DRQN results'
+        with open(f"{wd}/Q_{env.envID}_par{env.parset}_dis{env.discset}_DRQN.pkl", "wb") as file:
             pickle.dump(Q_discrete, file)
-        with open(f"{wd}/policy_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pkl", "wb") as file:
+        with open(f"{wd}/policy_{env.envID}_par{env.parset}_dis{env.discset}_DRQN.pkl", "wb") as file:
             pickle.dump(policy, file)
     else:
         Q_discrete = None
         policy = None
     ## save performance
     if external_testing == False:
-        np.save(f"{wd}/rewards_{env.envID}_par{env.parset}_dis{env.discset}_DQN.npy", avgperformances)
+        np.save(f"{wd}/rewards_{env.envID}_par{env.parset}_dis{env.discset}_DRQN.npy", avgperformances)
     return Q_discrete, policy, avgperformances, final_avgreward
 
 def _make_discrete_Q(Q,env,device):
     # make a discrete Q table
-    if env.envID == 'Env1.0':
+    if env.envID in ['Env1.0']:
         states = torch.tensor([env._unflatten(i) for i in range(np.prod(env.statespace_dim))], dtype=torch.float32)
         Q_discrete = np.zeros((np.prod(env.statespace_dim),len(env.actions["a"])))
         for i in range(np.prod(env.statespace_dim)):
@@ -380,7 +380,7 @@ class Memory():
             # Randomly pick a training start index
             # ensure there's at least min_seq_len number of valid transition from the train_start.
             found_valid_seq = False
-            for tries in range(100):
+            for tries in range(1000):
                 train_start = np.random.randint(0, self.size - min_seq_len + 1)  # random index in [0, size)
                 train_indices = list(np.arange(train_start, min(train_start + seq_len, self.size))) # check that train indices don't go over the buffer size
                 donecheck = np.where(self.done_buffer[train_indices]==True) # check if there's a done in the train indices
@@ -391,6 +391,7 @@ class Memory():
                     break
             training_lens.append(len(train_indices))
             if not found_valid_seq:
+                foo = 0
                 raise ValueError("SEQUENCE LENGTH ERROR")
                 
 

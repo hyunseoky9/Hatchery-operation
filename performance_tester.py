@@ -37,6 +37,8 @@ parser.add_argument("--discset", type=str, required=True, help="Argument 5")
 parser.add_argument("--midsample", type=str, required=True, help="Argument 6")
 parser.add_argument("--finalsample", type=str, required=True, help="Argument 7")
 parser.add_argument("--initQperformance", type=str, required=True, help="Argument 8")
+parser.add_argument("--maxstep", type=str, required=True, help="Argument 9")
+parser.add_argument("--drqn", type=str, required=True, help="Argument 10")
 
 args = parser.parse_args()
 
@@ -48,6 +50,12 @@ discset = int(args.discset)
 midsample = int(args.midsample)
 finalsample = int(args.finalsample)
 initQperformance = float(args.initQperformance)
+maxstep = int(args.maxstep)
+drqn = int(args.drqn)
+if drqn == 1:
+    drqn = True
+else:
+    drqn = False
 print(f'num_episode: {num_episode} DQNorPolicy: {DQNorPolicy} env: {envID} parset: {parset} discset: {discset}')
 print(f'midsample size: {args.midsample} finalsample size: {args.finalsample}')
 #num_episode = int(sys.argv[1])
@@ -59,8 +67,10 @@ elif envID == 'Env1.1':
     env = Env1_1([-1,-1,-1,-1,-1,-1],parset,discset)
 avgperformances = []
 if DQNorPolicy == 0:
-    wd = './deepQN results/intermediate training Q network'
-        
+    if drqn == False:
+        wd = './deepQN results/intermediate training Q network'
+    else:
+        wd = './DRQN results/intermediate training Q network'
     for i in range(0,num_episode+1,interval):
         print(f'episode {i}')
         filename= f"{wd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN_episode{i}.pt"
@@ -83,10 +93,10 @@ if DQNorPolicy == 0:
         # calculate performance 
         if i == num_episode: # Final Q network performance sampled more accurately.
             print('calculating final performance')
-            performance = calc_performance(env,device,Q=Q,episodenum=midsample)
+            performance = calc_performance(env,device,Q=Q,episodenum=midsample,t_maxstep=maxstep,drqn=drqn)
         else:
             print('calculating performance')
-            performance = calc_performance(env,device,Q=Q,episodenum=finalsample)
+            performance = calc_performance(env,device,Q=Q,episodenum=finalsample,t_maxstep=maxstep,drqn=drqn)
             print('finished calculating performance')
         avgperformances.append(performance)
 else: # fill this in later when you have policy gradient algorithms!
@@ -94,12 +104,17 @@ else: # fill this in later when you have policy gradient algorithms!
 
 # save the performance results and the best Q network
 if DQNorPolicy == 0: # DQN
-    wd2 = './deepQN results'
-    np.save(f"{wd2}/rewards_{env.envID}_par{env.parset}_dis{env.discset}_DQN.npy", avgperformances)
+    if drqn == False:
+        wd2 = './deepQN results'
+        method_str = 'DQN'
+    else:
+        wd2 = './DRQN results'
+        method_str = 'DRQN'
+    np.save(f"{wd2}/rewards_{env.envID}_par{env.parset}_dis{env.discset}_{method_str}.npy", avgperformances)
     # best model
     if initQperformance < max(avgperformances):
         bestidx = np.array(avgperformances).argmax()
-        bestfilename = f"{wd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN_episode{bestidx*1000}.pt"
-        shutil.copy(bestfilename, f"{wd2}/bestQNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pt")
+        bestfilename = f"{wd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_{method_str}_episode{bestidx*1000}.pt"
+        shutil.copy(bestfilename, f"{wd2}/bestQNetwork_{env.envID}_par{env.parset}_dis{env.discset}_{method_str}.pt")
 else: # policy gradient
     foo = 0

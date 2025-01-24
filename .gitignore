@@ -9,6 +9,7 @@
 td results/
 value iter results/
 deepQN results/
+DRQN results/
 a3c results/
 pomdp/
 .vscode/

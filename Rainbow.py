@@ -146,7 +146,7 @@ def Rainbow(env,num_episodes,epdecayopt,
         script_name = "performance_tester.py"
         args = ["--num_episodes", f"{num_episodes}", "--DQNorPolicy", "0", "--envID", f"{env.envID}",
                  "--parset", f"{env.parset+1}", "--discset", f"{env.discset}", "--midsample", f"{performance_sampleN}",
-                 "--finalsample", f"{final_performance_sampleN}","--initQperformance", f"{initperform}"]
+                 "--finalsample", f"{final_performance_sampleN}","--initQperformance", f"{initperform}","--maxstep", f"{max_steps}","--drqn", "0"]
         # Run the script independently with arguments
         #subprocess.Popen(["python", script_name] + args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         subprocess.Popen(["python", script_name] + args)
