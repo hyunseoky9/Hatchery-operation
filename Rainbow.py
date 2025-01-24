@@ -250,16 +250,21 @@ def Rainbow(env,num_episodes,epdecayopt,
 
                 # Set target_Qs to 0 for states where episode ends
                 episode_ends = np.where(dones == True)[0]
-                target_Qs = Q_target(next_states)
+                with torch.no_grad():
+                    target_Qs = Q_target(next_states)
                 if DDQN:
                     if distributional:
-                        next_EQ = torch.sum(target_Qs * Q.z, dim=-1)  # Expected Q-values for each action
+                        with torch.no_grad():
+                            action_Qs = Q(next_states)
+                        next_EQ = torch.sum(action_Qs * Q.z, dim=-1)  # Expected Q-values for each action
                         best_actions = torch.argmax(next_EQ, dim=-1).unsqueeze(1)  # Best action                        
-                        targets = compute_target_distribution(rewards, dones, gamma, nstep, target_Qs, best_actions, Q.z, atomn, Vmin, Vmax)                        
+                        targets = compute_target_distribution(rewards, dones, gamma, nstep, target_Qs, best_actions, Q.z, atomn, Vmin, Vmax)
                     else:
                         if dones.any():
                             target_Qs[episode_ends] = torch.zeros(action_size, device=device)
-                        next_actions = torch.argmax(Q(next_states), dim=1)
+                        with torch.no_grad():
+                            action_Qs = Q(next_states)
+                        next_actions = torch.argmax(action_Qs, dim=1)
                         targets = rewards + (gamma**nstep) * target_Qs.gather(1, next_actions.unsqueeze(1)).squeeze(1)
                 else:
                     if distributional:
@@ -270,7 +275,7 @@ def Rainbow(env,num_episodes,epdecayopt,
                         if dones.any():
                             target_Qs[episode_ends] = torch.zeros(action_size, device=device)
                         targets = rewards + (gamma**nstep) * torch.max(target_Qs, dim=1)[0]
-                td_error = train_model(Q, [(states, actions, targets)], weights, device)
+                td_error = train_model(Q, states, actions, targets, weights, device)
 
                 # Update priorities
                 if PrioritizedReplay:
@@ -458,31 +463,30 @@ def _get_policy(env,Q):
         policy[i] = np.argmax(Q[i,:])
     return policy
 
-def train_model(Q, data, weights, device):
+def train_model(Q, states, actions, targets, weights, device):
     Q.train()
-    for batch, (states, actions, targets) in enumerate(data):
-        states, actions, targets = states.to(device), actions.to(device), targets.to(device)
+    states, actions, targets = states.to(device), actions.to(device), targets.to(device)
 
-        # Compute predictions
-        predictions = Q(states) 
-        # compute_loss
-        if Q.distributional:
-            predictions = predictions.gather(1, actions.unsqueeze(-1).expand(-1,-1,Q.atomn)) # Get Q-values for the selected actions
-            predictions = predictions.clamp(min=1e-9) # Avoid log 0
-            cross_entropy = -torch.sum(targets * torch.log(predictions), dim=-1)  # Sum over atoms
-            loss = cross_entropy.mean()  # Average over batch
-            td_errors = cross_entropy.squeeze() # distributional RL uses cross entropy as scalar distance btw target and prediction for priority
-        else:
-            # loss = Q.loss_fn(predictions, targets) # Compute the loss
-            predictions = predictions.gather(1, actions).squeeze(1) # Get Q-values for the selected actions
-            td_errors = targets - predictions
-            loss = (weights * (td_errors ** 2)).mean()
+    # Compute predictions
+    predictions = Q(states) 
+    # compute_loss
+    if Q.distributional:
+        predictions = predictions.gather(1, actions.unsqueeze(-1).expand(-1,-1,Q.atomn)) # Get Q-values for the selected actions
+        predictions = predictions.clamp(min=1e-9) # Avoid log 0
+        cross_entropy = -torch.sum(targets * torch.log(predictions), dim=-1)  # Sum over atoms
+        loss = cross_entropy.mean()  # Average over batch
+        td_errors = cross_entropy.squeeze() # distributional RL uses cross entropy as scalar distance btw target and prediction for priority
+    else:
+        # loss = Q.loss_fn(predictions, targets) # Compute the loss
+        predictions = predictions.gather(1, actions).squeeze(1) # Get Q-values for the selected actions
+        td_errors = targets - predictions
+        loss = (weights * (td_errors ** 2)).mean()
 
-        # Backpropagation
-        loss.backward()
-        Q.optimizer.step()
-        Q.optimizer.zero_grad()
-        return td_errors
+    # Backpropagation
+    loss.backward()
+    Q.optimizer.step()
+    Q.optimizer.zero_grad()
+    return td_errors
 
 def compute_loss(Q, states, actions, targetQs): 
     """

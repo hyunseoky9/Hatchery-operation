@@ -180,7 +180,7 @@ def DRQN(env,num_episodes,epdecayopt,
         online_hidden = None # hidden state for simulation
         done = False
         t = 0 # timestep num
-        
+        termination_t = 0 
         while done == False:    
             if t > 0:
                 a, online_hidden = choose_action(S, Q, ep, action_size,distributional,device,True,online_hidden)
@@ -218,13 +218,17 @@ def DRQN(env,num_episodes,epdecayopt,
                     target_Qs, _ = Q_target(next_states, training=True, hidden=None, lengths=total_lens)
                 if DDQN:
                     if distributional:
-                        next_EQ = torch.sum(target_Qs * Q.z, dim=-1)  # Expected Q-values for each action
+                        with torch.no_grad():
+                            action_Qs = Q(next_states)
+                        next_EQ = torch.sum(action_Qs * Q.z, dim=-1)  # Expected Q-values for each action
                         best_actions = torch.argmax(next_EQ, dim=-1).unsqueeze(1)  # Best action                        
-                        targets = compute_target_distribution(rewards, dones, gamma, nstep, target_Qs, best_actions, Q.z, atomn, Vmin, Vmax)                        
+                        targets = compute_target_distribution(rewards, dones, gamma, nstep, target_Qs, best_actions, Q.z, atomn, Vmin, Vmax)
                     else:
                         if dones.any():
                             target_Qs[episode_ends] = torch.zeros(action_size, device=device)
-                        next_actions = torch.argmax(Q(next_states), dim=1)
+                        with torch.no_grad():
+                            action_Qs = Q(next_states)
+                        next_actions = torch.argmax(action_Qs, dim=1)
                         targets = rewards + (gamma**nstep) * target_Qs.gather(1, next_actions.unsqueeze(1)).squeeze(1)
                 else:
                     if distributional:
@@ -235,7 +239,7 @@ def DRQN(env,num_episodes,epdecayopt,
                         if dones.any():
                             target_Qs[episode_ends] = torch.zeros(action_size, device=device)
                         targets = rewards[:,:target_Qs.shape[1]] + (gamma**nstep) * torch.max(target_Qs, dim=2)[0]
-                td_error = train_model(Q, [(states, actions, targets)], device)
+                td_error = train_model(Q, states, actions, targets, device, total_lens, burnin_lens)
 
             # update target network
             if j % target_update_cycle == 0:
@@ -420,7 +424,7 @@ class Memory():
 
         # convert them into pytorch tensors
         batch_states = torch.tensor(batch_states, dtype=torch.float32)
-        batch_actions = torch.tensor(batch_actions, dtype=torch.float32)
+        batch_actions = torch.tensor(batch_actions, dtype=torch.int64)
         batch_rewards = torch.tensor(batch_rewards, dtype=torch.float32)
         batch_next_states = torch.tensor(batch_next_states, dtype=torch.float32)
         # * dones do not need to be converted to pytorch tensors
@@ -464,13 +468,21 @@ def _get_policy(env,Q):
         policy[i] = np.argmax(Q[i,:])
     return policy
 
-def train_model(Q, data, device):
+def train_model(Q, batch_states, batch_actions, batch_targets, device, total_lens, burnin_lens):
     Q.train()
-    for batch, (states, actions, targets) in enumerate(data):
-        states, actions, targets = states.to(device), actions.to(device), targets.to(device)
+    # Compute predictions
+    batch_predictions, _ = Q(batch_states, training=True, hidden=None, lengths=total_lens)
 
-        # Compute predictions
-        predictions = Q(states) 
+    total_loss = 0.0
+    all_td_errors = []
+    for batch in range(batch_states.shape[0]):
+        states, actions, targets, predictions = batch_states[batch], batch_actions[batch], batch_targets[batch], batch_predictions[batch]
+        states, actions, targets, predictions = states.to(device), actions.to(device), targets.to(device), predictions.to(device)
+        
+        # clip burnin and pads
+        actions = actions[burnin_lens[batch]:total_lens[batch]]
+        predictions = predictions[burnin_lens[batch]:total_lens[batch]]
+        targets = targets[burnin_lens[batch]:total_lens[batch]]
         # compute_loss
         if Q.distributional:
             predictions = predictions.gather(1, actions.unsqueeze(-1).expand(-1,-1,Q.atomn)) # Get Q-values for the selected actions
@@ -483,12 +495,16 @@ def train_model(Q, data, device):
             predictions = predictions.gather(1, actions).squeeze(1) # Get Q-values for the selected actions
             td_errors = targets - predictions
             loss = (td_errors ** 2).mean()
+        total_loss += loss
+        all_td_errors.append(td_errors.detach().cpu())
+        
 
-        # Backpropagation
-        loss.backward()
-        Q.optimizer.step()
-        Q.optimizer.zero_grad()
-        return td_errors
+    # Backpropagation
+    total_loss = total_loss / batch_states.shape[0]
+    total_loss.backward()
+    Q.optimizer.step()
+    Q.optimizer.zero_grad()
+    return all_td_errors
 
 def compute_loss(Q, states, actions, targetQs): 
     """
