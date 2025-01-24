@@ -22,7 +22,7 @@ def Rainbow(env,num_episodes,epdecayopt,
             DDQN,DuelingDQN,PrioritizedReplay,nstep,noisy,distributional,
             lrdecayrate,lr,min_lr,
             training_cycle,target_update_cycle,
-            calc_MSE, external_testing, normalize, bestQinit):
+            calc_MSE, external_testing, normalize, bestQinit,actioninput):
     # train using Deep Q Network
     # env: environment class object
     # num_episodes: number of episodes to train 
@@ -76,7 +76,8 @@ def Rainbow(env,num_episodes,epdecayopt,
     final_performance_sampleN = 1000
     ## number of steps to run in the absorbing state before terminating the episode
     postterm_len = 3 
-
+    ## actioninput
+    actioninputsize = int(actioninput)*len(env.actionspace_dim)
 
  
 
@@ -90,6 +91,13 @@ def Rainbow(env,num_episodes,epdecayopt,
     elif env.envID == 'Env2.0': # state is really observation in env2.0. We'll call the actual states as hidden states. This is done to make the code consistent with env1.0
         state_max = (torch.tensor(env.obsspace_dim, dtype=torch.float32)).to(device)
         state_min = (torch.tensor(env.obsspace_dim, dtype=torch.float32)).to(device) 
+    # append action input
+    if actioninput:
+        input_max = torch.cat((state_max,torch.ones(actioninputsize)*(np.array(env.actionspace_dim)-1)),0)
+        input_min = torch.cat((state_min,torch.zeros(actioninputsize)),0)
+    else:
+        input_max = state_max
+        input_min = state_min
 
     # initialization
     ## print out extension feature usage
@@ -105,14 +113,14 @@ def Rainbow(env,num_episodes,epdecayopt,
     print(f'lr: {lr}, lrdecayrate: {lrdecayrate}, min_lr: {min_lr}')
     ## initialize NN
     if DuelingDQN:
-        Q = DuelQNN(state_size, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared,
+        Q = DuelQNN(state_size+actioninputsize, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared,
                      hidden_num_split, lr, state_min, state_max,lrdecayrate,noisy,distributional,atomn, Vmin, Vmax, normalize).to(device)
-        Q_target = DuelQNN(state_size, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared,
+        Q_target = DuelQNN(state_size+actioninputsize, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared,
                             hidden_num_split, lr, state_min, state_max,lrdecayrate,noisy,distributional,atomn, Vmin, Vmax, normalize).to(device)
     else:
-        Q = QNN(state_size, action_size, hidden_size, hidden_num, lr, state_min, state_max,
+        Q = QNN(state_size+actioninputsize, action_size, hidden_size, hidden_num, lr, state_min, state_max,
                 lrdecayrate,noisy, distributional, atomn, Vmin, Vmax, normalize).to(device)
-        Q_target = QNN(state_size, action_size, hidden_size, hidden_num, lr, state_min, 
+        Q_target = QNN(state_size+actioninputsize, action_size, hidden_size, hidden_num, lr, state_min, 
                        state_max,lrdecayrate,noisy, distributional, atomn, Vmin, Vmax, normalize).to(device)
     if bestQinit:
         # initialize Q with the best Q network from the previous run
@@ -120,7 +128,7 @@ def Rainbow(env,num_episodes,epdecayopt,
             initQ = torch.load(file,weights_only=False)
         print('initializing Q with the best Q network from the previous run')
         Q.load_state_dict(initQ.state_dict())
-        initperform = calc_performance(env,device,Q,None,performance_sampleN) # initial Q's performance
+        initperform = calc_performance(env,device,Q,None,performance_sampleN,max_steps,False,actioninput) # initial Q's performance
         print(f'performance of the initial Q network: {initperform}')
     else:
         initperform = -100000000
@@ -146,7 +154,8 @@ def Rainbow(env,num_episodes,epdecayopt,
         script_name = "performance_tester.py"
         args = ["--num_episodes", f"{num_episodes}", "--DQNorPolicy", "0", "--envID", f"{env.envID}",
                  "--parset", f"{env.parset+1}", "--discset", f"{env.discset}", "--midsample", f"{performance_sampleN}",
-                 "--finalsample", f"{final_performance_sampleN}","--initQperformance", f"{initperform}","--maxstep", f"{max_steps}","--drqn", "0"]
+                 "--finalsample", f"{final_performance_sampleN}","--initQperformance", f"{initperform}","--maxstep", f"{max_steps}","--drqn", "0",
+                 "--actioninput", f"{int(actioninput)}"]
         # Run the script independently with arguments
         #subprocess.Popen(["python", script_name] + args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         subprocess.Popen(["python", script_name] + args)
@@ -207,9 +216,10 @@ def Rainbow(env,num_episodes,epdecayopt,
         done = False
         
         t = 0 # timestep num
-        while done == False:    
+        while done == False:
+            prev_a = previous_a if actioninput else None
             if t > 0:
-                a = choose_action(S, Q, ep, action_size,distributional,device)
+                a = choose_action(S, Q, ep, action_size,distributional,device,False,None,prev_a)
             else:
                 a = random.randint(0, action_size-1) # first action in the episode is random for added exploration
             true_state = env.state
@@ -231,6 +241,7 @@ def Rainbow(env,num_episodes,epdecayopt,
             previous_a = a
             # train network
             if j % training_cycle == 0:
+
                 # Sample mini-batch from memory
                 if PrioritizedReplay:
                     mini_batch, idxs, weights = memory.sample(batch_size, beta)
@@ -246,8 +257,12 @@ def Rainbow(env,num_episodes,epdecayopt,
                 next_states = torch.tensor(next_states, dtype=torch.float32).to(device)
                 previous_actions = torch.tensor(previous_actions, dtype=torch.float32).to(device)
                 weights = torch.tensor(weights, dtype=torch.float32).to(device)
-                # Train network
 
+                if actioninput: # add previous action in the input
+                    states = torch.cat((states, previous_actions), dim=-1)
+                    next_states = torch.cat((next_states, actions.float()), dim=-1)
+
+                # Train network
                 # Set target_Qs to 0 for states where episode ends
                 episode_ends = np.where(dones == True)[0]
                 with torch.no_grad():
@@ -303,7 +318,7 @@ def Rainbow(env,num_episodes,epdecayopt,
                 MSE.append(mse_value)
         if i % 1000 == 0: # calculate average reward every 1000 episodes
             if not external_testing:
-                avgperformance = calc_performance(env,device,Q,None,performance_sampleN)
+                avgperformance = calc_performance(env,device,Q,None,performance_sampleN,max_steps,False,actioninput)
                 avgperformances.append(avgperformance)
             if env.envID in ['Env1.0', 'Env1.1']:
                 torch.save(Q, f"{testwd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN_episode{i}.pt")
@@ -341,7 +356,7 @@ def Rainbow(env,num_episodes,epdecayopt,
     # calculate final average reward
     print('calculating the average reward with the final Q network')
     if external_testing == False:
-        final_avgreward = calc_performance(env,device,Q,None,final_performance_sampleN)
+        final_avgreward = calc_performance(env,device,Q,None,final_performance_sampleN,max_steps,False,actioninput)
         avgperformances.append(final_avgreward)
         print(f'final average reward: {final_avgreward}')
     torch.save(Q, f"{testwd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN_episode{i}.pt")
@@ -362,7 +377,7 @@ def Rainbow(env,num_episodes,epdecayopt,
                 print(f'no improvement in the performance from training')
 
     ## make a discrete Q table if the environment is discrete and save it
-    if env.envID == 'Env1.0':
+    if env.envID == 'Env1.0' and actioninput == False:
         Q_discrete = _make_discrete_Q(Q,env,device)
         policy = _get_policy(env,Q_discrete)
         wd = './deepQN results'

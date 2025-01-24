@@ -57,8 +57,6 @@ def DRQN(env,num_episodes,epdecayopt,
     Vmin = -104
     Vmax = 1002
     atomn = 32
-    ## actioninput
-    actioninputsize = int(actioninput)*len(env.actionspace_dim)
 
     ## etc.
     #lr = 0.01
@@ -70,6 +68,8 @@ def DRQN(env,num_episodes,epdecayopt,
     final_performance_sampleN = 1000
     ## number of steps to run in the absorbing state before terminating the episode
     postterm_len = 3 
+    ## actioninput
+    actioninputsize = int(actioninput)*len(env.actionspace_dim)
 
 
     ## normalization parameters
@@ -106,7 +106,7 @@ def DRQN(env,num_episodes,epdecayopt,
             initQ = torch.load(file,weights_only=False)
         print('initializing Q with the best Q network from the previous run')
         Q.load_state_dict(initQ.state_dict())
-        initperform = calc_performance(env,device,Q,None,performance_sampleN,max_steps) # initial Q's performance
+        initperform = calc_performance(env,device,Q,None,performance_sampleN,max_steps,actioninput) # initial Q's performance
         print(f'performance of the initial Q network: {initperform}')
     else:
         initperform = -100000000
@@ -132,7 +132,8 @@ def DRQN(env,num_episodes,epdecayopt,
         script_name = "performance_tester.py"
         args = ["--num_episodes", f"{num_episodes}", "--DQNorPolicy", "0", "--envID", f"{env.envID}",
                  "--parset", f"{env.parset+1}", "--discset", f"{env.discset}", "--midsample", f"{performance_sampleN}",
-                 "--finalsample", f"{final_performance_sampleN}","--initQperformance", f"{initperform}","--maxstep", f"{max_steps}","--drqn", "1"]
+                 "--finalsample", f"{final_performance_sampleN}","--initQperformance", f"{initperform}","--maxstep", f"{max_steps}","--drqn", "1",
+                 "--actioninput", f"{int(actioninput)}"]
         # Run the script independently with arguments
         #subprocess.Popen(["python", script_name] + args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         subprocess.Popen(["python", script_name] + args)
@@ -181,13 +182,15 @@ def DRQN(env,num_episodes,epdecayopt,
         done = False
         t = 0 # timestep num
         termination_t = 0 
-        while done == False:    
+        while done == False:
+            prev_a = previous_a if actioninput else None
             if t > 0:
-                a, online_hidden = choose_action(S, Q, ep, action_size,distributional,device,True,online_hidden)
+                a, online_hidden = choose_action(S, Q, ep, action_size,distributional,device,True,online_hidden,prev_a)
             else:
                 a = random.randint(0, action_size-1) # first action in the episode is random for added exploration
                 # even if taking random action, run the network anyway to get the update on hidden state.
-                _, online_hidden = choose_action(S, Q, ep, action_size,distributional,device,True,online_hidden)
+                _, online_hidden = choose_action(S, Q, ep, action_size,distributional,device,True,online_hidden,prev_a)
+            
             true_state = env.state
             reward, done, _ = env.step(a) # take a step
             if env.episodic == False and env.absorbing_cut == True: # if continuous task
@@ -210,6 +213,10 @@ def DRQN(env,num_episodes,epdecayopt,
                 # Sample mini-batch from memory
                 memory.sample(batch_size,seql, min_seql, burninl)
                 states, actions, rewards, next_states, dones, previous_actions, burnin_lens, training_lens, total_lens = memory.sample(batch_size,seql, min_seql, burninl)
+
+                if actioninput: # add previous action in the input
+                    states = torch.cat((states, previous_actions), dim=-1)
+                    next_states = torch.cat((next_states, actions.float()), dim=-1)
 
                 # Train network
                 # Set target_Qs to 0 for states where episode ends
@@ -254,7 +261,7 @@ def DRQN(env,num_episodes,epdecayopt,
 
         if i % 1000 == 0: # calculate average reward every 1000 episodes
             if not external_testing:
-                avgperformance = calc_performance(env,device,Q,None,performance_sampleN,max_steps,True)
+                avgperformance = calc_performance(env,device,Q,None,performance_sampleN,max_steps,True,actioninput)
                 avgperformances.append(avgperformance)
             if env.envID in ['Env1.0', 'Env1.1', 'Env2.0', 'Env2.1']:
                 torch.save(Q, f"{testwd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DRQN_episode{i}.pt")
@@ -269,7 +276,7 @@ def DRQN(env,num_episodes,epdecayopt,
     # calculate final average reward
     print('calculating the average reward with the final Q network')
     if external_testing == False:
-        final_avgreward = calc_performance(env,device,Q,None,final_performance_sampleN,max_steps,True)
+        final_avgreward = calc_performance(env,device,Q,None,final_performance_sampleN,max_steps,True,actioninput)
         avgperformances.append(final_avgreward)
         print(f'final average reward: {final_avgreward}')
     torch.save(Q, f"{testwd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DRQN_episode{i}.pt")
@@ -428,6 +435,7 @@ class Memory():
         batch_actions = torch.tensor(batch_actions, dtype=torch.int64)
         batch_rewards = torch.tensor(batch_rewards, dtype=torch.float32)
         batch_next_states = torch.tensor(batch_next_states, dtype=torch.float32)
+        batch_previous_actions = torch.tensor(batch_previous_actions, dtype=torch.float32)
         # * dones do not need to be converted to pytorch tensors
 
         # covert lengths into numpy arrays

@@ -40,6 +40,7 @@ parser.add_argument("--finalsample", type=str, required=True, help="Argument 7")
 parser.add_argument("--initQperformance", type=str, required=True, help="Argument 8")
 parser.add_argument("--maxstep", type=str, required=True, help="Argument 9")
 parser.add_argument("--drqn", type=str, required=True, help="Argument 10")
+parser.add_argument("--actioninput", type=str, required=True, help="Argument 11")
 
 args = parser.parse_args()
 
@@ -53,10 +54,15 @@ finalsample = int(args.finalsample)
 initQperformance = float(args.initQperformance)
 maxstep = int(args.maxstep)
 drqn = int(args.drqn)
+actioninput = int(args.actioninput)
 if drqn == 1:
     drqn = True
 else:
     drqn = False
+if actioninput == 1:
+    actioninput = True
+else:
+    actioninput = False
 print(f'num_episode: {num_episode} DQNorPolicy: {DQNorPolicy} env: {envID} parset: {parset} discset: {discset}')
 print(f'midsample size: {args.midsample} finalsample size: {args.finalsample}')
 #num_episode = int(sys.argv[1])
@@ -99,10 +105,10 @@ if DQNorPolicy == 0:
         # calculate performance 
         if i == num_episode: # Final Q network performance sampled more accurately.
             print('calculating final performance')
-            performance = calc_performance(env,device,Q=Q,episodenum=midsample,t_maxstep=maxstep,drqn=drqn)
+            performance = calc_performance(env,device,Q=Q,episodenum=midsample,t_maxstep=maxstep,drqn=drqn,actioninput=actioninput)
         else:
             print('calculating performance')
-            performance = calc_performance(env,device,Q=Q,episodenum=finalsample,t_maxstep=maxstep,drqn=drqn)
+            performance = calc_performance(env,device,Q=Q,episodenum=finalsample,t_maxstep=maxstep,drqn=drqn,actioninput=actioninput)
             print('finished calculating performance')
         avgperformances.append(performance)
 else: # fill this in later when you have policy gradient algorithms!
