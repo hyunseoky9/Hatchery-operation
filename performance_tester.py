@@ -4,6 +4,7 @@ import argparse
 import time
 from env1_0 import Env1_0
 from env1_1 import Env1_1
+from env2_0 import Env2_0
 from calc_performance import *
 import torch
 from torch import nn
@@ -65,15 +66,20 @@ if envID == 'Env1.0':
     env = Env1_0([-1,-1,-1,-1,-1,-1],parset,discset)
 elif envID == 'Env1.1':
     env = Env1_1([-1,-1,-1,-1,-1,-1],parset,discset)
+elif envID == 'Env2.0':
+    env = Env2_0([-1,-1,-1,-1,-1,-1],parset,discset)
 avgperformances = []
 if DQNorPolicy == 0:
     if drqn == False:
         wd = './deepQN results/intermediate training Q network'
+        method_str = 'DQN'
     else:
         wd = './DRQN results/intermediate training Q network'
+        method_str = 'DRQN'
+
     for i in range(0,num_episode+1,interval):
         print(f'episode {i}')
-        filename= f"{wd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN_episode{i}.pt"
+        filename= f"{wd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_{method_str}_episode{i}.pt"
         print(filename)
         filefound = 0
         # if file is not found, the algorithm is still running, wait and try again
@@ -106,10 +112,8 @@ else: # fill this in later when you have policy gradient algorithms!
 if DQNorPolicy == 0: # DQN
     if drqn == False:
         wd2 = './deepQN results'
-        method_str = 'DQN'
     else:
         wd2 = './DRQN results'
-        method_str = 'DRQN'
     np.save(f"{wd2}/rewards_{env.envID}_par{env.parset}_dis{env.discset}_{method_str}.npy", avgperformances)
     # best model
     if initQperformance < max(avgperformances):
