@@ -170,6 +170,7 @@ def DRQN(env,num_episodes,epdecayopt,
     i = 0 # peisode num
     print('-----------------------------------------------')
     # run through the episodes
+    done_before = 0
     while i < num_episodes: #delta > theta:
         # update epsilon
         ep = epsilon_update(i,epdecayopt,num_episodes) 
@@ -204,15 +205,16 @@ def DRQN(env,num_episodes,epdecayopt,
                 done = True
 
             if env.partial == False:
-                nq.add(S, a, reward, env.state, previous_a, done, memory, per=0) # add transition to queue
+                nq.add(S, a, reward, env.state, done, previous_a, memory, per=0) # add transition to queue
                 S = env.state #  update state
             else:
-                nq.add(S, a, reward, env.obs, previous_a, done, memory, per=0)
+                nq.add(S, a, reward, env.obs, done, previous_a, memory, per=0)
                 S = env.obs
             previous_a = a 
             # train network
             if j % training_cycle == 0:
                 # Sample mini-batch from memory
+                print('sampling')
                 states, actions, rewards, next_states, dones, previous_actions, burnin_lens, training_lens, total_lens = memory.sample(batch_size,seql, min_seql, burninl, samplefromstart)
 
                 if actioninput: # add previous action in the input
@@ -391,8 +393,20 @@ class Memory():
             # ensure there's at least min_seq_len number of valid transition from the train_start.
             found_valid_seq = False
             for tries in range(1000):
-                train_start = np.random.randint(0, self.size - min_seq_len + 1)  # random index in [0, size)
+                if samplefromstart:
+                    episode_starts = np.where(self.done_buffer==True)[0] + 1
+                    if len(episode_starts) == 0:
+                        train_start = 0
+                    else:
+                        train_start = np.random.choice(episode_starts)
+                    if train_start == self.size:
+                        train_start = 0
+                else:
+                    train_start = np.random.randint(0, self.size - min_seq_len + 1)  # random index in [0, size)
                 train_indices = list(np.arange(train_start, min(train_start + seq_len, self.size))) # check that train indices don't go over the buffer size
+
+                if (train_start+seq_len) > self.size and self.buffer_size == self.size: # if the last index is the last index of the buffer, then append start appending from the beginning of the buffer
+                    train_indices += list(np.arange(0, (train_start+seq_len)%self.size))
                 donecheck = np.where(self.done_buffer[train_indices]==True) # check if there's a done in the train indices
                 if len(donecheck[0]) > 0: # if there are dones in the train indices cut the train indices to the first done.
                     train_indices = train_indices[:donecheck[0][0]+1]
