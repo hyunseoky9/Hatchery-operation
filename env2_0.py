@@ -198,15 +198,17 @@ class Env2_0:
                 if a <= NH:
                     s = self._survival_rate(H_next) # survival rate dependent on the mixed population's heterozygosity
                     NW_next = np.random.binomial(NW + a, s)
+                    invalidcost = 0
                 else: # action is invalid
                     # penalty for invalid action: reward is -p and the episode ends
                     NW_next = 0
                     s = 0
+                    invalidcost = 0
                 NWm1_next = NWm1 # not updated
                 q_next =  max(np.random.normal(self.muq, self.sigq),0)
                 NH_next = 0 # all hatchery fish that aren't released are discarded
                 # Reward
-                reward = self.p
+                reward = self.p + invalidcost
                 # Observation
                 y_next = 0 # no observed catch in spring. * tau acts as a one hot encoder for observation or no observation. No need for seaparate observation variable for existence of observation.
 

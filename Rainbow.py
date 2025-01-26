@@ -41,7 +41,10 @@ def Rainbow(env,num_episodes,epdecayopt,
     # parameters
     ## NN parameters
     # DQN
-    state_size = len(env.statespace_dim)
+    if env.partial == False:
+        state_size = len(env.statespace_dim)
+    else:
+        state_size = len(env.obsspace_dim)
     action_size = env.actionspace_dim[0]
     hidden_size = 40
     hidden_num = 3
@@ -67,7 +70,7 @@ def Rainbow(env,num_episodes,epdecayopt,
     #lr = 0.01
     #min_lr = 1e-6
     gamma = env.gamma # discount rate
-    max_steps = 1000 # max steps per episode
+    max_steps = 100 # max steps per episode
     ## cycles
     #training_cycle = 7 # number of steps where the network is trained
     #target_update_cycle = 10 # number of steps where the target network is updated
@@ -181,6 +184,8 @@ def Rainbow(env,num_episodes,epdecayopt,
         reachable_actions = torch.tensor([i[1] for i in reachables], dtype=torch.int64).unsqueeze(1).to(device)
     elif env.envID == 'Env1.1':
         initlist = [-1,-1,-1,-1,-1,-1]
+    elif env.envID == 'Env2.0':
+        initlist = [-1,-1,-1,-1,-1,-1]
     
     ## initialize performance metrics
     # load Q function from the value iteration for calculating MSE
@@ -216,6 +221,7 @@ def Rainbow(env,num_episodes,epdecayopt,
         done = False
         
         t = 0 # timestep num
+        termination_t = 0 
         while done == False:
             prev_a = previous_a if actioninput else None
             if t > 0:
@@ -231,7 +237,6 @@ def Rainbow(env,num_episodes,epdecayopt,
                         done = True
             if t >= max_steps: # finish episode if max steps reached even if terminal state not reached
                 done = True
-
             if env.partial == False:
                 nq.add(S, a, reward, env.state, done, previous_a, memory, PrioritizedReplay) # add transition to queue
                 S = env.state #  update state
@@ -320,7 +325,7 @@ def Rainbow(env,num_episodes,epdecayopt,
             if not external_testing:
                 avgperformance = calc_performance(env,device,Q,None,performance_sampleN,max_steps,False,actioninput)
                 avgperformances.append(avgperformance)
-            if env.envID in ['Env1.0', 'Env1.1']:
+            if env.envID in ['Env1.0', 'Env1.1', 'Env2.0']:
                 torch.save(Q, f"{testwd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN_episode{i}.pt")
 
         if i % 1000 == 0: # print outs
@@ -363,7 +368,7 @@ def Rainbow(env,num_episodes,epdecayopt,
 
     # save results and performance metrics.
     ## save last model and the best model (in terms of rewards)
-    if env.envID in ['Env1.0','Env1.1']:
+    if env.envID in ['Env1.0','Env1.1','Env2.0']:
         # last model
         wd = './deepQN results'
         torch.save(Q, f"{wd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pt")

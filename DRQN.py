@@ -20,7 +20,7 @@ def DRQN(env,num_episodes,epdecayopt,
             DDQN,nstep,distributional,
             lrdecayrate,lr,min_lr,
             training_cycle,target_update_cycle, 
-            external_testing, normalize, bestQinit, actioninput):
+            external_testing, normalize, bestQinit, actioninput, samplefromstart):
     # train using Deep Q Network
     # env: environment class object
     # num_episodes: number of episodes to train 
@@ -44,15 +44,15 @@ def DRQN(env,num_episodes,epdecayopt,
     else:
         state_size = len(env.obsspace_dim)
     action_size = env.actionspace_dim[0]
-    hidden_size = 20
-    hidden_num = 3
-    lstm_num = 20
+    hidden_size = 30 # number of neurons per hidden layer
+    hidden_num = 1 # number of hidden layers
+    lstm_num = 30 # number of cells in a lstm layer
     ## memory parameters
     memory_size = 1000 # memory capacity
-    batch_size = 4 # mini-batch size
-    seql = 6 # sequence length for LSTM. each mini-batch has batch_size number of sequences
-    min_seql = 3 # minimum sequence length for training sequence.
-    burninl = 5 # maximmum burn-in length for DRQN
+    batch_size = 50 # mini-batch size
+    seql = 2 # sequence length for LSTM. each mini-batch has batch_size number of sequences
+    min_seql = 2 # minimum sequence length for training sequence.
+    burninl = 0 # maximmum burn-in length for DRQN
     ## distributional RL atoms size
     Vmin = -104
     Vmax = 1002
@@ -94,6 +94,8 @@ def DRQN(env,num_episodes,epdecayopt,
     ## print out extension feature usage
     if distributional:
         print(f'Vmin: {Vmin}, Vmax: {Vmax}, atom N: {atomn}')
+    print(f'state size: {state_size}, hidden num: {hidden_num}, hidden size: {hidden_size}, lstm num: {lstm_num}')
+    print(f'batch size: {batch_size}, sequence length: {seql}, burn-in length: {burninl}, min sequence length: {min_seql}')
     print(f'lr: {lr}, lrdecayrate: {lrdecayrate}, min_lr: {min_lr}')
     ## initialize NN
     Q = RQNN(state_size+actioninputsize, action_size, hidden_size, hidden_num, lstm_num, batch_size, seql, lr, input_min,
@@ -211,8 +213,7 @@ def DRQN(env,num_episodes,epdecayopt,
             # train network
             if j % training_cycle == 0:
                 # Sample mini-batch from memory
-                memory.sample(batch_size,seql, min_seql, burninl)
-                states, actions, rewards, next_states, dones, previous_actions, burnin_lens, training_lens, total_lens = memory.sample(batch_size,seql, min_seql, burninl)
+                states, actions, rewards, next_states, dones, previous_actions, burnin_lens, training_lens, total_lens = memory.sample(batch_size,seql, min_seql, burninl, samplefromstart)
 
                 if actioninput: # add previous action in the input
                     states = torch.cat((states, previous_actions), dim=-1)
@@ -350,7 +351,7 @@ class Memory():
         self.index = (self.index + 1) % self.buffer_size
         self.size = min(self.size + 1, self.buffer_size)
 
-    def sample(self, batch_size, seq_len, min_seq_len, burn_in_len):
+    def sample(self, batch_size, seq_len, min_seq_len, burn_in_len, samplefromstart):
         """
         Sample a batch of sequences for DRQN with burn-in:
           - Pick a 'training start' for the L-length portion.
@@ -368,6 +369,8 @@ class Memory():
           
           We also return indices to indicate which part is burn-in vs. training, and indices to indicate 
           which part is padding.
+
+        * if samplefromstart == True: always pick the start of the sequence as the start of an episode.
         """
         # Prepare lists for the final batch
         state_dim = self.states_buffer.shape[1]
@@ -398,7 +401,6 @@ class Memory():
                     break
             training_lens.append(len(train_indices))
             if not found_valid_seq:
-                foo = 0
                 raise ValueError("SEQUENCE LENGTH ERROR")
                 
 
@@ -515,24 +517,3 @@ def train_model(Q, batch_states, batch_actions, batch_targets, device, total_len
     Q.optimizer.zero_grad()
     return all_td_errors
 
-def compute_loss(Q, states, actions, targetQs): 
-    """
-    Compute the loss and perform a backward pass.
-    
-    Parameters:
-        states (torch.Tensor): Input states.
-        actions (torch.Tensor): Actions taken (as indices).
-        targetQs (torch.Tensor): Target Q values.
-    """
-    q_values = Q(states) # Forward pass
-    if Q.distributional:
-        # Compute expected Q-values from the distribution
-        q_expected = torch.sum(q_values * Q.z, dim=-1)  # Expected Q-values for each action
-        selected_q_values = q_expected.gather(1, actions).squeeze(1)  # Select Q-values for given actions
-
-        # Compute MSE loss with target Q values
-        loss = ((selected_q_values - targetQs) ** 2).mean()  # Compute MSE manually
-    else:
-        selected_q_values = q_values.gather(1, actions).squeeze(1) # Get Q-values for the selected actions
-        loss = Q.loss_fn(selected_q_values, targetQs) # Compute the loss
-    return loss
