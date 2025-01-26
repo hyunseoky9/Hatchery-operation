@@ -50,8 +50,8 @@ def DRQN(env,num_episodes,epdecayopt,
     ## memory parameters
     memory_size = 1000 # memory capacity
     batch_size = 50 # mini-batch size
-    seql = 2 # sequence length for LSTM. each mini-batch has batch_size number of sequences
-    min_seql = 2 # minimum sequence length for training sequence.
+    seql = 20 # sequence length for LSTM. each mini-batch has batch_size number of sequences
+    min_seql = 3 # minimum sequence length for training sequence.
     burninl = 0 # maximmum burn-in length for DRQN
     ## distributional RL atoms size
     Vmin = -104
@@ -64,8 +64,8 @@ def DRQN(env,num_episodes,epdecayopt,
     gamma = env.gamma # discount rate
     max_steps = 100 # max steps per episode
     ## performance testing sample size
-    performance_sampleN = 1000
-    final_performance_sampleN = 1000
+    performance_sampleN = 500
+    final_performance_sampleN = 100
     ## number of steps to run in the absorbing state before terminating the episode
     postterm_len = 3 
     ## actioninput
@@ -96,6 +96,7 @@ def DRQN(env,num_episodes,epdecayopt,
         print(f'Vmin: {Vmin}, Vmax: {Vmax}, atom N: {atomn}')
     print(f'state size: {state_size}, hidden num: {hidden_num}, hidden size: {hidden_size}, lstm num: {lstm_num}')
     print(f'batch size: {batch_size}, sequence length: {seql}, burn-in length: {burninl}, min sequence length: {min_seql}')
+    print(f'action as input: {actioninput}, sample from start: {samplefromstart}')
     print(f'lr: {lr}, lrdecayrate: {lrdecayrate}, min_lr: {min_lr}')
     ## initialize NN
     Q = RQNN(state_size+actioninputsize, action_size, hidden_size, hidden_num, lstm_num, batch_size, seql, lr, input_min,
@@ -214,7 +215,6 @@ def DRQN(env,num_episodes,epdecayopt,
             # train network
             if j % training_cycle == 0:
                 # Sample mini-batch from memory
-                print('sampling')
                 states, actions, rewards, next_states, dones, previous_actions, burnin_lens, training_lens, total_lens = memory.sample(batch_size,seql, min_seql, burninl, samplefromstart)
 
                 if actioninput: # add previous action in the input

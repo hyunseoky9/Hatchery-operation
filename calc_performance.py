@@ -48,6 +48,7 @@ def calc_performance(env, device, Q=None, policy=None, episodenum=1000, t_maxste
             if t >= (t_maxstep - 1):
                 done = True
             t += 1
+
         avgrewards += rewards
     
     return avgrewards/episodenum
