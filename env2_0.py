@@ -49,6 +49,26 @@ class Env2_0:
             self.actions = {
                 "a": [0, 100000, 200000]
             }
+        elif discretization_set == 2:
+            self.states = {
+                "NW": [1000, 2500000, 5000000], # Population size
+                "NWm1": [2500000, 5000000], # Population size
+                "NH": [0, 100000, 200000], # hatchery population size
+                "H": [0.56, 0.71, 0.86], # Heterozygosity
+                "q": [65, 322, 457], # Spring Flow
+                "tau": [0, 1]  # 0 for Fall, 1 for Spring
+            }
+            self.observations = {
+                "y": [-1, 0, 30], # observed catch from fall monitoring. -1= no observed catch (for spring); 45 is actually anything gretaer than 45
+                "ONH": [0, 100000, 200000], # hatchery population size
+                "OH": [0.56, 0.71, 0.86], # Heterozygosity
+                "Oq": [65, 322, 457], # Spring Flow
+                "Otau": [0, 1]  # 0 for Fall, 1 for Spring
+            }
+            self.actions = {
+                "a": [0, 100000, 200000]
+            }
+
 
         self.statespace_dim = list(map(lambda x: len(x[1]), self.states.items()))
         self.actionspace_dim = list(map(lambda x: len(x[1]), self.actions.items()))

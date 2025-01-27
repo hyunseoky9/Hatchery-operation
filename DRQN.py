@@ -145,8 +145,9 @@ def DRQN(env,num_episodes,epdecayopt,
     nq = Nstepqueue(nstep, gamma)
     ## initialize memory
     memory = Memory(memory_size, state_size, len(env.actionspace_dim))
-    pretrain(env,nq,memory,max_steps,batch_size*(seql+burninl),0,0,postterm_len) # prepopulate memory
-    print(f'Pretraining memory with {batch_size*(seql+burninl)} experiences (buffer size: {memory_size})')
+    pretrainsize = batch_size*(seql+burninl)
+    pretrain(env,nq,memory,max_steps,pretrainsize,0,0,postterm_len) # prepopulate memory
+    print(f'Pretraining memory with {pretrainsize} experiences (buffer size: {memory_size})')
 
     ## state initialization setting 
     if env.envID == 'Env1.0':
@@ -214,6 +215,9 @@ def DRQN(env,num_episodes,epdecayopt,
             previous_a = a 
             # train network
             if j % training_cycle == 0:
+                if i == 1501:
+                    foo = 0
+                    foo =0 
                 # Sample mini-batch from memory
                 states, actions, rewards, next_states, dones, previous_actions, burnin_lens, training_lens, total_lens = memory.sample(batch_size,seql, min_seql, burninl, samplefromstart)
 
