@@ -20,7 +20,7 @@ def DRQN(env,num_episodes,epdecayopt,
             DDQN,nstep,distributional,
             lrdecayrate,lr,min_lr,
             training_cycle,target_update_cycle, 
-            external_testing, normalize, bestQinit, actioninput, samplefromstart):
+            external_testing, normalize, bestQinit, actioninput, samplefromstart, paramdf, paramid):
     # train using Deep Q Network
     # env: environment class object
     # num_episodes: number of episodes to train 
@@ -44,30 +44,30 @@ def DRQN(env,num_episodes,epdecayopt,
     else:
         state_size = len(env.obsspace_dim)
     action_size = env.actionspace_dim[0]
-    hidden_size = 30 # number of neurons per hidden layer
-    hidden_num = 1 # number of hidden layers
-    lstm_num = 30 # number of cells in a lstm layer
+    hidden_size = int(paramdf['hidden_size'].iloc[paramid]) # number of neurons per hidden layer
+    hidden_num = int(paramdf['hidden_num'].iloc[paramid]) # number of hidden layers
+    lstm_num = int(paramdf['lstm_num'].iloc[paramid]) # number of cells in a lstm layer
     ## memory parameters
-    memory_size = 1000 # memory capacity
-    batch_size = 50 # mini-batch size
-    seql = 20 # sequence length for LSTM. each mini-batch has batch_size number of sequences
-    min_seql = 3 # minimum sequence length for training sequence.
-    burninl = 0 # maximmum burn-in length for DRQN
+    memory_size = int(paramdf['memory size'].iloc[paramid]) # memory capacity
+    batch_size = int(paramdf['batch size'].iloc[paramid]) # mini-batch size
+    seql = int(paramdf['seql'].iloc[paramid]) # sequence length for LSTM. each mini-batch has batch_size number of sequences
+    min_seql = int(paramdf['min_seql'].iloc[paramid]) # minimum sequence length for training sequence.
+    burninl = int(paramdf['burninl'].iloc[paramid]) # maximmum burn-in length for DRQN
     ## distributional RL atoms size
-    Vmin = -104
-    Vmax = 1002
-    atomn = 32
+    Vmin = float(paramdf['vmin'].iloc[paramid])
+    Vmax = float(paramdf['vmax'].iloc[paramid])
+    atomn = int(paramdf['atomn'].iloc[paramid])
 
     ## etc.
     #lr = 0.01
     #min_lr = 1e-6
     gamma = env.gamma # discount rate
-    max_steps = 100 # max steps per episode
+    max_steps = int(paramdf['max_steps'].iloc[paramid]) # max steps per episode
     ## performance testing sample size
-    performance_sampleN = 500
-    final_performance_sampleN = 100
+    performance_sampleN = int(paramdf['performance_sampleN'].iloc[paramid])
+    final_performance_sampleN = int(paramdf['final_performance_sampleN'].iloc[paramid])
     ## number of steps to run in the absorbing state before terminating the episode
-    postterm_len = 3 
+    postterm_len = int(paramdf['postterm_len'].iloc[paramid]) 
     ## actioninput
     actioninputsize = int(actioninput)*len(env.actionspace_dim)
 
@@ -145,7 +145,7 @@ def DRQN(env,num_episodes,epdecayopt,
     nq = Nstepqueue(nstep, gamma)
     ## initialize memory
     memory = Memory(memory_size, state_size, len(env.actionspace_dim))
-    pretrainsize = batch_size*(seql+burninl)
+    pretrainsize = 100#batch_size*(seql+burninl)
     pretrain(env,nq,memory,max_steps,pretrainsize,0,0,postterm_len) # prepopulate memory
     print(f'Pretraining memory with {pretrainsize} experiences (buffer size: {memory_size})')
 
@@ -303,22 +303,10 @@ def DRQN(env,num_episodes,epdecayopt,
             else:
                 print(f'no improvement in the performance from training')
 
-    ## make a discrete Q table if the environment is discrete and save it
-    if env.envID in ['Env1.0']:
-        Q_discrete = _make_discrete_Q(Q,env,device)
-        policy = _get_policy(env,Q_discrete)
-        wd = './DRQN results'
-        with open(f"{wd}/Q_{env.envID}_par{env.parset}_dis{env.discset}_DRQN.pkl", "wb") as file:
-            pickle.dump(Q_discrete, file)
-        with open(f"{wd}/policy_{env.envID}_par{env.parset}_dis{env.discset}_DRQN.pkl", "wb") as file:
-            pickle.dump(policy, file)
-    else:
-        Q_discrete = None
-        policy = None
     ## save performance
     if external_testing == False:
         np.save(f"{wd}/rewards_{env.envID}_par{env.parset}_dis{env.discset}_DRQN.npy", avgperformances)
-    return Q_discrete, policy, avgperformances, final_avgreward
+    return avgperformances, final_avgreward
 
 def _make_discrete_Q(Q,env,device):
     # make a discrete Q table

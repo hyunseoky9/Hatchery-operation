@@ -46,7 +46,7 @@ def Rainbow(env,num_episodes,epdecayopt,
     else:
         state_size = len(env.obsspace_dim)
     action_size = env.actionspace_dim[0]
-    hidden_size = 40
+    hidden_size = 30
     hidden_num = 3
     # Dueling DQN
     hidden_num_shared = 1

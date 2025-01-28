@@ -51,25 +51,26 @@ class Env2_0:
             }
         elif discretization_set == 2:
             self.states = {
-                "NW": [1000, 2500000, 5000000], # Population size
-                "NWm1": [2500000, 5000000], # Population size
-                "NH": [0, 100000, 200000], # hatchery population size
-                "H": [0.56, 0.71, 0.86], # Heterozygosity
-                "q": [65, 322, 457], # Spring Flow
+                "NW": [1000, 3000, 15195, 76961, 389806, 1974350, 10000000], # Population size
+                "NWm1": [3000, 15195, 76961, 389806, 1974350, 10000000], # Population size
+                "NH": [0, 75000, 150000, 225000, 300000], # hatchery population size
+                "H": [0.56, 0.61, 0.66, 0.71, 0.76, 0.81, 0.86], # Heterozygosity
+                "q": [65, 322, 457, 592, 848], # Spring Flow
                 "tau": [0, 1]  # 0 for Fall, 1 for Spring
             }
             self.observations = {
-                "y": [-1, 0, 30], # observed catch from fall monitoring. -1= no observed catch (for spring); 45 is actually anything gretaer than 45
-                "ONH": [0, 100000, 200000], # hatchery population size
-                "OH": [0.56, 0.71, 0.86], # Heterozygosity
-                "Oq": [65, 322, 457], # Spring Flow
-                "Otau": [0, 1]  # 0 for Fall, 1 for Spring
+                "y": [0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46], # observed catch from fall monitoring. -1= no observed catch (for spring); 45 is actually anything gretaer than 45
+                "ONH": [0, 75000, 150000, 225000, 300000], # observed hatchery fish
+                "OH": [0.56, 0.61, 0.66, 0.71, 0.76, 0.81, 0.86], # observed heterozygosity
+                "Oq": [65, 322, 457, 592, 848], # observed spring flow
+                "Otau": [0, 1]  # observed season
             }
             self.actions = {
-                "a": [0, 100000, 200000]
+                "a": [0, 75000, 150000, 225000, 300000]
             }
 
 
+                 # observed catch from fall monitoring. -1= no observed catch (for spring); 45 is actually anything gretaer than 45
         self.statespace_dim = list(map(lambda x: len(x[1]), self.states.items()))
         self.actionspace_dim = list(map(lambda x: len(x[1]), self.actions.items()))
         self.obsspace_dim  = list(map(lambda x: len(x[1]), self.observations.items()))

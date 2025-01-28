@@ -1,0 +1,36 @@
+﻿id ,1
+,
+,
+epsilon,4;100000;0.1;-30/fix;-fix*0.4
+lr,0.01
+lrdecaytype,exp
+lrdecay,0.9992
+minlr,-inf
+training_cycle,7
+target_update_cycle,15
+ddqn,1
+nstep,1
+distributional,0
+atomn,32
+vmin,-104
+vmax,1002
+memory size,1000
+batch size,100
+seql,1
+min_seql,1
+burninl,0
+postterm_len,3
+hidden_num,2
+hidden_size,30
+lstm_num,30
+max_steps,100
+episodenum,10000
+external testing,0
+normalize,0
+bestQinit,0
+actioninput,0
+samplefromstart,0
+seed,799
+performance_sampleN,100
+final_performance_sampleN,100
+notes,for env1.0 single sequence. Sanity check
