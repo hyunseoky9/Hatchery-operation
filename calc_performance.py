@@ -8,6 +8,9 @@ def calc_performance(env, device, Q=None, policy=None, episodenum=1000, t_maxste
     For Tabular Q learning and value iteration, calculate perofrmance using the policy table.
     For policy gradient methods, calculate performance using the policy network.
     """
+
+    managed = 0 # for tiger environment
+    surveyed = 0 # for tiger environment
     avgrewards = 0
     action_size = env.actionspace_dim[0]
     if Q is not None:
@@ -34,6 +37,11 @@ def calc_performance(env, device, Q=None, policy=None, episodenum=1000, t_maxste
                 prev_a = previous_action if actioninput else None
                 if drqn == True:
                     action, hx = choose_action(state,Q,0,action_size,distributional,device, drqn, hx, prev_a)
+                    if env.envID == 'tiger':
+                        if action == 1:
+                            managed = 1
+                        if action == 2:
+                            surveyed = 1
                 else:
                     action = choose_action(state,Q,0,action_size,distributional,device, drqn, hx, prev_a)
                 # * state increase in size by 1 due to adding previous action in choose_action, but it will get overwritten in the next iteration
@@ -50,5 +58,9 @@ def calc_performance(env, device, Q=None, policy=None, episodenum=1000, t_maxste
             t += 1
 
         avgrewards += rewards
-    
+    if env.envID == 'tiger':
+        if managed == 1:
+            print('management was done')
+        if surveyed == 1:
+            print('survey was done')
     return avgrewards/episodenum

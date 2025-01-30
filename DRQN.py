@@ -96,7 +96,7 @@ def DRQN(env,num_episodes,epdecayopt,
     ## print out extension feature usage
     if distributional:
         print(f'Vmin: {Vmin}, Vmax: {Vmax}, atom N: {atomn}')
-    print(f'state size: {state_size}, hidden num: {hidden_num}, hidden size: {hidden_size}, lstm num: {lstm_num}')
+    print(f'state size: {state_size}, hidden num: {hidden_num}, hidden size: {hidden_size}, lstm num: {lstm_num}, lstm layers: {lstm_layers}')
     print(f'batch size: {batch_size}, sequence length: {seql}, burn-in length: {burninl}, min sequence length: {min_seql}')
     print(f'action as input: {actioninput}, sample from start: {samplefromstart}')
     print(f'lr: {lr}, lrdecayrate: {lrdecayrate}, min_lr: {min_lr}')
@@ -478,15 +478,15 @@ def epsilon_update(i,option,num_episodes):
         newep = minep + (maxep - minep)*np.exp(-beta*i)
         return newep
     elif option == 4: # logistic decay
-        fix = 100000
-        a=0.1
-        b=-10*1/fix*3
-        c=-fix*0.4
+        fix = num_episodes
+        a= 0.13
+        b=-30/fix
+        c=-fix*0.5
         return max(a/(1+np.exp(-b*(i+c))), 0.01)
     elif option == 5: # linear decay
         return max(1-i/num_episodes, 0)
     elif option == 6: # fixed decay
-        return 0.3
+        return 0.15
 
 def train_model(Q, batch_states, batch_actions, batch_targets, device, total_lens, burnin_lens):
     Q.train()
