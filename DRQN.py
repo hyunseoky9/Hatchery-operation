@@ -10,6 +10,7 @@ import pickle
 import numpy as np
 import random
 from RQNN import *
+from RQNN2 import *
 from nq import *
 from distributionalRL import *
 from calc_performance import *
@@ -47,6 +48,7 @@ def DRQN(env,num_episodes,epdecayopt,
     hidden_size = int(paramdf['hidden_size'].iloc[paramid]) # number of neurons per hidden layer
     hidden_num = int(paramdf['hidden_num'].iloc[paramid]) # number of hidden layers
     lstm_num = int(paramdf['lstm_num'].iloc[paramid]) # number of cells in a lstm layer
+    lstm_layers = int(paramdf['lstm_layers'].iloc[paramid]) # number of lstm layers
     ## memory parameters
     memory_size = int(paramdf['memory size'].iloc[paramid]) # memory capacity
     batch_size = int(paramdf['batch size'].iloc[paramid]) # mini-batch size
@@ -79,7 +81,7 @@ def DRQN(env,num_episodes,epdecayopt,
     elif env.envID in ['Env1.1','Env1.2']: # for continuous states
         state_max = torch.tensor([env.states[key][1] for key in env.states.keys()], dtype=torch.float32).to(device)
         state_min = torch.tensor([env.states[key][0] for key in env.states.keys()], dtype=torch.float32).to(device)
-    elif env.envID == 'Env2.0': # state is really observation in env2.0. We'll call the actual states as hidden states. This is done to make the code consistent with env1.0
+    elif env.envID in ['Env2.0','Env2.1','Env2.2','Env2.3','Env2.4','Env2.5','Env2.6','tiger']: # state is really observation in env2.0. We'll call the actual states as hidden states. This is done to make the code consistent with env1.0
         state_max = (torch.tensor(np.array(env.obsspace_dim)-1, dtype=torch.float32)).to(device)
         state_min = (torch.zeros([len(env.obsspace_dim)], dtype=torch.float32)).to(device) 
     # append action input
@@ -98,10 +100,11 @@ def DRQN(env,num_episodes,epdecayopt,
     print(f'batch size: {batch_size}, sequence length: {seql}, burn-in length: {burninl}, min sequence length: {min_seql}')
     print(f'action as input: {actioninput}, sample from start: {samplefromstart}')
     print(f'lr: {lr}, lrdecayrate: {lrdecayrate}, min_lr: {min_lr}')
+    print(f'max steps: {max_steps}, gamma: {gamma}')
     ## initialize NN
-    Q = RQNN(state_size+actioninputsize, action_size, hidden_size, hidden_num, lstm_num, batch_size, seql, lr, input_min,
+    Q = RQNN(state_size+actioninputsize, action_size, hidden_size, hidden_num, lstm_num, lstm_layers, batch_size, seql, lr, input_min,
               input_max, lrdecayrate, distributional, atomn, Vmin, Vmax, normalize).to(device)
-    Q_target = RQNN(state_size+actioninputsize, action_size, hidden_size, hidden_num, lstm_num, batch_size, seql, lr, input_min,
+    Q_target = RQNN(state_size+actioninputsize, action_size, hidden_size, hidden_num, lstm_num, lstm_layers, batch_size, seql, lr, input_min,
               input_max, lrdecayrate, distributional, atomn, Vmin, Vmax, normalize).to(device)
     if bestQinit:
         # initialize Q with the best Q network from the previous run
@@ -158,7 +161,7 @@ def DRQN(env,num_episodes,epdecayopt,
         reachable_actions = torch.tensor([i[1] for i in reachables], dtype=torch.int64).unsqueeze(1).to(device)
     elif env.envID == 'Env1.1':
         initlist = [-1,-1,-1,-1,-1,-1]
-    elif env.envID == 'Env2.0':
+    elif env.envID in ['Env2.0','Env2.1','Env2.2','Env2.3','Env2.4','Env2.5','Env2.6','tiger']:
         initlist = [-1,-1,-1,-1,-1,-1]
 
     ## initialize performance metrics
@@ -195,7 +198,6 @@ def DRQN(env,num_episodes,epdecayopt,
                 a = random.randint(0, action_size-1) # first action in the episode is random for added exploration
                 # even if taking random action, run the network anyway to get the update on hidden state.
                 _, online_hidden = choose_action(S, Q, ep, action_size,distributional,device,True,online_hidden,prev_a)
-            
             true_state = env.state
             reward, done, _ = env.step(a) # take a step
             if env.episodic == False and env.absorbing_cut == True: # if continuous task
@@ -205,7 +207,6 @@ def DRQN(env,num_episodes,epdecayopt,
                         done = True
             if t >= max_steps: # finish episode if max steps reached even if terminal state not reached
                 done = True
-
             if env.partial == False:
                 nq.add(S, a, reward, env.state, done, previous_a, memory, per=0) # add transition to queue
                 S = env.state #  update state
@@ -215,9 +216,6 @@ def DRQN(env,num_episodes,epdecayopt,
             previous_a = a 
             # train network
             if j % training_cycle == 0:
-                if i == 1501:
-                    foo = 0
-                    foo =0 
                 # Sample mini-batch from memory
                 states, actions, rewards, next_states, dones, previous_actions, burnin_lens, training_lens, total_lens = memory.sample(batch_size,seql, min_seql, burninl, samplefromstart)
 
@@ -266,18 +264,22 @@ def DRQN(env,num_episodes,epdecayopt,
         if Q.optimizer.param_groups[0]['lr'] < min_lr:
             Q.optimizer.param_groups[0]['lr'] = min_lr
 
-        if i % 1000 == 0: # calculate average reward every 1000 episodes
+        if i % 200 == 0:
+            print(f'Episode {i}')
+        evaluation_interval = 100
+        if i % evaluation_interval == 0: # calculate average reward every 1000 episodes
             if not external_testing:
+                print('calculating the average reward')
                 avgperformance = calc_performance(env,device,Q,None,performance_sampleN,max_steps,True,actioninput)
                 avgperformances.append(avgperformance)
-            if env.envID in ['Env1.0', 'Env1.1', 'Env2.0', 'Env2.1']:
+            if env.envID in ['Env1.0', 'Env1.1', 'Env2.0', 'Env2.1','Env2.2','Env2.3','Env2.4','Env2.5','Env2.6','tiger']:
                 torch.save(Q, f"{testwd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DRQN_episode{i}.pt")
 
-        if i % 1000 == 0: # print outs
+        if i % evaluation_interval == 0: # print outs
             current_lr = Q.optimizer.param_groups[0]['lr']
             if external_testing:
                 avgperformance = 'using external testing'
-            print(f"Episode {i}, Learning Rate: {current_lr} Avg Performance: {avgperformance}")
+            print(f"Episode {i}, Learning Rate: {current_lr}, Epsilon: {ep}, Avg Performance: {avgperformance}")
         i += 1 # update episode number
 
     # calculate final average reward
@@ -290,7 +292,7 @@ def DRQN(env,num_episodes,epdecayopt,
 
     # save results and performance metrics.
     ## save last model and the best model (in terms of rewards)
-    if env.envID in ['Env1.0','Env1.1','Env2.0']:
+    if env.envID in ['Env1.0','Env1.1','Env2.0','Env2.1','Env2.2','Env2.3','Env2.4','Env2.5','Env2.6','tiger']:
         # last model
         wd = './DRQN results'
         torch.save(Q, f"{wd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DRQN.pt")
@@ -298,7 +300,8 @@ def DRQN(env,num_episodes,epdecayopt,
         if not external_testing:
             if max(avgperformances) > initperform:
                 bestidx = np.array(avgperformances).argmax()
-                bestfilename = f"{testwd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DRQN_episode{bestidx*1000}.pt"
+                bestfilename = f"{testwd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DRQN_episode{bestidx*evaluation_interval}.pt"
+                print(f'best Q network found at episode {bestidx*evaluation_interval}')
                 shutil.copy(bestfilename, f"{wd}/bestQNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DRQN.pt")
             else:
                 print(f'no improvement in the performance from training')
@@ -397,7 +400,7 @@ class Memory():
                     train_start = np.random.randint(0, self.size - min_seq_len + 1)  # random index in [0, size)
                 train_indices = list(np.arange(train_start, min(train_start + seq_len, self.size))) # check that train indices don't go over the buffer size
 
-                if (train_start+seq_len) > self.size and self.buffer_size == self.size: # if the last index is the last index of the buffer, then append start appending from the beginning of the buffer
+                if (train_start+seq_len) > self.size and self.buffer_size == self.size: # if the last index is the last index of the buffer, then start appending from the beginning of the buffer
                     train_indices += list(np.arange(0, (train_start+seq_len)%self.size))
                 donecheck = np.where(self.done_buffer[train_indices]==True) # check if there's a done in the train indices
                 if len(donecheck[0]) > 0: # if there are dones in the train indices cut the train indices to the first done.
@@ -469,21 +472,21 @@ def epsilon_update(i,option,num_episodes):
         else:
             return max(1/(i-(np.ceil(num_episodes*0.1)-1)), 0.01)
     elif option == 3: # exponential decay
-        a = 1/num_episodes*10
-        return np.exp(-a*i)
+        minep = 0.01
+        maxep = 1
+        beta = 17/num_episodes
+        newep = minep + (maxep - minep)*np.exp(-beta*i)
+        return newep
     elif option == 4: # logistic decay
         fix = 100000
         a=0.1
         b=-10*1/fix*3
         c=-fix*0.4
         return max(a/(1+np.exp(-b*(i+c))), 0.01)
-
-def _get_policy(env,Q):
-    # get policy from Q function
-    policy = np.zeros(np.prod(env.statespace_dim))
-    for i in range(np.prod(env.statespace_dim)):
-        policy[i] = np.argmax(Q[i,:])
-    return policy
+    elif option == 5: # linear decay
+        return max(1-i/num_episodes, 0)
+    elif option == 6: # fixed decay
+        return 0.3
 
 def train_model(Q, batch_states, batch_actions, batch_targets, device, total_lens, burnin_lens):
     Q.train()

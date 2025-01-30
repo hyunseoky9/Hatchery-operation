@@ -91,7 +91,7 @@ def Rainbow(env,num_episodes,epdecayopt,
     elif env.envID in ['Env1.1','Env1.2']: # for continuous states
         state_max = torch.tensor([env.states[key][1] for key in env.states.keys()], dtype=torch.float32).to(device)
         state_min = torch.tensor([env.states[key][0] for key in env.states.keys()], dtype=torch.float32).to(device)
-    elif env.envID == 'Env2.0': # state is really observation in env2.0. We'll call the actual states as hidden states. This is done to make the code consistent with env1.0
+    elif env.envID in ['Env2.0','Env2.1','Env2.2','Env2.3','Env2.4','Env2.5','Env2.6','tiger']: # state is really observation in env2.0. We'll call the actual states as hidden states. This is done to make the code consistent with env1.0
         state_max = (torch.tensor(env.obsspace_dim, dtype=torch.float32)).to(device)
         state_min = (torch.tensor(env.obsspace_dim, dtype=torch.float32)).to(device) 
     # append action input
@@ -184,7 +184,7 @@ def Rainbow(env,num_episodes,epdecayopt,
         reachable_actions = torch.tensor([i[1] for i in reachables], dtype=torch.int64).unsqueeze(1).to(device)
     elif env.envID == 'Env1.1':
         initlist = [-1,-1,-1,-1,-1,-1]
-    elif env.envID == 'Env2.0':
+    elif env.envID in ['Env2.0', 'Env2.1','Env2.2','Env2.3','Env2.4','Env2.5','Env2.6','tiger']:
         initlist = [-1,-1,-1,-1,-1,-1]
     
     ## initialize performance metrics
@@ -325,7 +325,7 @@ def Rainbow(env,num_episodes,epdecayopt,
             if not external_testing:
                 avgperformance = calc_performance(env,device,Q,None,performance_sampleN,max_steps,False,actioninput)
                 avgperformances.append(avgperformance)
-            if env.envID in ['Env1.0', 'Env1.1', 'Env2.0']:
+            if env.envID in ['Env1.0', 'Env1.1', 'Env2.0','Env2.1','Env2.2','Env2.3','Env2.4','Env2.5','Env2.6','tiger']:
                 torch.save(Q, f"{testwd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN_episode{i}.pt")
 
         if i % 1000 == 0: # print outs
@@ -368,7 +368,7 @@ def Rainbow(env,num_episodes,epdecayopt,
 
     # save results and performance metrics.
     ## save last model and the best model (in terms of rewards)
-    if env.envID in ['Env1.0','Env1.1','Env2.0']:
+    if env.envID in ['Env1.0','Env1.1','Env2.0','Env2.1','Env2.2','Env2.3','Env2.4','Env2.5','Env2.6','tiger']:
         # last model
         wd = './deepQN results'
         torch.save(Q, f"{wd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pt")

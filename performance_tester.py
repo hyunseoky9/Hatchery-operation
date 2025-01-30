@@ -72,7 +72,7 @@ if envID == 'Env1.0':
     env = Env1_0([-1,-1,-1,-1,-1,-1],parset,discset)
 elif envID == 'Env1.1':
     env = Env1_1([-1,-1,-1,-1,-1,-1],parset,discset)
-elif envID == 'Env2.0':
+elif envID in ['Env2.0','Env2.1','Env2.2','Env2.3','Env2.4','Env2.5','Env2.6','tiger']:
     env = Env2_0([-1,-1,-1,-1,-1,-1],parset,discset)
 avgperformances = []
 if DQNorPolicy == 0:

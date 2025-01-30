@@ -13,7 +13,7 @@ def pretrain(env, nq, memory, max_steps, batch_size, PrioritizedReplay, max_prio
                 state = env.state
                 previous_action = 0
                 reset = False
-            elif env.envID in ['Env2.0']:
+            elif env.envID in ['Env2.0', 'Env2.1','Env2.2','Env2.3','Env2.4','Env2.5','Env2.6','tiger']:
                 env.reset([-1,-1,-1,-1,-1,-1])
                 state = env.obs
                 previous_action = 0

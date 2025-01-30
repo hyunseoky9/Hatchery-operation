@@ -19,7 +19,6 @@ def choose_action(state, Q, epsilon, action_size, distributional,device, drqn=Fa
             return action, hidden
         else:
             return action
-    
     else:
         state_ = torch.tensor(state_, dtype=torch.float32).unsqueeze(0).to(device)  # Add batch dimension
         Q.eval()
