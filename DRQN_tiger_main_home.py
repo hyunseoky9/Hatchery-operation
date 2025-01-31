@@ -61,15 +61,20 @@ samplefromstart = bool(int(paramdf['samplefromstart'].iloc[paramid]))
 rewards, final_avgreward = DRQN(env,num_episodes,epdecayopt,
     DDQN,nstep,distributional,lrdecayrate,lr,minlr,training_cycle,target_update_cycle, external_testing,normalize,bestQinit,actioninput,samplefromstart, paramdf, paramid)
 
-if paramdf['seed'].iloc[paramid] == 'random':
-    seednum = random.randint(0,100000)
-else:
-    seednum = int(paramdf['seed'].iloc[paramid])
 
-print(f'seed: {seednum}')
-random.seed(seednum)
-np.random.seed(seednum)
-torch.manual_seed(seednum)
+for xx in range(30):
+    if paramdf['seed'].iloc[paramid] == 'random':
+        seednum = random.randint(0,100000)
+    else:
+        seednum = int(paramdf['seed'].iloc[paramid])
 
-rewards, final_avgreward = DRQN(env,num_episodes,epdecayopt,
-    DDQN,nstep,distributional,lrdecayrate,lr,minlr,training_cycle,target_update_cycle, external_testing,normalize,bestQinit,actioninput,samplefromstart, paramdf, paramid)
+    print(f'seed: {seednum}')
+    random.seed(seednum)
+    np.random.seed(seednum)
+    torch.manual_seed(seednum)
+
+    rewards, final_avgreward = DRQN(env,num_episodes,epdecayopt,
+        DDQN,nstep,distributional,lrdecayrate,lr,minlr,training_cycle,target_update_cycle, external_testing,normalize,bestQinit,actioninput,samplefromstart, paramdf, paramid)
+
+
+
