@@ -479,14 +479,14 @@ def epsilon_update(i,option,num_episodes):
         return newep
     elif option == 4: # logistic decay
         fix = num_episodes
-        a= 0.13
+        a= 0.3
         b=-30/fix
         c=-fix*0.5
-        return max(a/(1+np.exp(-b*(i+c))), 0.01)
+        return max(a/(1+np.exp(-b*(i+c))), 0.1)
     elif option == 5: # linear decay
         return max(1-i/num_episodes, 0)
     elif option == 6: # fixed decay
-        return 0.15
+        return 0.2
 
 def train_model(Q, batch_states, batch_actions, batch_targets, device, total_lens, burnin_lens):
     Q.train()

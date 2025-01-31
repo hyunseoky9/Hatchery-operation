@@ -3,7 +3,6 @@ from torch import nn
 from torchvision.transforms import ToTensor
 from torch.optim.lr_scheduler import ExponentialLR
 import os
-from IPython.display import display
 import pickle
 import math
 import numpy as np
@@ -11,6 +10,9 @@ import random
 from  DRQN import *
 from tiger import Tiger
 import pandas as pd
+import sys
+
+id = sys.argv[0]
 paramid = 24
 # process hyperparameter dataframe
 hyperparameterization_set_filename = './hyperparamsets/DRQN_hyperparameters.csv'
@@ -55,6 +57,6 @@ actioninput = bool(int(paramdf['actioninput'].iloc[paramid]))
 # option to always sample sequences from the start of an episode
 samplefromstart = bool(int(paramdf['samplefromstart'].iloc[paramid]))
 
-print('successfully ran the code')
+print(f'successfully ran the code (id: {id})')
 #rewards, final_avgreward = DRQN(env,num_episodes,epdecayopt,
 #    DDQN,nstep,distributional,lrdecayrate,lr,minlr,training_cycle,target_update_cycle, external_testing,normalize,bestQinit,actioninput,samplefromstart, paramdf, paramid)
