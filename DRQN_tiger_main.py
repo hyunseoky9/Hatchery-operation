@@ -13,6 +13,7 @@ import pandas as pd
 import sys
 
 id = sys.argv[0]
+print(f'runID: {id}')
 paramid = 27
 # process hyperparameter dataframe
 hyperparameterization_set_filename = './hyperparamsets/DRQN_hyperparameters.csv'
