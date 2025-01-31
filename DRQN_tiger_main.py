@@ -13,7 +13,7 @@ import pandas as pd
 import sys
 
 id = sys.argv[0]
-paramid = 24
+paramid = 27
 # process hyperparameter dataframe
 hyperparameterization_set_filename = './hyperparamsets/DRQN_hyperparameters.csv'
 paramdf = pd.read_csv(hyperparameterization_set_filename, header=None)
@@ -58,5 +58,5 @@ actioninput = bool(int(paramdf['actioninput'].iloc[paramid]))
 samplefromstart = bool(int(paramdf['samplefromstart'].iloc[paramid]))
 
 print(f'successfully ran the code (id: {id})')
-#rewards, final_avgreward = DRQN(env,num_episodes,epdecayopt,
-#    DDQN,nstep,distributional,lrdecayrate,lr,minlr,training_cycle,target_update_cycle, external_testing,normalize,bestQinit,actioninput,samplefromstart, paramdf, paramid)
+rewards, final_avgreward = DRQN(env,num_episodes,epdecayopt,
+    DDQN,nstep,distributional,lrdecayrate,lr,minlr,training_cycle,target_update_cycle, external_testing,normalize,bestQinit,actioninput,samplefromstart, paramdf, paramid)
