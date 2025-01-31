@@ -2,7 +2,7 @@
 
 #SBATCH --job-name=tigerPOMDP      ## Name of the job
 #SBATCH --output=tigerPOMDP.out    ## Output file
-#SBATCH --time=10:00           ## Job Duration
+#SBATCH --time=30:00           ## Job Duration
 #SBATCH --ntasks=1             ## Number of tasks (analyses) to run
 #SBATCH --cpus-per-task=8      ## The number of threads the code will use
 #SBATCH --mem-per-cpu=2G     ## Real memory(MB) per CPU required by the job.
