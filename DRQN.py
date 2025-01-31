@@ -486,7 +486,7 @@ def epsilon_update(i,option,num_episodes):
     elif option == 5: # linear decay
         return max(1-i/num_episodes, 0)
     elif option == 6: # fixed decay
-        return 0.15
+        return 0.2
 
 def train_model(Q, batch_states, batch_actions, batch_targets, device, total_lens, burnin_lens):
     Q.train()

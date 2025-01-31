@@ -13,8 +13,8 @@ module purge
 
 ## Execute the python script and pass the argument/input '90'
 source ~/miniconda3/bin/activate py310
-srun --exclusive -n1 python DRQN_tiger_main.py 1 &
-srun --exclusive -n1 python DRQN_tiger_main.py 2 &
-srun --exclusive -n1 python DRQN_tiger_main.py 3 &
+srun --exclusive -n1 python DRQN_tiger_main_HPC.py 1 &
+srun --exclusive -n1 python DRQN_tiger_main_HPC.py 2 &
+srun --exclusive -n1 python DRQN_tiger_main_HPC.py 3 &
 
 wait
