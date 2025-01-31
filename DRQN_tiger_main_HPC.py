@@ -12,7 +12,7 @@ from tiger import Tiger
 import pandas as pd
 import sys
 
-id = sys.argv[0]
+id = sys.argv[1]
 print(f'runID: {id}')
 paramid = 28
 # process hyperparameter dataframe

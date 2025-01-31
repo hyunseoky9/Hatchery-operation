@@ -124,13 +124,13 @@ def DRQN(env,num_episodes,epdecayopt,
    ## start testing process
     testwd = './DRQN results/intermediate training Q network'
     # delete all the previous network files in the intermediate network folder to not test the old Q networks
-    for file in os.listdir(testwd):
-        try:
-            os.remove(os.path.join(testwd,file))
-        except PermissionError:
-            print(f"File {testwd} is locked. Retrying...")
-            time.sleep(5)  # Wait 5 second
-            os.remove(testwd)  # Retry deletion
+    #for file in os.listdir(testwd):
+    #    try:
+    #        os.remove(os.path.join(testwd,file))
+    #    except PermissionError:
+    #        print(f"File {testwd} is locked. Retrying...")
+    #        time.sleep(5)  # Wait 5 second
+    #        os.remove(testwd)  # Retry deletion
     # run testing script in a separate process if external testing is on
     if external_testing:
         # run the testing script in a separate process

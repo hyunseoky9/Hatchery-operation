@@ -1,7 +1,7 @@
 #!/bin/bash
 
-#SBATCH --job-name=tigerPOMDP      ## Name of the job
-#SBATCH --output=tigerPOMDP.out    ## Output file
+#SBATCH --job-name=tigerPOMDP1      ## Name of the job
+#SBATCH --output=tigerPOMDP1.out    ## Output file
 #SBATCH --time=00:40:00           ## Job Duration
 #SBATCH --ntasks=3             ## Number of tasks (analyses) to run
 #SBATCH --cpus-per-task=8      ## The number of threads the code will use

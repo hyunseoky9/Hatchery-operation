@@ -12,7 +12,7 @@ from tiger import Tiger
 import pandas as pd
 import sys
 
-id = sys.argv[0]
+id = sys.argv[1]
 print(f'runID: {id}')
 paramid = 27
 # process hyperparameter dataframe
@@ -60,5 +60,16 @@ samplefromstart = bool(int(paramdf['samplefromstart'].iloc[paramid]))
 
 rewards, final_avgreward = DRQN(env,num_episodes,epdecayopt,
     DDQN,nstep,distributional,lrdecayrate,lr,minlr,training_cycle,target_update_cycle, external_testing,normalize,bestQinit,actioninput,samplefromstart, paramdf, paramid)
+
+if paramdf['seed'].iloc[paramid] == 'random':
+    seednum = random.randint(0,100000)
+else:
+    seednum = int(paramdf['seed'].iloc[paramid])
+
+print(f'seed: {seednum}')
+random.seed(seednum)
+np.random.seed(seednum)
+torch.manual_seed(seednum)
+
 rewards, final_avgreward = DRQN(env,num_episodes,epdecayopt,
     DDQN,nstep,distributional,lrdecayrate,lr,minlr,training_cycle,target_update_cycle, external_testing,normalize,bestQinit,actioninput,samplefromstart, paramdf, paramid)
