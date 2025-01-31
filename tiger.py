@@ -34,7 +34,7 @@ class Tiger:
 
         # parameters
         self.gamma = 0.95 # Discount factor
-        self.default_obs_prob = [0.4,0.6]
+        self.default_obs_prob = [0.7,0.3]
         self.survey_obs_prob = [0.0,1.0]
         # Initialize state and observation
         self.state, self.obs = self.reset(initstate)
