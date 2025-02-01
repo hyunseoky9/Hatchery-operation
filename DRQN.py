@@ -264,12 +264,9 @@ def DRQN(env,num_episodes,epdecayopt,
         if Q.optimizer.param_groups[0]['lr'] < min_lr:
             Q.optimizer.param_groups[0]['lr'] = min_lr
 
-        if i % 200 == 0:
-            print(f'Episode {i}')
         evaluation_interval = 100
         if i % evaluation_interval == 0: # calculate average reward every 1000 episodes
             if not external_testing:
-                print('calculating the average reward')
                 avgperformance = calc_performance(env,device,Q,None,performance_sampleN,max_steps,True,actioninput)
                 avgperformances.append(avgperformance)
             if env.envID in ['Env1.0', 'Env1.1', 'Env2.0', 'Env2.1','Env2.2','Env2.3','Env2.4','Env2.5','Env2.6','tiger']:
