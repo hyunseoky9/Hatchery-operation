@@ -14,7 +14,11 @@ import sys
 
 id = sys.argv[1]
 print(f'runID: {id}')
-paramid = 29
+paramid = 30
+iteration = 1
+iteration_num = 10
+print(f'paramID: {paramid}')
+print(f'iteration: {iteration}')
 # process hyperparameter dataframe
 hyperparameterization_set_filename = './hyperparamsets/DRQN_hyperparameters.csv'
 paramdf = pd.read_csv(hyperparameterization_set_filename, header=None)
@@ -57,6 +61,21 @@ bestQinit = bool(int(paramdf['bestQinit'].iloc[paramid]))
 actioninput = bool(int(paramdf['actioninput'].iloc[paramid]))
 # option to always sample sequences from the start of an episode
 samplefromstart = bool(int(paramdf['samplefromstart'].iloc[paramid]))
-
 rewards, final_avgreward = DRQN(env,num_episodes,epdecayopt,
     DDQN,nstep,distributional,lrdecayrate,lr,minlr,training_cycle,target_update_cycle, external_testing,normalize,bestQinit,actioninput,samplefromstart, paramdf, paramid)
+
+for xx in range(iteration_num - 1):
+    iteration += 1
+    print(f'iteration: {iteration}')
+    if paramdf['seed'].iloc[paramid] == 'random':
+        seednum = random.randint(0,100000)
+    else:
+        seednum = int(paramdf['seed'].iloc[paramid])
+
+    print(f'seed: {seednum}')
+    random.seed(seednum)
+    np.random.seed(seednum)
+    torch.manual_seed(seednum)
+
+    rewards, final_avgreward = DRQN(env,num_episodes,epdecayopt,
+        DDQN,nstep,distributional,lrdecayrate,lr,minlr,training_cycle,target_update_cycle, external_testing,normalize,bestQinit,actioninput,samplefromstart, paramdf, paramid)
