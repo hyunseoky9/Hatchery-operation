@@ -15,6 +15,7 @@ import sys
 id = sys.argv[1]
 print(f'runID: {id}')
 paramid = 27
+print(f'paramID: {paramid}')
 # process hyperparameter dataframe
 hyperparameterization_set_filename = './hyperparamsets/DRQN_hyperparameters.csv'
 paramdf = pd.read_csv(hyperparameterization_set_filename, header=None)
