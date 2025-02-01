@@ -280,7 +280,6 @@ def DRQN(env,num_episodes,epdecayopt,
         i += 1 # update episode number
 
     # calculate final average reward
-    print('calculating the average reward with the final Q network')
     if external_testing == False:
         final_avgreward = calc_performance(env,device,Q,None,final_performance_sampleN,max_steps,True,actioninput)
         avgperformances.append(final_avgreward)
