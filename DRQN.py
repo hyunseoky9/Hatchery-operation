@@ -21,7 +21,7 @@ def DRQN(env,num_episodes,epdecayopt,
             DDQN,nstep,distributional,
             lrdecayrate,lr,min_lr,
             training_cycle,target_update_cycle, 
-            external_testing, normalize, bestQinit, actioninput, samplefromstart, paramdf, paramid):
+            external_testing, normalize, bestQinit, actioninput, samplefromstart, paramdf, paramid, seed):
     # train using Deep Q Network
     # env: environment class object
     # num_episodes: number of episodes to train 
@@ -120,17 +120,14 @@ def DRQN(env,num_episodes,epdecayopt,
     Q_target.load_state_dict(Q.state_dict())  # Copy weights from Q to Q_target
     Q_target.eval()  # Set target network to evaluation mode (no gradient updates)
     
+    ## Define the path for the new directory
+    parent_directory = './DRQN results'
+    new_directory = f'{seed}'
+    path = os.path.join(parent_directory, new_directory)
 
-   ## start testing process
-    testwd = './DRQN results/intermediate training Q network'
-    # delete all the previous network files in the intermediate network folder to not test the old Q networks
-    #for file in os.listdir(testwd):
-    #    try:
-    #        os.remove(os.path.join(testwd,file))
-    #    except PermissionError:
-    #        print(f"File {testwd} is locked. Retrying...")
-    #        time.sleep(5)  # Wait 5 second
-    #        os.remove(testwd)  # Retry deletion
+    # Create the new directory
+    os.makedirs(path, exist_ok=True)
+    testwd = f'./DRQN results/{new_directory}'
     # run testing script in a separate process if external testing is on
     if external_testing:
         # run the testing script in a separate process
@@ -290,21 +287,20 @@ def DRQN(env,num_episodes,epdecayopt,
     ## save last model and the best model (in terms of rewards)
     if env.envID in ['Env1.0','Env1.1','Env2.0','Env2.1','Env2.2','Env2.3','Env2.4','Env2.5','Env2.6','tiger']:
         # last model
-        wd = './DRQN results'
-        torch.save(Q, f"{wd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DRQN.pt")
+        torch.save(Q, f"{testwd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DRQN.pt")
         # best model
         if not external_testing:
             if max(avgperformances) > initperform:
                 bestidx = np.array(avgperformances).argmax()
                 bestfilename = f"{testwd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DRQN_episode{bestidx*evaluation_interval}.pt"
                 print(f'best Q network found at episode {bestidx*evaluation_interval}')
-                shutil.copy(bestfilename, f"{wd}/bestQNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DRQN.pt")
+                shutil.copy(bestfilename, f"{testwd}/bestQNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DRQN.pt")
             else:
                 print(f'no improvement in the performance from training')
 
     ## save performance
     if external_testing == False:
-        np.save(f"{wd}/rewards_{env.envID}_par{env.parset}_dis{env.discset}_DRQN.npy", avgperformances)
+        np.save(f"{testwd}/rewards_{env.envID}_par{env.parset}_dis{env.discset}_DRQN.npy", avgperformances)
     return avgperformances, final_avgreward
 
 def _make_discrete_Q(Q,env,device):
