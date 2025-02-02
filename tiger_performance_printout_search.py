@@ -1,6 +1,6 @@
 import os
 
-wd = './DRQN results/hpc outputs/save2'
+wd = './DRQN results/hpc outputs/save1'
 # get files
 files = os.listdir(wd)
 
@@ -38,6 +38,7 @@ for file in files:
         # append last seed's performances
         performance.append(seedperformance)
 
+        print(f'file: {file}')
         # print the seed number and the performance
         for i in range(len(seednum)):
             if len(performance[i]) > 0:
