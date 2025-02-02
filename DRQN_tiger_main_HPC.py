@@ -12,10 +12,10 @@ from tiger import Tiger
 import pandas as pd
 import sys
 
-id = sys.argv[1]
+#id = sys.argv[1]
 print(f'runID: {id}')
 paramid = 30
-iteration_num = 1
+iteration_num = 12
 
 iteration = 1
 print(f'paramID: {paramid}')
