@@ -35,7 +35,7 @@ class Tiger:
         # parameters
         self.gamma = 0.95 # Discount factor
         self.default_obs_prob = [0.99,0.01]
-        self.survey_obs_prob = [0.0,1.0]
+        self.survey_obs_prob = [0.78193,0.21807] # [0.0,1.0]
         # Initialize state and observation
         self.state, self.obs = self.reset(initstate)
         print(f'observation probability: {self.default_obs_prob}, survey observation probability: {self.survey_obs_prob}')
