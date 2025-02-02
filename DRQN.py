@@ -122,7 +122,7 @@ def DRQN(env,num_episodes,epdecayopt,
     
     ## Define the path for the new directory
     parent_directory = './DRQN results'
-    new_directory = f'{seed}'
+    new_directory = f'seed{seed}_paramset{paramid} '
     path = os.path.join(parent_directory, new_directory)
 
     # Create the new directory
