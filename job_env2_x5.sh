@@ -1,7 +1,7 @@
 #!/bin/bash
 
-#SBATCH --job-name=env2_1POMDP1      ## Name of the job
-#SBATCH --output=env2_1POMDP1.out    ## Output file
+#SBATCH --job-name=env2_1POMDP5      ## Name of the job
+#SBATCH --output=env2_1POMDP5.out    ## Output file
 #SBATCH --time=8:30:00           ## Job Duration
 #SBATCH --ntasks=10             ## Number of tasks (analyses) to run
 #SBATCH --cpus-per-task=8      ## The number of threads the code will use
