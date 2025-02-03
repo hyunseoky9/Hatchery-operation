@@ -19,8 +19,8 @@ import sys
 
 #id = sys.argv[1]
 print(f'runID: {id}')
-paramid = 30
-iteration_num = 12
+paramid = 31
+iteration_num = 1
 
 iteration = 1
 print(f'paramID: {paramid}')
