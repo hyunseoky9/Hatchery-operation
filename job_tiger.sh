@@ -7,7 +7,7 @@
 #SBATCH --cpus-per-task=8      ## The number of threads the code will use
 #SBATCH --mem-per-cpu=2G     ## Real memory(MB) per CPU required by the job.
 
-## Load the python interpreter
+## not using the default python
 module purge
 
 
