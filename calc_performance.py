@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 from choose_action import choose_action
 from choose_action_a3c import choose_action_a3c
@@ -11,6 +12,8 @@ def calc_performance(env, device, Q=None, policy=None, episodenum=1000, t_maxste
 
     managed = 0 # for tiger environment
     surveyed = 0 # for tiger environment
+    if env.envID in ['Env2.0','Env2.1','Env2.2','Env2.3','Env2.4','Env2.5','Env2.6']:
+        actiondist = np.zeros(env.actionspace_dim[0])
     avgrewards = 0
     action_size = env.actionspace_dim[0]
     if Q is not None:
@@ -42,6 +45,8 @@ def calc_performance(env, device, Q=None, policy=None, episodenum=1000, t_maxste
                             managed = 1
                         if action == 2:
                             surveyed = 1
+                    elif env.envID in ['Env2.0','Env2.1','Env2.2','Env2.3','Env2.4','Env2.5','Env2.6']:
+                        actiondist[action] += 1
                 else:
                     action = choose_action(state,Q,0,action_size,distributional,device, drqn, hx, prev_a)
                 # * state increase in size by 1 due to adding previous action in choose_action, but it will get overwritten in the next iteration
@@ -63,4 +68,6 @@ def calc_performance(env, device, Q=None, policy=None, episodenum=1000, t_maxste
             print('management was done')
         if surveyed == 1:
             print('survey was done')
+    elif env.envID in ['Env2.0','Env2.1','Env2.2','Env2.3','Env2.4','Env2.5','Env2.6']:
+        actiondist = actiondist/np.sum(actiondist)
     return avgrewards/episodenum
