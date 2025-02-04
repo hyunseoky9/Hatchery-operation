@@ -273,7 +273,7 @@ def DRQN(env,num_episodes,epdecayopt,
             current_lr = Q.optimizer.param_groups[0]['lr']
             if external_testing:
                 avgperformance = 'using external testing'
-            print(f"Episode {i}, Learning Rate: {current_lr}, Epsilon: {ep}, Avg Performance: {avgperformance}")
+            print(f"Episode {i}, seed {seed}, Learning Rate: {current_lr}, Epsilon: {ep}, Avg Performance: {avgperformance}")
         i += 1 # update episode number
 
     # calculate final average reward

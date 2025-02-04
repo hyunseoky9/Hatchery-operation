@@ -1,6 +1,6 @@
 import os
 
-wd = './DRQN results/hpc outputs/save1'
+wd = './DRQN results/hpc outputs/save2'
 # get files
 files = os.listdir(wd)
 
