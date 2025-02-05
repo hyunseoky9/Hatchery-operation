@@ -1,6 +1,6 @@
 import os
 
-wd = './DRQN results/hpc outputs/save3'
+wd = './DRQN results/hpc outputs/save4'
 # get files
 files = os.listdir(wd)
 
@@ -26,7 +26,7 @@ for file in files:
                 strsplit = line.split(': ')
                 strsplit2 = line.split(' ')
                 score = float(strsplit[-1].strip())
-                seed = 0#int(strsplit2[3][:-1])
+                seed = int(strsplit2[4][:-2])
                 if score > 4000.0:
                     performance.append((seed,score))
             i += 1
