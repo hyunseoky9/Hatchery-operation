@@ -68,7 +68,7 @@ def calc_performance(env, device, Q=None, policy=None, episodenum=1000, t_maxste
             print('management was done')
         if surveyed == 1:
             print('survey was done')
-    elif env.envID in ['Env2.0','Env2.1','Env2.2','Env2.3','Env2.4','Env2.5','Env2.6']:
+    elif env.envID in ['Env2.0','Env2.1','Env2.2','Env2.3','Env2.4','Env2.5','Env2.6'] and drqn == True:
         actiondist = actiondist/np.sum(actiondist)
         print(actiondist)
     return avgrewards/episodenum
