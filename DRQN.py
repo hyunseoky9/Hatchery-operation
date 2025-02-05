@@ -280,7 +280,7 @@ def DRQN(env,num_episodes,epdecayopt,
     if external_testing == False:
         final_avgreward = calc_performance(env,device,Q,None,final_performance_sampleN,max_steps,True,actioninput)
         avgperformances.append(final_avgreward)
-        print(f'final average reward: {final_avgreward}')
+        print(f'final average reward (seed {seed}): {final_avgreward}')
     torch.save(Q, f"{testwd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DRQN_episode{i}.pt")
 
     # save results and performance metrics.
