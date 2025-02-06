@@ -1,4 +1,4 @@
-classdef Env2_0 < handle
+classdef env2_0 < handle
     properties
         % Basic properties
         envID
@@ -45,7 +45,7 @@ classdef Env2_0 < handle
     end
     
     methods
-        function obj = Env2_0(initstate, parameterization_set, discretization_set)
+        function obj = env2_0(initstate, parameterization_set, discretization_set)
             % Constructor for Env2_0, translating the Python __init__ method
             
             % Basic setup
