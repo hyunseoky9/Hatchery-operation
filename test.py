@@ -12,7 +12,7 @@ filename= f"{wd}/bestQNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DRQN.
 # if you want to test with the best Q network, comment out the next two lines
 episodenum = 2900
 filename= f"{wd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DRQN_episode{episodenum}.pt"
-Q = torch.load(filename)
+Q = torch.load(filename,weights_only=False)
 
 device=  'cpu'
 print(calc_performance(env, device, Q, policy=None, episodenum=1000, t_maxstep = 100, drqn=True, actioninput=False))
