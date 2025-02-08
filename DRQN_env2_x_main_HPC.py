@@ -38,9 +38,13 @@ else:
     seednum = int(seeds[0])
 
 print(f'seed: {seednum}')
+os.environ["PYTHONHASHSEED"] = str(seednum)
 random.seed(seednum)
 np.random.seed(seednum)
 torch.manual_seed(seednum)
+torch.cuda.manual_seed_all(seednum)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
 
 env = Env2_1([-1,-1,-1,-1,-1,-1],2,0)
 # basic settings
