@@ -55,6 +55,8 @@ lr = float(paramdf['lr'].iloc[paramid])
 lrdecayrate = float(paramdf['lrdecay'].iloc[paramid])
 if paramdf['minlr'].iloc[paramid] == 'inf':
     minlr = float('-inf')
+else:
+    minlr = float(paramdf['minlr'].iloc[paramid])
 normalize = bool(int(paramdf['normalize'].iloc[paramid]))
 ## DQN extra extensions
 DDQN = bool(int(paramdf['ddqn'].iloc[paramid]))

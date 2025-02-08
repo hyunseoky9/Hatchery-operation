@@ -395,7 +395,7 @@ classdef env2_0 < handle
                     y_nextVal = obj.discretize(y_nextVal, obj.observations.y);
                 else
                     % next season is Spring => no observed catch
-                    y_nextVal = 0; 
+                    y_nextVal = -1; 
                 end
         
                 % 2d. Convert to discrete *indices* for the new state
@@ -458,7 +458,7 @@ classdef env2_0 < handle
                     q_nextVal = obj.discretize(qDraw, obj.states.q);
         
                     NH_nextVal = 1;  
-                    y_nextVal  = 0;  % no observed catch in spring
+                    y_nextVal  = -1;  % no observed catch in spring
                     reward = obj.extpenalty;
                 end
         
