@@ -2,7 +2,7 @@
 
 #SBATCH --job-name=env2_1POMDP10      ## Name of the job
 #SBATCH --output=env2_1POMDP10.out    ## Output file
-#SBATCH --time=20:59:00           ## Job Duration
+#SBATCH --time=05:00:00           ## Job Duration
 #SBATCH --ntasks=20             ## Number of tasks (analyses) to run
 #SBATCH --cpus-per-task=8      ## The number of threads the code will use
 #SBATCH --mem-per-cpu=2G     ## Real memory(MB) per CPU required by the job.
