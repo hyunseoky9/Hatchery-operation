@@ -67,7 +67,7 @@ classdef env2_0 < handle
                     states.tau  = [0, 1];
                     
                     % Observations
-                    observations.y    = [0, 15, 30, 45];  % -1 in Python means spring, here we keep a custom representation
+                    observations.y    = [-1, 0, 15, 30, 45];  % -1 in Python means spring, here we keep a custom representation
                     observations.ONH  = [0, 75000, 150000, 225000, 300000];
                     observations.OH   = [0.56, 0.61, 0.66, 0.71, 0.76, 0.81, 0.86];
                     observations.Oq   = [65, 322, 457, 592, 848];
