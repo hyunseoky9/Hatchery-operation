@@ -5,7 +5,7 @@ from IPython.display import display
 import pandas as pd
 class Env2_2:
     """
-    same as env2.0 but observation but NWm1 is not observed
+    same as env2.1 but observation but NWm1 is not observed
     """
     def __init__(self,initstate,parameterization_set,discretization_set):
         self.envID = 'Env2.2'

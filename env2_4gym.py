@@ -3,12 +3,12 @@ from math import floor
 import random
 from IPython.display import display
 import pandas as pd
-class Env2_3:
+class Env2_4:
     """
-    same as env2.1 but observation but NWm1 is not observed AND NW is observed only in Fall.
+    Same as Env2.0 but catch (y) is observed every season (both in fall and spring)
     """
     def __init__(self,initstate,parameterization_set,discretization_set):
-        self.envID = 'Env2.3'
+        self.envID = 'Env2.4'
         self.partial = True
         self.episodic = False
         self.absorbing_cut = True # has an absorbing state and the episode should be cut shortly after reaching it.
@@ -24,7 +24,45 @@ class Env2_3:
                 "tau": [0, 1]  # 0 for Fall, 1 for Spring
             }
             self.observations = {
-                "ONW": [1000, 3000, 15195, 76961, 389806, 1974350, 10000000], # population size
+                "y": [0, 15, 30, 45], # observed catch from fall monitoring. -1= no observed catch (for spring); 45 is actually anything gretaer than 45
+                "ONH": [0, 75000, 150000, 225000, 300000], # observed hatchery fish
+                "OH": [0.56, 0.61, 0.66, 0.71, 0.76, 0.81, 0.86], # observed heterozygosity
+                "Oq": [65, 322, 457, 592, 848], # observed spring flow
+                "Otau": [0, 1]  # observed season
+            }
+            self.actions = {
+                "a": [0, 75000, 150000, 225000, 300000]
+            }
+        elif discretization_set == 1:
+            self.states = {
+                "NW": [1000, 2500000, 5000000], # Population size
+                "NWm1": [2500000, 5000000], # Population size
+                "NH": [0, 100000, 200000], # hatchery population size
+                "H": [0.56, 0.71, 0.86], # Heterozygosity
+                "q": [65, 322, 457], # Spring Flow
+                "tau": [0, 1]  # 0 for Fall, 1 for Spring
+            }
+            self.observations = {
+                "y": [-1, 0, 30], # observed catch from fall monitoring. -1= no observed catch (for spring); 45 is actually anything gretaer than 45
+                "ONH": [0, 100000, 200000], # hatchery population size
+                "OH": [0.56, 0.71, 0.86], # Heterozygosity
+                "Oq": [65, 322, 457], # Spring Flow
+                "Otau": [0, 1]  # 0 for Fall, 1 for Spring
+            }
+            self.actions = {
+                "a": [0, 100000, 200000]
+            }
+        elif discretization_set == 2:
+            self.states = {
+                "NW": [1000, 3000, 15195, 76961, 389806, 1974350, 10000000], # Population size
+                "NWm1": [3000, 15195, 76961, 389806, 1974350, 10000000], # Population size
+                "NH": [0, 75000, 150000, 225000, 300000], # hatchery population size
+                "H": [0.56, 0.61, 0.66, 0.71, 0.76, 0.81, 0.86], # Heterozygosity
+                "q": [65, 322, 457, 592, 848], # Spring Flow
+                "tau": [0, 1]  # 0 for Fall, 1 for Spring
+            }
+            self.observations = {
+                "y": [0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46], # observed catch from fall monitoring. -1= no observed catch (for spring); 45 is actually anything gretaer than 45
                 "ONH": [0, 75000, 150000, 225000, 300000], # observed hatchery fish
                 "OH": [0.56, 0.61, 0.66, 0.71, 0.76, 0.81, 0.86], # observed heterozygosity
                 "Oq": [65, 322, 457, 592, 848], # observed spring flow
@@ -40,6 +78,12 @@ class Env2_3:
         self.actionspace_dim = list(map(lambda x: len(x[1]), self.actions.items()))
         self.obsspace_dim  = list(map(lambda x: len(x[1]), self.observations.items()))
 
+        # Define Gymnasium spaces
+        self.low = np.zeros(5, dtype=np.float32)  # each dimension min=0
+        self.high = np.array([dim_size - 1 for dim_size in self.obsspace_dim], dtype=np.float32)  # each dimension max=(size-1)
+        self.observation_space = spaces.Box(low=self.low, high=self.high, shape=(6,), dtype=np.float32)
+        #self.observation_space = spaces.MultiDiscrete([len(v) for v in self.states.values()])
+        self.action_space = spaces.Discrete(len(self.actions["a"]))
         
         # Define parameters
         # call in parameterization dataset csv
@@ -65,11 +109,21 @@ class Env2_3:
         self.theta = paramdf['theta'][parameterization_set - 1] # detection probability
         self.sigy = paramdf['sigy'][parameterization_set - 1] # overdispersion parameter for observed catch
 
+
+        # Specify if you want to support or define a maximum number of steps.
+        self.max_steps = 100
+        self.current_step = 0
+        self.absorbing_counter = 0
+
         # Initialize state and observation
         self.state, self.obs = self.reset(initstate)
 
 
-    def reset(self, initstate):
+    def reset(self, initstate=None, seed=None, options=None):
+        self.current_step = 0
+        self.absorbing_counter = 0
+        if initstate is None:
+            initstate = [-1, -1, -1, -1, -1, -1]
         # Initialize state variables
         new_state = []
         new_obs = []
@@ -78,17 +132,18 @@ class Env2_3:
         else:
             season = initstate[5]
         if season == 0: # spring
-
             if initstate[0] == -1:
-                idx0 = random.choice(np.arange(1, len(self.states["NW"])))
-                new_state.append(idx0) # don't start from the smallest population size
-                new_obs.append(idx0)
-            else: 
+                new_state.append(random.choice(np.arange(1, len(self.states["NW"])))) # don't start from the smallest population size
+            else:
                 new_state.append(initstate[0])
-                new_obs.append(initstate[0])
+
+            new_y = self._fallmonitoring(self.states["NW"][new_state[0]])
+            new_y = self._discretize(new_y, self.observations['y'])
+            new_y = np.where(np.array(self.observations['y']) == new_y)[0][0]
+            new_obs.append(new_y) # observed catch in fall
+
             if initstate[1] == -1:
-                idx1 = random.choice(np.arange(0, len(self.states["NWm1"])))
-                new_state.append(idx1)
+                new_state.append(random.choice(np.arange(0, len(self.states["NWm1"]))))
             else:
                 new_state.append(initstate[1])
             if initstate[2] == -1:
@@ -104,7 +159,6 @@ class Env2_3:
             else: 
                 new_state.append(initstate[3])
                 new_obs.append(initstate[3])
-
             if initstate[4] == -1:
                 idx4 = random.choice(np.arange(0, len(self.states["q"])))
                 new_state.append(idx4)
@@ -113,16 +167,18 @@ class Env2_3:
                 new_state.append(initstate[4])
                 new_obs.append(initstate[4])
         else: # fall
+
             if initstate[0] == -1:
-                idx0 = random.choice(np.arange(1, len(self.states["NW"])))
-                new_state.append(idx0) # don't start from the smallest population size
-                new_obs.append(idx0)
-            else: 
+                new_state.append(random.choice(np.arange(1, len(self.states["NW"])))) # don't start from the smallest population size
+            else:
                 new_state.append(initstate[0])
-                new_obs.append(initstate[0])
+
+            new_y = self._fallmonitoring(self.states["NW"][new_state[0]])
+            new_y = self._discretize(new_y, self.observations['y'])
+            new_y = np.where(np.array(self.observations['y']) == new_y)[0][0]
+            new_obs.append(new_y) # observed catch in fall
             if initstate[1] == -1:
-                idx1 = random.choice(np.arange(0, len(self.states["NWm1"])))
-                new_state.append(idx1)
+                new_state.append(random.choice(np.arange(0, len(self.states["NWm1"]))))
             else:
                 new_state.append(initstate[1])
             if initstate[2] == -1:
@@ -149,10 +205,13 @@ class Env2_3:
         new_obs.append(season)
         self.state = new_state
         self.obs = new_obs
-        return self.state, self.obs
+        return np.array(self.obs), {'true_state': np.array(self.state)}
     
     def step(self, action):
         # Compute next state and reward based on action and transition rules
+
+        truncated = False
+        done = False 
         
         NW = self.states["NW"][self.state[0]]
         NWm1 = self.states["NWm1"][self.state[1]]
@@ -204,17 +263,18 @@ class Env2_3:
             H_next = self._discretize(H_next, self.states['H'])
             q_next = self._discretize(q_next, self.states['q'])
 
+            # observation is based on monitoring (monitoring made in both fall and spring)
+            y_next = self._fallmonitoring(NW_next)
+            y_next = self._discretize(y_next, self.observations['y'])
             
             # Update state
             NW_next_idx = np.where(np.array(self.states['NW']) == NW_next)[0][0]
             NWm1_next = np.where(np.array(self.states['NWm1']) == NWm1_next)[0][0]
             H_next_idx = np.where(np.array(self.states['H']) == H_next)[0][0]
             q_next_idx = np.where(np.array(self.states['q']) == q_next)[0][0]
+            y_next_idx = np.where(np.array(self.observations['y']) == y_next)[0][0]
             self.state = [NW_next_idx, NWm1_next, NH_next, H_next_idx, q_next_idx, tau_next]
-            if tau_next == 1:
-                self.obs = [NW_next_idx, NH_next, H_next_idx, q_next_idx, tau_next]
-            else:
-                self.obs = [0, NH_next, H_next_idx, q_next_idx, tau_next]
+            self.obs = [y_next_idx, NH_next, H_next_idx, q_next_idx, tau_next]
             # Check termination
             done  = False
         else: # extinct.
@@ -230,18 +290,30 @@ class Env2_3:
                 NH_next = 0 # all hatchery fish that aren't released are discarded
                 reward = self.extpenalty
 
+            y_next = 0 # 0 catch when extinct.
+            
             # Update state
             NW_next_idx = 0
             NWm1_next = 0
             H_next_idx = 0
             q_next_idx = np.where(np.array(self.states['q']) == q_next)[0][0]
+            y_next_idx = np.where(np.array(self.observations['y']) == y_next)[0][0]
             self.state = [NW_next_idx, NWm1_next, NH_next, H_next_idx, q_next_idx, tau_next]
-            self.obs = [NW_next_idx, NH_next, H_next_idx, q_next_idx, tau_next]
+            self.obs = [y_next_idx, NH_next, H_next_idx, q_next_idx, tau_next]
             # extinction
             done = False
             s = 0
+        # Update step counter
+        self.current_step += 1
+        if self.current_step >= self.max_steps:
+            truncated = True
+        if self.state[0] == 0:
+            self.absorbing_counter += 1
+        if self.absorbing_counter > 3:
+            truncated = True
 
-        return reward, done, s
+        return np.array(self.obs), reward, done, truncated,{'s': s, 'true_state': np.array(self.state)}
+
     def _fallmonitoring(self, NW):
         # fall monitoring
         expcatch = self.theta * NW

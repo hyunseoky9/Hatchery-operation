@@ -12,25 +12,5 @@ module purge
 
 ## Execute the python script and pass the argument/input '90'
 source ~/miniconda3/bin/activate py310
-srun --exclusive -n1 python DRQN_env2_x_main_HPC.py 1 &
-srun --exclusive -n1 python DRQN_env2_x_main_HPC.py 2 &
-srun --exclusive -n1 python DRQN_env2_x_main_HPC.py 3 &
-srun --exclusive -n1 python DRQN_env2_x_main_HPC.py 4 &
-srun --exclusive -n1 python DRQN_env2_x_main_HPC.py 5 &
-srun --exclusive -n1 python DRQN_env2_x_main_HPC.py 6 &
-srun --exclusive -n1 python DRQN_env2_x_main_HPC.py 7 &
-srun --exclusive -n1 python DRQN_env2_x_main_HPC.py 8 &
-srun --exclusive -n1 python DRQN_env2_x_main_HPC.py 9 &
-srun --exclusive -n1 python DRQN_env2_x_main_HPC.py 10 &
-srun --exclusive -n1 python DRQN_env2_x_main_HPC.py 11 &
-srun --exclusive -n1 python DRQN_env2_x_main_HPC.py 12 &
-srun --exclusive -n1 python DRQN_env2_x_main_HPC.py 13 &
-srun --exclusive -n1 python DRQN_env2_x_main_HPC.py 14 &
-srun --exclusive -n1 python DRQN_env2_x_main_HPC.py 15 &
-srun --exclusive -n1 python DRQN_env2_x_main_HPC.py 16 &
-srun --exclusive -n1 python DRQN_env2_x_main_HPC.py 17 &
-srun --exclusive -n1 python DRQN_env2_x_main_HPC.py 18 &
-srun --exclusive -n1 python DRQN_env2_x_main_HPC.py 19 &
-srun --exclusive -n1 python DRQN_env2_x_main_HPC.py 20 &
-
+srun --ntasks=20 --cpus-per-task=8 --mem-per-cpu=2G python DRQN_env2_x_main_HPC.py 1
 wait

@@ -11,6 +11,7 @@ value iter results/
 deepQN results/
 DRQN results/
 a3c results/
+rayrllib results/ 
 pomdp/
 .vscode/
 # Ignore Python cache files and directories
