@@ -17,11 +17,7 @@ from calc_performance import *
 from choose_action import *
 from absorbing import *
 from pretrain import *
-def DRQN(env,num_episodes,epdecayopt,
-            DDQN,nstep,distributional,
-            lrdecayrate,lr,min_lr,
-            training_cycle,target_update_cycle, 
-            external_testing, normalize, bestQinit, actioninput, samplefromstart, paramdf, paramid, seed):
+def DRQN(env, paramdf, paramid, seed):
     # train using Deep Q Network
     # env: environment class object
     # num_episodes: number of episodes to train 
@@ -68,9 +64,9 @@ def DRQN(env,num_episodes,epdecayopt,
     lr = float(paramdf['lr'].iloc[paramid])
     lrdecayrate = float(paramdf['lrdecay'].iloc[paramid])
     if paramdf['minlr'].iloc[paramid] == 'inf':
-        minlr = float('-inf')
+        min_lr = float('-inf')
     else:
-        minlr = float(paramdf['minlr'].iloc[paramid])
+        min_lr = float(paramdf['minlr'].iloc[paramid])
     normalize = bool(int(paramdf['normalize'].iloc[paramid]))
     ## extra extensions
     DDQN = bool(int(paramdf['ddqn'].iloc[paramid]))
