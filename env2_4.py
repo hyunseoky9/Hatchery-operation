@@ -401,7 +401,6 @@ class Env2_4:
                 y_next_idx = np.where(np.array(self.observations['y']) == y_next)[0][0]
                 y_prob[i,y_next_idx] += 1
             y_prob[i] /= sample
-            print(f'NW[{i}] done')
         return y_prob
     
     def Qsubcalc(self, Q, ranges):

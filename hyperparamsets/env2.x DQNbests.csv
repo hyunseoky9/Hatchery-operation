@@ -1,0 +1,33 @@
+theme,ranking
+training_cycle,7
+target_update_cycle,15
+lr,0.01
+lrdecaytype,exp
+lrdecay,0.9992
+minlr,inf
+layer_n,3
+layer_width,30
+epsilon,4;100000;0.1;-30/fix;-fix*0.4
+ddqn,F
+dueling,F
+hidden_shared_num,1
+hidden_split_num,1
+hidden_shared_width,30
+hidden_split_width,30
+prioritized,F
+beta0,0.6
+alpha,0.6
+nstep,1
+noisy,F
+distributional,F
+atomn,16
+vmin,-104
+vmax,70
+max_steps,100
+episodenum,10000
+memory size,1000
+batch size,100
+seed,12
+external testing,FALSE
+min_MSE,na
+note,performs well with 2.1

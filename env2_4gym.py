@@ -3,11 +3,23 @@ from math import floor
 import random
 from IPython.display import display
 import pandas as pd
-class Env2_4:
+import gymnasium as gym
+from gymnasium import spaces
+
+class Env2_4gym(gym.Env):
     """
     Same as Env2.0 but catch (y) is observed every season (both in fall and spring)
     """
-    def __init__(self,initstate,parameterization_set,discretization_set):
+    def __init__(self,config=None):
+        super(Env2_4gym, self).__init__()
+        # Load configuration
+        if config is None:
+            config = {}
+        # Safe defaults
+        initstate = config.get("initstate", [-1, -1, -1, -1, -1, -1])
+        parameterization_set = config.get("parameterization_set", 2)
+        discretization_set = config.get("discretization_set", 0)
+
         self.envID = 'Env2.4'
         self.partial = True
         self.episodic = False
@@ -81,7 +93,7 @@ class Env2_4:
         # Define Gymnasium spaces
         self.low = np.zeros(5, dtype=np.float32)  # each dimension min=0
         self.high = np.array([dim_size - 1 for dim_size in self.obsspace_dim], dtype=np.float32)  # each dimension max=(size-1)
-        self.observation_space = spaces.Box(low=self.low, high=self.high, shape=(6,), dtype=np.float32)
+        self.observation_space = spaces.Box(low=self.low, high=self.high, shape=(5,), dtype=np.float32)
         #self.observation_space = spaces.MultiDiscrete([len(v) for v in self.states.values()])
         self.action_space = spaces.Discrete(len(self.actions["a"]))
         
