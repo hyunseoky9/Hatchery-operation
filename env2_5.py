@@ -36,7 +36,7 @@ class Env2_5:
             }
 
 
-                 # observed catch from fall monitoring. -1= no observed catch (for spring); 45 is actually anything gretaer than 45
+        # observed catch from fall monitoring. -1= no observed catch (for spring); 45 is actually anything gretaer than 45
         self.statespace_dim = list(map(lambda x: len(x[1]), self.states.items()))
         self.actionspace_dim = list(map(lambda x: len(x[1]), self.actions.items()))
         self.obsspace_dim  = list(map(lambda x: len(x[1]), self.observations.items()))

@@ -75,6 +75,7 @@ def Rainbow(env,num_episodes,epdecayopt,
     #training_cycle = 7 # number of steps where the network is trained
     #target_update_cycle = 10 # number of steps where the target network is updated
     ## performance testing sample size
+    evaluation_interval = 1000
     performance_sampleN = 1000
     final_performance_sampleN = 1000
     ## number of steps to run in the absorbing state before terminating the episode
@@ -93,7 +94,7 @@ def Rainbow(env,num_episodes,epdecayopt,
         state_min = torch.tensor([env.states[key][0] for key in env.states.keys()], dtype=torch.float32).to(device)
     elif env.envID in ['Env2.0','Env2.1','Env2.2','Env2.3','Env2.4','Env2.5','Env2.6','tiger']: # state is really observation in env2.0. We'll call the actual states as hidden states. This is done to make the code consistent with env1.0
         state_max = (torch.tensor(env.obsspace_dim, dtype=torch.float32)).to(device)
-        state_min = (torch.tensor(env.obsspace_dim, dtype=torch.float32)).to(device) 
+        state_min = torch.zeros([len(env.obsspace_dim)], dtype=torch.float32).to(device)
     # append action input
     if actioninput:
         input_max = torch.cat((state_max,torch.ones(actioninputsize)*(np.array(env.actionspace_dim)-1)),0)
@@ -117,14 +118,14 @@ def Rainbow(env,num_episodes,epdecayopt,
     ## initialize NN
     if DuelingDQN:
         Q = DuelQNN(state_size+actioninputsize, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared,
-                     hidden_num_split, lr, state_min, state_max,lrdecayrate,noisy,distributional,atomn, Vmin, Vmax, normalize).to(device)
+                     hidden_num_split, lr, input_min, input_max,lrdecayrate,noisy,distributional,atomn, Vmin, Vmax, normalize).to(device)
         Q_target = DuelQNN(state_size+actioninputsize, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared,
-                            hidden_num_split, lr, state_min, state_max,lrdecayrate,noisy,distributional,atomn, Vmin, Vmax, normalize).to(device)
+                            hidden_num_split, lr, input_min, input_max,lrdecayrate,noisy,distributional,atomn, Vmin, Vmax, normalize).to(device)
     else:
-        Q = QNN(state_size+actioninputsize, action_size, hidden_size, hidden_num, lr, state_min, state_max,
+        Q = QNN(state_size+actioninputsize, action_size, hidden_size, hidden_num, lr, input_min, input_max,
                 lrdecayrate,noisy, distributional, atomn, Vmin, Vmax, normalize).to(device)
-        Q_target = QNN(state_size+actioninputsize, action_size, hidden_size, hidden_num, lr, state_min, 
-                       state_max,lrdecayrate,noisy, distributional, atomn, Vmin, Vmax, normalize).to(device)
+        Q_target = QNN(state_size+actioninputsize, action_size, hidden_size, hidden_num, lr, input_min, 
+                       input_max,lrdecayrate,noisy, distributional, atomn, Vmin, Vmax, normalize).to(device)
     if bestQinit:
         # initialize Q with the best Q network from the previous run
         with open(f"deepQN results/bestQNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pt", "rb") as file:
@@ -317,18 +318,18 @@ def Rainbow(env,num_episodes,epdecayopt,
         if Q.optimizer.param_groups[0]['lr'] < min_lr:
             Q.optimizer.param_groups[0]['lr'] = min_lr
 
-        if i % 100 == 0: # MSE calculation
+        if i % evaluation_interval == 0: # MSE calculation
             if calc_MSE:
                 mse_value = test_model(Q, reachable_states, reachable_actions, Q_vi, noisy, device)
                 MSE.append(mse_value)
-        if i % 1000 == 0: # calculate average reward every 1000 episodes
+        if i % evaluation_interval == 0: # calculate average reward every 1000 episodes
             if not external_testing:
                 avgperformance = calc_performance(env,device,Q,None,performance_sampleN,max_steps,False,actioninput)
                 avgperformances.append(avgperformance)
             if env.envID in ['Env1.0', 'Env1.1', 'Env2.0','Env2.1','Env2.2','Env2.3','Env2.4','Env2.5','Env2.6','tiger']:
                 torch.save(Q, f"{testwd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN_episode{i}.pt")
 
-        if i % 1000 == 0: # print outs
+        if i % evaluation_interval == 0: # print outs
             current_lr = Q.optimizer.param_groups[0]['lr']
             if external_testing:
                 avgperformance = 'using external testing'
@@ -376,7 +377,8 @@ def Rainbow(env,num_episodes,epdecayopt,
         if not external_testing:
             if max(avgperformances) > initperform:
                 bestidx = np.array(avgperformances).argmax()
-                bestfilename = f"{testwd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN_episode{bestidx*1000}.pt"
+                bestfilename = f"{testwd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN_episode{bestidx*evaluation_interval}.pt"
+                print(f'best Q network found at episode {bestidx*evaluation_interval}')
                 shutil.copy(bestfilename, f"{wd}/bestQNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pt")
             else:
                 print(f'no improvement in the performance from training')

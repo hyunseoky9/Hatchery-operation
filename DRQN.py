@@ -42,55 +42,56 @@ def DRQN(env, paramdf, paramid, seed):
     else:
         state_size = len(env.obsspace_dim)
     action_size = env.actionspace_dim[0]
-    hidden_size = int(paramdf['hidden_size'].iloc[paramid]) # number of neurons per hidden layer
-    hidden_num = int(paramdf['hidden_num'].iloc[paramid]) # number of hidden layers
-    lstm_num = int(paramdf['lstm_num'].iloc[paramid]) # number of cells in a lstm layer
-    lstm_layers = int(paramdf['lstm_layers'].iloc[paramid]) # number of lstm layers
+    hidden_size = int(paramdf['hidden_size']) # number of neurons per hidden layer
+    hidden_num = int(paramdf['hidden_num']) # number of hidden layers
+    lstm_num = int(paramdf['lstm_num']) # number of cells in a lstm layer
+    lstm_layers = int(paramdf['lstm_layers']) # number of lstm layers
     ## memory parameters
-    memory_size = int(paramdf['memory size'].iloc[paramid]) # memory capacity
-    batch_size = int(paramdf['batch size'].iloc[paramid]) # mini-batch size
-    seql = int(paramdf['seql'].iloc[paramid]) # sequence length for LSTM. each mini-batch has batch_size number of sequences
-    min_seql = int(paramdf['min_seql'].iloc[paramid]) # minimum sequence length for training sequence.
-    burninl = int(paramdf['burninl'].iloc[paramid]) # maximmum burn-in length for DRQN
+    memory_size = int(paramdf['memory size']) # memory capacity
+    batch_size = int(paramdf['batch size']) # mini-batch size
+    seql = int(paramdf['seql']) # sequence length for LSTM. each mini-batch has batch_size number of sequences
+    min_seql = int(paramdf['min_seql']) # minimum sequence length for training sequence.
+    burninl = int(paramdf['burninl']) # maximmum burn-in length for DRQN
     ## distributional RL atoms size
-    Vmin = float(paramdf['vmin'].iloc[paramid])
-    Vmax = float(paramdf['vmax'].iloc[paramid])
-    atomn = int(paramdf['atomn'].iloc[paramid])
+    Vmin = float(paramdf['vmin'])
+    Vmax = float(paramdf['vmax'])
+    atomn = int(paramdf['atomn'])
 
 
-    num_episodes = int(paramdf['episodenum'].iloc[paramid])
-    epdecayopt = int(paramdf['epsilon'].iloc[paramid].split(';')[0])
+    num_episodes = int(paramdf['episodenum'])
+    epdecayopt = int(paramdf['epsilon'].split(';')[0])
     ## etc.
-    lr = float(paramdf['lr'].iloc[paramid])
-    lrdecayrate = float(paramdf['lrdecay'].iloc[paramid])
-    if paramdf['minlr'].iloc[paramid] == 'inf':
+    lr = float(paramdf['lr'])
+    lrdecayrate = float(paramdf['lrdecay'])
+    if paramdf['minlr'] == 'inf':
         min_lr = float('-inf')
     else:
-        min_lr = float(paramdf['minlr'].iloc[paramid])
-    normalize = bool(int(paramdf['normalize'].iloc[paramid]))
+        min_lr = float(paramdf['minlr'])
+    normalize = bool(int(paramdf['normalize']))
     ## extra extensions
-    DDQN = bool(int(paramdf['ddqn'].iloc[paramid]))
-    nstep = int(paramdf['nstep'].iloc[paramid])
-    distributional = bool(int(paramdf['distributional'].iloc[paramid]))
+    DDQN = bool(int(paramdf['ddqn']))
+    nstep = int(paramdf['nstep'])
+    distributional = bool(int(paramdf['distributional']))
     ## training cycles
-    training_cycle = int(paramdf['training_cycle'].iloc[paramid])
-    target_update_cycle = int(paramdf['target_update_cycle'].iloc[paramid])
+    training_cycle = int(paramdf['training_cycle'])
+    target_update_cycle = int(paramdf['target_update_cycle'])
     # performance evaluation
-    external_testing = bool(int(paramdf['external testing'].iloc[paramid]))
+    external_testing = bool(int(paramdf['external testing']))
     # Q initialization
-    bestQinit = bool(int(paramdf['bestQinit'].iloc[paramid]))
+    bestQinit = bool(int(paramdf['bestQinit']))
     # option to input action in the network.
-    actioninput = bool(int(paramdf['actioninput'].iloc[paramid]))
+    actioninput = bool(int(paramdf['actioninput']))
     # option to always sample sequences from the start of an episode
-    samplefromstart = bool(int(paramdf['samplefromstart'].iloc[paramid]))
+    samplefromstart = bool(int(paramdf['samplefromstart']))
     # discount rate
     gamma = env.gamma 
-    max_steps = int(paramdf['max_steps'].iloc[paramid]) # max steps per episode
+    max_steps = int(paramdf['max_steps']) # max steps per episode
     ## performance testing sample size
-    performance_sampleN = int(paramdf['performance_sampleN'].iloc[paramid])
-    final_performance_sampleN = int(paramdf['final_performance_sampleN'].iloc[paramid])
+    performance_sampleN = int(paramdf['performance_sampleN'])
+    final_performance_sampleN = int(paramdf['final_performance_sampleN'])
+    evaluation_interval = int(paramdf['evaluation_interval'])
     ## number of steps to run in the absorbing state before terminating the episode
-    postterm_len = int(paramdf['postterm_len'].iloc[paramid]) 
+    postterm_len = int(paramdf['postterm_len']) 
     ## actioninput
     actioninputsize = int(actioninput)*len(env.actionspace_dim)
 
@@ -282,7 +283,6 @@ def DRQN(env, paramdf, paramid, seed):
         if Q.optimizer.param_groups[0]['lr'] < min_lr:
             Q.optimizer.param_groups[0]['lr'] = min_lr
 
-        evaluation_interval = 100
         if i % evaluation_interval == 0: # calculate average reward every 1000 episodes
             if not external_testing:
                 avgperformance = calc_performance(env,device,Q,None,performance_sampleN,max_steps,True,actioninput)

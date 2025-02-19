@@ -29,5 +29,6 @@ memory size,1000
 batch size,100
 seed,12
 external testing,FALSE
+evaluation_interval,100
 min_MSE,na
 note,performs well with 2.1
