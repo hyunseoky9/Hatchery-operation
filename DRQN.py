@@ -61,10 +61,34 @@ def DRQN(env,num_episodes,epdecayopt,
     Vmax = float(paramdf['vmax'].iloc[paramid])
     atomn = int(paramdf['atomn'].iloc[paramid])
 
+
+    num_episodes = int(paramdf['episodenum'].iloc[paramid])
+    epdecayopt = int(paramdf['epsilon'].iloc[paramid].split(';')[0])
     ## etc.
-    #lr = 0.01
-    #min_lr = 1e-6
-    gamma = env.gamma # discount rate
+    lr = float(paramdf['lr'].iloc[paramid])
+    lrdecayrate = float(paramdf['lrdecay'].iloc[paramid])
+    if paramdf['minlr'].iloc[paramid] == 'inf':
+        minlr = float('-inf')
+    else:
+        minlr = float(paramdf['minlr'].iloc[paramid])
+    normalize = bool(int(paramdf['normalize'].iloc[paramid]))
+    ## extra extensions
+    DDQN = bool(int(paramdf['ddqn'].iloc[paramid]))
+    nstep = int(paramdf['nstep'].iloc[paramid])
+    distributional = bool(int(paramdf['distributional'].iloc[paramid]))
+    ## training cycles
+    training_cycle = int(paramdf['training_cycle'].iloc[paramid])
+    target_update_cycle = int(paramdf['target_update_cycle'].iloc[paramid])
+    # performance evaluation
+    external_testing = bool(int(paramdf['external testing'].iloc[paramid]))
+    # Q initialization
+    bestQinit = bool(int(paramdf['bestQinit'].iloc[paramid]))
+    # option to input action in the network.
+    actioninput = bool(int(paramdf['actioninput'].iloc[paramid]))
+    # option to always sample sequences from the start of an episode
+    samplefromstart = bool(int(paramdf['samplefromstart'].iloc[paramid]))
+    # discount rate
+    gamma = env.gamma 
     max_steps = int(paramdf['max_steps'].iloc[paramid]) # max steps per episode
     ## performance testing sample size
     performance_sampleN = int(paramdf['performance_sampleN'].iloc[paramid])
