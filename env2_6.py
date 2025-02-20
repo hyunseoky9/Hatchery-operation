@@ -3,17 +3,15 @@ from math import floor
 import random
 from IPython.display import display
 import pandas as pd
-class Env2_5:
+class Env2_6:
     """
-    Same as Env2.0 but catch (y) is observed every season and is continuous (both in fall and spring)
-    y is normalized by default between 0 and 1
-    output of y is logged
+    Same as Env2.4 but heterozygosity is only observed in fall.
     """
     def __init__(self,initstate,parameterization_set,discretization_set):
-        self.envID = 'Env2.5'
+        self.envID = 'Env2.6'
         self.partial = True
         self.episodic = False
-        self.absorbing_cut = True # has an absorbing state and the episode should be cut shortly after reaching it.
+        self.absorbing_cut = True # has an absorbing state and the episode should be cut shortly after reaching it when training.
         self.discset = discretization_set
         # Define state space and action space based on your document
         if discretization_set == 0:
@@ -26,9 +24,47 @@ class Env2_5:
                 "tau": [0, 1]  # 0 for Fall, 1 for Spring
             }
             self.observations = {
-                "y": [0,7500], # normalized and log transformed catch between 0 and 1 
+                "y": [0, 15, 30, 45], # observed catch from fall monitoring. -1= no observed catch (for spring); 45 is actually anything gretaer than 45
                 "ONH": [0, 75000, 150000, 225000, 300000], # observed hatchery fish
-                "OH": [0.56, 0.61, 0.66, 0.71, 0.76, 0.81, 0.86], # observed heterozygosity
+                "OH": [-1,0.56, 0.61, 0.66, 0.71, 0.76, 0.81, 0.86], # observed heterozygosity (-1 = no observation of H)
+                "Oq": [65, 322, 457, 592, 848], # observed spring flow
+                "Otau": [0, 1]  # observed season
+            }
+            self.actions = {
+                "a": [0, 75000, 150000, 225000, 300000]
+            }
+        elif discretization_set == 1:
+            self.states = {
+                "NW": [1000, 2500000, 5000000], # Population size
+                "NWm1": [2500000, 5000000], # Population size
+                "NH": [0, 100000, 200000], # hatchery population size
+                "H": [0.56, 0.71, 0.86], # Heterozygosity
+                "q": [65, 322, 457], # Spring Flow
+                "tau": [0, 1]  # 0 for Fall, 1 for Spring
+            }
+            self.observations = {
+                "y": [-1, 0, 30], # observed catch from fall monitoring. -1= no observed catch (for spring); 45 is actually anything gretaer than 45
+                "ONH": [0, 100000, 200000], # hatchery population size
+                "OH": [-1,0.56, 0.71, 0.86], # Heterozygosity
+                "Oq": [65, 322, 457], # Spring Flow
+                "Otau": [0, 1]  # 0 for Fall, 1 for Spring
+            }
+            self.actions = {
+                "a": [0, 100000, 200000]
+            }
+        elif discretization_set == 2:
+            self.states = {
+                "NW": [1000, 3000, 15195, 76961, 389806, 1974350, 10000000], # Population size
+                "NWm1": [3000, 15195, 76961, 389806, 1974350, 10000000], # Population size
+                "NH": [0, 75000, 150000, 225000, 300000], # hatchery population size
+                "H": [0.56, 0.61, 0.66, 0.71, 0.76, 0.81, 0.86], # Heterozygosity
+                "q": [65, 322, 457, 592, 848], # Spring Flow
+                "tau": [0, 1]  # 0 for Fall, 1 for Spring
+            }
+            self.observations = {
+                "y": [0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46], # observed catch from fall monitoring. -1= no observed catch (for spring); 45 is actually anything gretaer than 45
+                "ONH": [0, 75000, 150000, 225000, 300000], # observed hatchery fish
+                "OH": [-1,0.56, 0.61, 0.66, 0.71, 0.76, 0.81, 0.86], # observed heterozygosity
                 "Oq": [65, 322, 457, 592, 848], # observed spring flow
                 "Otau": [0, 1]  # observed season
             }
@@ -37,7 +73,7 @@ class Env2_5:
             }
 
 
-        # observed catch from fall monitoring. -1= no observed catch (for spring); 45 is actually anything gretaer than 45
+                 # observed catch from fall monitoring. -1= no observed catch (for spring); 45 is actually anything gretaer than 45
         self.statespace_dim = list(map(lambda x: len(x[1]), self.states.items()))
         self.actionspace_dim = list(map(lambda x: len(x[1]), self.actions.items()))
         self.obsspace_dim  = list(map(lambda x: len(x[1]), self.observations.items()))
@@ -84,10 +120,10 @@ class Env2_5:
                 new_state.append(random.choice(np.arange(1, len(self.states["NW"])))) # don't start from the smallest population size
             else:
                 new_state.append(initstate[0])
+
             new_y = self._fallmonitoring(self.states["NW"][new_state[0]])
-            new_y = min(max(new_y, self.observations['y'][0]), self.observations['y'][1]) # clip to 0-7500
-            new_y = np.log(new_y + 1)
-            #new_y = (new_y - self.observations['y'][0])/(self.observations['y'][1] - self.observations['y'][0]) # normalize
+            new_y = self._discretize(new_y, self.observations['y'])
+            new_y = np.where(np.array(self.observations['y']) == new_y)[0][0]
             new_obs.append(new_y) # observed catch in fall
 
             if initstate[1] == -1:
@@ -100,13 +136,13 @@ class Env2_5:
             else:
                 new_state.append(initstate[2])
                 new_obs.append(initstate[2])
+            # H not observed in spring
+            new_obs.append(0)
             if initstate[3] == -1:
-                idx3 = random.choice(np.arange(0, len(self.states["H"])))
+                idx3 = random.choice(np.arange(0, len(self.states["H"]))) 
                 new_state.append(idx3)
-                new_obs.append(idx3)
             else: 
                 new_state.append(initstate[3])
-                new_obs.append(initstate[3])
             if initstate[4] == -1:
                 idx4 = random.choice(np.arange(0, len(self.states["q"])))
                 new_state.append(idx4)
@@ -122,9 +158,8 @@ class Env2_5:
                 new_state.append(initstate[0])
 
             new_y = self._fallmonitoring(self.states["NW"][new_state[0]])
-            new_y = min(max(new_y, self.observations['y'][0]), self.observations['y'][1]) # clip to 0-7500
-            new_y = np.log(new_y + 1)
-            #new_y = (new_y - self.observations['y'][0])/(self.observations['y'][1] - self.observations['y'][0]) # normalize
+            new_y = self._discretize(new_y, self.observations['y'])
+            new_y = np.where(np.array(self.observations['y']) == new_y)[0][0]
             new_obs.append(new_y) # observed catch in fall
             if initstate[1] == -1:
                 new_state.append(random.choice(np.arange(0, len(self.states["NWm1"]))))
@@ -211,17 +246,19 @@ class Env2_5:
 
             # observation is based on monitoring (monitoring made in both fall and spring)
             y_next = self._fallmonitoring(NW_next)
-            y_next = min(max(y_next, self.observations['y'][0]), self.observations['y'][1]) # clip to 0-7500
-            y_next = np.log(y_next+1)
-            #y_next = (y_next - self.observations['y'][0])/(self.observations['y'][1] - self.observations['y'][0]) # normalize
-
+            y_next = self._discretize(y_next, self.observations['y'])
+            if tau == 0:
+                OH_next_idx = H_next_idx + 1 # +1 because 0th index for OH is no observation
+            else:
+                OH_next_idx = 0
             # Update state
             NW_next_idx = np.where(np.array(self.states['NW']) == NW_next)[0][0]
             NWm1_next = np.where(np.array(self.states['NWm1']) == NWm1_next)[0][0]
             H_next_idx = np.where(np.array(self.states['H']) == H_next)[0][0]
             q_next_idx = np.where(np.array(self.states['q']) == q_next)[0][0]
+            y_next_idx = np.where(np.array(self.observations['y']) == y_next)[0][0]
             self.state = [NW_next_idx, NWm1_next, NH_next, H_next_idx, q_next_idx, tau_next]
-            self.obs = [y_next, NH_next, H_next_idx, q_next_idx, tau_next]
+            self.obs = [y_next_idx, NH_next, OH_next_idx, q_next_idx, tau_next]
             # Check termination
             done  = False
         else: # extinct.
@@ -244,8 +281,9 @@ class Env2_5:
             NWm1_next = 0
             H_next_idx = 0
             q_next_idx = np.where(np.array(self.states['q']) == q_next)[0][0]
+            y_next_idx = np.where(np.array(self.observations['y']) == y_next)[0][0]
             self.state = [NW_next_idx, NWm1_next, NH_next, H_next_idx, q_next_idx, tau_next]
-            self.obs = [y_next, NH_next, H_next_idx, q_next_idx, tau_next]
+            self.obs = [y_next_idx, NH_next, H_next_idx, q_next_idx, tau_next]
             # extinction
             done = False
             s = 0
@@ -366,7 +404,6 @@ class Env2_5:
                 y_next_idx = np.where(np.array(self.observations['y']) == y_next)[0][0]
                 y_prob[i,y_next_idx] += 1
             y_prob[i] /= sample
-            print(f'NW[{i}] done')
         return y_prob
     
     def Qsubcalc(self, Q, ranges):

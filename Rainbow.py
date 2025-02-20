@@ -18,11 +18,7 @@ from calc_performance import *
 from choose_action import *
 from absorbing import *
 from pretrain import *
-def Rainbow(env,num_episodes,epdecayopt,
-            DDQN,DuelingDQN,PrioritizedReplay,nstep,noisy,distributional,
-            lrdecayrate,lr,min_lr,
-            training_cycle,target_update_cycle,
-            calc_MSE, external_testing, normalize, bestQinit,actioninput):
+def Rainbow(env,paramdf,paramid, seed):
     # train using Deep Q Network
     # env: environment class object
     # num_episodes: number of episodes to train 
@@ -45,41 +41,69 @@ def Rainbow(env,num_episodes,epdecayopt,
         state_size = len(env.statespace_dim)
     else:
         state_size = len(env.obsspace_dim)
+    
     action_size = env.actionspace_dim[0]
-    hidden_size = 30
-    hidden_num = 3
+
+    ## extra extensions
+    DDQN = bool(int(paramdf['ddqn']))
+    DuelingDQN = bool(int(paramdf['dueling']))
+    PrioritizedReplay = bool(int(paramdf['prioritized']))
+    nstep = int(paramdf['nstep'])
+    noisy = bool(int(paramdf['noisy']))
+    distributional = bool(int(paramdf['distributional']))
+    # basic DQN
+    hidden_size = int(paramdf['hidden_size']) # number of neurons per hidden layer
+    hidden_num = int(paramdf['hidden_num']) # number of hidden layers
     # Dueling DQN
-    hidden_num_shared = 1
-    hidden_num_split = 1
-    hidden_size_shared = 30
-    hidden_size_split = 20
+    hidden_num_shared = int(paramdf['hidden_shared_num'])
+    hidden_num_split = int(paramdf['hidden_split_num'])
+    hidden_size_shared = int(paramdf['hidden_shared_width'])
+    hidden_size_split = int(paramdf['hidden_split_width'])
     # Prioritized Replay
-    alpha = 0.4 # priority importance
-    beta0 = 0.4 # initial beta
+    alpha = float(paramdf['alpha']) # priority importance
+    beta0 = float(paramdf['beta0']) # initial beta
     per_epsilon = 1e-6 # small value to avoid zero priority
     max_abstd = 1 # initial max priority
     ## memory parameters
-    memory_size = 1000 # memory capacity
-    batch_size = 100 # experience mini-batch size
+    memory_size = int(paramdf['memory size']) # memory capacity
+    batch_size = int(paramdf['batch size']) # experience mini-batch size
     ## distributional RL atoms size
-    Vmin = -104
-    Vmax = 70
-    atomn = 16
+    Vmin = float(paramdf['vmin'])
+    Vmax = float(paramdf['vmax'])
+    atomn = int(paramdf['atomn'])
+
+    num_episodes = int(paramdf['episodenum'])
+    epdecayparam = eval(paramdf['epsilon'])
+    ## training cycles
+    training_cycle = int(paramdf['training_cycle'])
+    target_update_cycle = int(paramdf['target_update_cycle'])
 
     ## etc.
-    #lr = 0.01
-    #min_lr = 1e-6
+    lr = float(paramdf['lr'])
+    lrdecayrate = float(paramdf['lrdecay'])
+    if paramdf['minlr'] == 'inf':
+        min_lr = float('-inf')
+    else:
+        min_lr = float(paramdf['minlr'])
+    normalize = bool(int(paramdf['normalize']))
     gamma = env.gamma # discount rate
-    max_steps = 100 # max steps per episode
+    max_steps = int(paramdf['max_steps']) # max steps per episode
     ## cycles
     #training_cycle = 7 # number of steps where the network is trained
     #target_update_cycle = 10 # number of steps where the target network is updated
     ## performance testing sample size
-    evaluation_interval = 1000
-    performance_sampleN = 1000
-    final_performance_sampleN = 1000
+    performance_sampleN = int(paramdf['performance_sampleN'])
+    final_performance_sampleN = int(paramdf['final_performance_sampleN'])
+    evaluation_interval = int(paramdf['evaluation_interval'])
+    # performance evaluation
+    external_testing = bool(int(paramdf['external testing']))
+    calc_MSE = bool(int(paramdf['calc_MSE']))
+    # Q initialization
+    bestQinit = bool(int(paramdf['bestQinit']))
+    # option to input action in the network.
+    actioninput = bool(int(paramdf['actioninput']))
     ## number of steps to run in the absorbing state before terminating the episode
-    postterm_len = 3 
+    postterm_len = int(paramdf['postterm_len']) 
     ## actioninput
     actioninputsize = int(actioninput)*len(env.actionspace_dim)
 
@@ -105,16 +129,16 @@ def Rainbow(env,num_episodes,epdecayopt,
 
     # initialization
     ## print out extension feature usage
-    print(f'DuelingDQN: {DuelingDQN}\nDDQN: {DDQN}\nPrioritizedReplay: {PrioritizedReplay}\nnstep: {nstep}\nnoisynet: {noisy}\ndistributional RL: {distributional}')
-    if DuelingDQN:
-        print(f'hidden_size_shared: {hidden_size_shared}, hidden_size_split: {hidden_size_split}, hidden_num_shared: {hidden_num_shared}, hidden_num_split: {hidden_num_split}')
-    else:
-        print(f'hidden_size: {hidden_size}, hidden_num: {hidden_num}')
-    if PrioritizedReplay:
-        print(f'alpha: {alpha}, beta0: {beta0}, per_epsilon: {per_epsilon}')
-    if distributional:
-        print(f'Vmin: {Vmin}, Vmax: {Vmax}, atom N: {atomn}')
+    print(f'Environment: {env.envID}, config: {paramdf['envconfig']}')
+
+    if DuelingDQN == False:
+        print(f'Network: layern: {hidden_num} layerwidth: {hidden_size}')
+    print(f'PrioritizedReplay: {PrioritizedReplay}' + (f'alpha: {alpha}, beta0: {beta0}, per_epsilon: {per_epsilon}' if PrioritizedReplay==True else ''))
+    print(f'distributional: {distributional}' + (f'Vmin: {Vmin}, Vmax: {Vmax}, atom N: {atomn}' if distributional == True else ''))
+    print(f'DuelingDQN: {DuelingDQN}' + (f'(hidden_size_shared: {hidden_size_shared}, hidden_size_split: {hidden_size_split}, hidden_num_shared: {hidden_num_shared}, hidden_num_split: {hidden_num_split})' if DuelingDQN==True else ''))
+    print(f'Noisynet: {noisy}')
     print(f'lr: {lr}, lrdecayrate: {lrdecayrate}, min_lr: {min_lr}')
+    print(f'epsilon-greedy: {epdecayparam}')
     ## initialize NN
     if DuelingDQN:
         Q = DuelQNN(state_size+actioninputsize, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared,
@@ -140,17 +164,15 @@ def Rainbow(env,num_episodes,epdecayopt,
     Q_target.load_state_dict(Q.state_dict())  # Copy weights from Q to Q_target
     Q_target.eval()  # Set target network to evaluation mode (no gradient updates)
     
+    ## Define the path for the new directory
+    parent_directory = './deepQN results'
+    new_directory = f'seed{seed}_paramset{paramid}'
+    path = os.path.join(parent_directory, new_directory)
 
-   ## start testing process
-    testwd = './deepQN results/intermediate training Q network'
-    # delete all the previous network files in the intermediate network folder to not test the old Q networks
-    for file in os.listdir(testwd):
-        try:
-            os.remove(os.path.join(testwd,file))
-        except PermissionError:
-            print(f"File {testwd} is locked. Retrying...")
-            time.sleep(5)  # Wait 5 second
-            os.remove(testwd)  # Retry deletion
+    ## start testing process
+    os.makedirs(path, exist_ok=True)
+    testwd = f'./deepQN results/{new_directory}'
+
     # run testing script in a separate process if external testing is on
     if external_testing:
         # run the testing script in a separate process
@@ -211,7 +233,7 @@ def Rainbow(env,num_episodes,epdecayopt,
         if noisy: # turn off epsilon greedy for noisy nets
             ep = 0
         else:
-            ep = epsilon_update(i,epdecayopt,num_episodes) 
+            ep = epsilon_update(i,epdecayparam,num_episodes) 
         # initialize state that doesn't start from terminal
         env.reset(initlist) # random initialization
         if env.partial == False:
@@ -371,15 +393,14 @@ def Rainbow(env,num_episodes,epdecayopt,
     ## save last model and the best model (in terms of rewards)
     if env.envID in ['Env1.0','Env1.1','Env2.0','Env2.1','Env2.2','Env2.3','Env2.4','Env2.5','Env2.6','tiger']:
         # last model
-        wd = './deepQN results'
-        torch.save(Q, f"{wd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pt")
+        torch.save(Q, f"{testwd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pt")
         # best model
         if not external_testing:
             if max(avgperformances) > initperform:
                 bestidx = np.array(avgperformances).argmax()
                 bestfilename = f"{testwd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN_episode{bestidx*evaluation_interval}.pt"
                 print(f'best Q network found at episode {bestidx*evaluation_interval}')
-                shutil.copy(bestfilename, f"{wd}/bestQNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pt")
+                shutil.copy(bestfilename, f"{testwd}/bestQNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pt")
             else:
                 print(f'no improvement in the performance from training')
 
@@ -387,20 +408,26 @@ def Rainbow(env,num_episodes,epdecayopt,
     if env.envID == 'Env1.0' and actioninput == False:
         Q_discrete = _make_discrete_Q(Q,env,device)
         policy = _get_policy(env,Q_discrete)
-        wd = './deepQN results'
-        with open(f"{wd}/Q_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pkl", "wb") as file:
+        with open(f"{testwd}/Q_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pkl", "wb") as file:
             pickle.dump(Q_discrete, file)
-        with open(f"{wd}/policy_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pkl", "wb") as file:
+        with open(f"{testwd}/policy_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pkl", "wb") as file:
             pickle.dump(policy, file)
     else:
         Q_discrete = None
         policy = None
     ## save performance
     if external_testing == False:
-        np.save(f"{wd}/rewards_{env.envID}_par{env.parset}_dis{env.discset}_DQN.npy", avgperformances)
+        np.save(f"{testwd}/rewards_{env.envID}_par{env.parset}_dis{env.discset}_DQN.npy", avgperformances)
     ## save MSE
     if calc_MSE:
-        np.save(f"{wd}/MSE_{env.envID}_par{env.parset}_dis{env.discset}_DQN.npy", MSE)
+        np.save(f"{testwd}/MSE_{env.envID}_par{env.parset}_dis{env.discset}_DQN.npy", MSE)
+
+    ## lastly save the configuration.
+    param_file_path = os.path.join(testwd, f"config.txt")
+    with open(param_file_path, 'w') as param_file:
+        for key, value in paramdf.items():
+            param_file.write(f"{key}: {value}\n")
+
     return Q_discrete, policy, MSE, avgperformances, final_avgreward
 
 
@@ -453,30 +480,39 @@ class Memory():
         return states, actions, rewards, next_states, dones, previous_actions
     
 
-
-def epsilon_update(i,option,num_episodes):
+def epsilon_update(i,param,num_episodes):
     # update epsilon
-    if option == 0:
+    if param['type'] == 0:
         # inverse decay
         return 1/(i+1)
-    elif option == 1:
+    elif param['type'] == 1:
         # inverse decay with a minimum epsilon of 0.01
         return max(1/(i+1), 0.2)
-    elif option == 2:
+    elif param['type'] == 2:
         # pure exploration for 10% of the episodes
         if i < num_episodes*0.1:
             return 1
         else:
             return max(1/(i-(np.ceil(num_episodes*0.1)-1)), 0.01)
-    elif option == 3: # exponential decay
-        a = 1/num_episodes*10
-        return np.exp(-a*i)
-    elif option == 4: # logistic decay
-        fix = 100000
-        a=0.1
-        b=-10*1/fix*3
-        c=-fix*0.4
-        return max(a/(1+np.exp(-b*(i+c))), 0.01)
+    elif param['type'] == 3: # exponential decay
+        minep = param['minep']
+        maxep = param['maxep']
+        beta = param['rate']/num_episodes
+        newep = minep + (maxep - minep)*np.exp(-beta*i)
+        return newep
+    elif param['type'] == 4: # logistic decay
+        if type(param['fix']) == int:
+            fix = param['fix']
+        else:
+            fix = num_episodes
+        a= param['a']
+        b=-param['bf']/fix
+        c=-fix*param['cf']
+        return max(a/(1+np.exp(-b*(i+c))), param['minep'])
+    elif param['type'] == 5: # linear decay
+        return max(1-i/num_episodes, 0)
+    elif param['type'] == 6: # fixed decay
+        return param['val']
 
 def _get_policy(env,Q):
     # get policy from Q function

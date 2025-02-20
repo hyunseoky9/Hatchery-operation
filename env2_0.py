@@ -40,7 +40,7 @@ class Env2_0:
                 "tau": [0, 1]  # 0 for Fall, 1 for Spring
             }
             self.observations = {
-                "y": [-1, 0, 30], # observed catch from fall monitoring. -1= no observed catch (for spring); 45 is actually anything gretaer than 45
+                "y": [0, 30], # observed catch from fall monitoring. -1= no observed catch (for spring); 45 is actually anything gretaer than 45
                 "ONH": [0, 100000, 200000], # hatchery population size
                 "OH": [0.56, 0.71, 0.86], # Heterozygosity
                 "Oq": [65, 322, 457], # Spring Flow

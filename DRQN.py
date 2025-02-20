@@ -59,7 +59,7 @@ def DRQN(env, paramdf, paramid, seed):
 
 
     num_episodes = int(paramdf['episodenum'])
-    epdecayopt = int(paramdf['epsilon'].split(';')[0])
+    epdecayparam = eval(paramdf['epsilon'])
     ## etc.
     lr = float(paramdf['lr'])
     lrdecayrate = float(paramdf['lrdecay'])
@@ -197,7 +197,7 @@ def DRQN(env, paramdf, paramid, seed):
     done_before = 0
     while i < num_episodes: #delta > theta:
         # update epsilon
-        ep = epsilon_update(i,epdecayopt,num_episodes) 
+        ep = epsilon_update(i,epdecayparam,num_episodes) 
         # initialize state that doesn't start from terminal
         env.reset(initlist) # random initialization
         if env.partial == False:
@@ -322,6 +322,13 @@ def DRQN(env, paramdf, paramid, seed):
     ## save performance
     if external_testing == False:
         np.save(f"{testwd}/rewards_{env.envID}_par{env.parset}_dis{env.discset}_DRQN.npy", avgperformances)
+
+    ## lastly save the configuration.
+    param_file_path = os.path.join(testwd, f"config.txt")
+    with open(param_file_path, 'w') as param_file:
+        for key, value in paramdf.items():
+            param_file.write(f"{key}: {value}\n")
+
     return avgperformances, final_avgreward
 
 def _make_discrete_Q(Q,env,device):
@@ -470,36 +477,39 @@ class Memory():
         return batch_states, batch_actions, batch_rewards, batch_next_states, batch_dones, batch_previous_actions, burnin_lens, training_lens, total_lens
 
 
-def epsilon_update(i,option,num_episodes):
+def epsilon_update(i,param,num_episodes):
     # update epsilon
-    if option == 0:
+    if param['type'] == 0:
         # inverse decay
         return 1/(i+1)
-    elif option == 1:
+    elif param['type'] == 1:
         # inverse decay with a minimum epsilon of 0.01
         return max(1/(i+1), 0.2)
-    elif option == 2:
+    elif param['type'] == 2:
         # pure exploration for 10% of the episodes
         if i < num_episodes*0.1:
             return 1
         else:
             return max(1/(i-(np.ceil(num_episodes*0.1)-1)), 0.01)
-    elif option == 3: # exponential decay
-        minep = 0.01
-        maxep = 1
-        beta = 17/num_episodes
+    elif param['type'] == 3: # exponential decay
+        minep = param['minep']
+        maxep = param['maxep']
+        beta = param['rate']/num_episodes
         newep = minep + (maxep - minep)*np.exp(-beta*i)
         return newep
-    elif option == 4: # logistic decay
-        fix = num_episodes
-        a= 0.3
-        b=-30/fix
-        c=-fix*0.5
-        return max(a/(1+np.exp(-b*(i+c))), 0.1)
-    elif option == 5: # linear decay
+    elif param['type'] == 4: # logistic decay
+        if type(param['fix']) == int:
+            fix = param['fix']
+        else:
+            fix = num_episodes
+        a= param['a']
+        b=-param['bf']/fix
+        c=-fix*param['cf']
+        return max(a/(1+np.exp(-b*(i+c))), param['minep'])
+    elif param['type'] == 5: # linear decay
         return max(1-i/num_episodes, 0)
-    elif option == 6: # fixed decay
-        return 0.2
+    elif param['type'] == 6: # fixed decay
+        return param['val']
 
 def train_model(Q, batch_states, batch_actions, batch_targets, device, total_lens, burnin_lens):
     Q.train()
