@@ -86,6 +86,8 @@ def Rainbow(env,paramdf,paramid, seed):
     else:
         min_lr = float(paramdf['minlr'])
     normalize = bool(int(paramdf['normalize']))
+    fstack = int(paramdf['framestacking'])# framestacking
+
     gamma = env.gamma # discount rate
     max_steps = int(paramdf['max_steps']) # max steps per episode
     ## cycles
@@ -102,9 +104,9 @@ def Rainbow(env,paramdf,paramid, seed):
     bestQinit = bool(int(paramdf['bestQinit']))
     # option to input action in the network.
     actioninput = bool(int(paramdf['actioninput']))
-    ## number of steps to run in the absorbing state before terminating the episode
+    # number of steps to run in the absorbing state before terminating the episode
     postterm_len = int(paramdf['postterm_len']) 
-    ## actioninput
+    # actioninput
     actioninputsize = int(actioninput)*len(env.actionspace_dim)
 
  

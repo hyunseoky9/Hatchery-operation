@@ -247,14 +247,14 @@ class Env2_6:
             # observation is based on monitoring (monitoring made in both fall and spring)
             y_next = self._fallmonitoring(NW_next)
             y_next = self._discretize(y_next, self.observations['y'])
-            if tau == 0:
-                OH_next_idx = H_next_idx + 1 # +1 because 0th index for OH is no observation
-            else:
-                OH_next_idx = 0
             # Update state
             NW_next_idx = np.where(np.array(self.states['NW']) == NW_next)[0][0]
             NWm1_next = np.where(np.array(self.states['NWm1']) == NWm1_next)[0][0]
             H_next_idx = np.where(np.array(self.states['H']) == H_next)[0][0]
+            if tau == 0:
+                OH_next_idx = H_next_idx + 1 # +1 because 0th index for OH is no observation
+            else:
+                OH_next_idx = 0
             q_next_idx = np.where(np.array(self.states['q']) == q_next)[0][0]
             y_next_idx = np.where(np.array(self.observations['y']) == y_next)[0][0]
             self.state = [NW_next_idx, NWm1_next, NH_next, H_next_idx, q_next_idx, tau_next]
