@@ -161,14 +161,14 @@ def Rainbow(env,paramdf, meta):
     ## initialize NN
     if DuelingDQN:
         Q = DuelQNN((state_size*fstack)+actioninputsize, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared,
-                     hidden_num_split, lr, input_min, input_max,lrdecayrate,noisy,distributional,atomn, Vmin, Vmax, normalize).to(device)
+                     hidden_num_split, lr, input_min, input_max,lrdecayrate,noisy,distributional,atomn, Vmin, Vmax, normalize,fstack).to(device)
         Q_target = DuelQNN((state_size*fstack)+actioninputsize, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared,
-                            hidden_num_split, lr, input_min, input_max,lrdecayrate,noisy,distributional,atomn, Vmin, Vmax, normalize).to(device)
+                            hidden_num_split, lr, input_min, input_max,lrdecayrate,noisy,distributional,atomn, Vmin, Vmax, normalize,fstack).to(device)
     else:
         Q = QNN((state_size*fstack)+actioninputsize, action_size, hidden_size, hidden_num, lr, input_min, input_max,
-                lrdecayrate,noisy, distributional, atomn, Vmin, Vmax, normalize).to(device)
+                lrdecayrate,noisy, distributional, atomn, Vmin, Vmax, normalize, fstack).to(device)
         Q_target = QNN((state_size*fstack)+actioninputsize, action_size, hidden_size, hidden_num, lr, input_min, 
-                       input_max,lrdecayrate,noisy, distributional, atomn, Vmin, Vmax, normalize).to(device)
+                       input_max,lrdecayrate,noisy, distributional, atomn, Vmin, Vmax, normalize,fstack).to(device)
     if bestQinit:
         # initialize Q with the best Q network from the previous run
         with open(f"deepQN results/bestQNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pt", "rb") as file:
