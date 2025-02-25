@@ -40,9 +40,10 @@ def calc_performance(env, device, Q=None, policy=None, episodenum=1000, t_maxste
         while done == False:
             if env.partial == False:
                 state = env.state
+                stack = stack[len(env.state):] + env.state
             else:
                 state = env.obs
-            stack = stack[len(env.state):] + env.state
+                stack = stack[len(env.obs):] + env.obs
 
             if Q is not None:
                 prev_a = previous_action if actioninput else None
