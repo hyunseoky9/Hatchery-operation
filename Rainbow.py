@@ -152,9 +152,9 @@ def Rainbow(env,paramdf, meta):
 
     if DuelingDQN == False:
         print(f'Network: layern: {hidden_num} layerwidth: {hidden_size}')
-    print(f'PrioritizedReplay: {PrioritizedReplay}' + (f'alpha: {alpha}, beta0: {beta0}, per_epsilon: {per_epsilon}' if PrioritizedReplay==True else ''))
-    print(f'distributional: {distributional}' + (f'Vmin: {Vmin}, Vmax: {Vmax}, atom N: {atomn}' if distributional == True else ''))
-    print(f'DuelingDQN: {DuelingDQN}' + (f'(hidden_size_shared: {hidden_size_shared}, hidden_size_split: {hidden_size_split}, hidden_num_shared: {hidden_num_shared}, hidden_num_split: {hidden_num_split})' if DuelingDQN==True else ''))
+    print(f'PrioritizedReplay: {PrioritizedReplay}' + (f' (alpha: {alpha}, beta0: {beta0}, per_epsilon: {per_epsilon})' if PrioritizedReplay==True else ''))
+    print(f'distributional: {distributional}' + (f' (Vmin: {Vmin}, Vmax: {Vmax}, atom N: {atomn})' if distributional == True else ''))
+    print(f'DuelingDQN: {DuelingDQN}' + (f' (hidden_size_shared: {hidden_size_shared}, hidden_size_split: {hidden_size_split}, hidden_num_shared: {hidden_num_shared}, hidden_num_split: {hidden_num_split})' if DuelingDQN==True else ''))
     print(f'Noisynet: {noisy}')
     print(f'lr: {lr}, lrdecayrate: {lrdecayrate}, min_lr: {min_lr}')
     print(f'epsilon-greedy: {epdecayparam}')
