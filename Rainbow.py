@@ -138,13 +138,13 @@ def Rainbow(env,paramdf, meta):
     elif env.envID in ['Env2.0','Env2.1','Env2.2','Env2.3','Env2.4','Env2.5','Env2.6','tiger']: # state is really observation in env2.0. We'll call the actual states as hidden states. This is done to make the code consistent with env1.0
         state_max = (torch.tensor(env.obsspace_dim, dtype=torch.float32)).to(device)
         state_min = torch.zeros([len(env.obsspace_dim)], dtype=torch.float32).to(device)
+    # repeat by the number of stack size.
+    input_max = torch.cat([state_max] * fstack) 
+    input_min = torch.cat([state_min] * fstack)
     # append action input
     if actioninput:
-        input_max = torch.cat((state_max,torch.ones(actioninputsize)*(np.array(env.actionspace_dim)-1)),0)
-        input_min = torch.cat((state_min,torch.zeros(actioninputsize)),0)
-    else:
-        input_max = state_max
-        input_min = state_min
+        input_max = torch.cat((input_max,torch.ones(actioninputsize)*(np.array(env.actionspace_dim)-1)),0)
+        input_min = torch.cat((input_min,torch.zeros(actioninputsize)),0)
 
     # initialization
     ## print out extension feature usage
@@ -160,14 +160,14 @@ def Rainbow(env,paramdf, meta):
     print(f'epsilon-greedy: {epdecayparam}')
     ## initialize NN
     if DuelingDQN:
-        Q = DuelQNN(state_size+actioninputsize, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared,
+        Q = DuelQNN((state_size*fstack)+actioninputsize, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared,
                      hidden_num_split, lr, input_min, input_max,lrdecayrate,noisy,distributional,atomn, Vmin, Vmax, normalize).to(device)
-        Q_target = DuelQNN(state_size+actioninputsize, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared,
+        Q_target = DuelQNN((state_size*fstack)+actioninputsize, action_size, hidden_size_shared, hidden_size_split, hidden_num_shared,
                             hidden_num_split, lr, input_min, input_max,lrdecayrate,noisy,distributional,atomn, Vmin, Vmax, normalize).to(device)
     else:
-        Q = QNN(state_size+actioninputsize, action_size, hidden_size, hidden_num, lr, input_min, input_max,
+        Q = QNN((state_size*fstack)+actioninputsize, action_size, hidden_size, hidden_num, lr, input_min, input_max,
                 lrdecayrate,noisy, distributional, atomn, Vmin, Vmax, normalize).to(device)
-        Q_target = QNN(state_size+actioninputsize, action_size, hidden_size, hidden_num, lr, input_min, 
+        Q_target = QNN((state_size*fstack)+actioninputsize, action_size, hidden_size, hidden_num, lr, input_min, 
                        input_max,lrdecayrate,noisy, distributional, atomn, Vmin, Vmax, normalize).to(device)
     if bestQinit:
         # initialize Q with the best Q network from the previous run
