@@ -204,10 +204,10 @@ def Rainbow(env,paramdf, meta):
     if PrioritizedReplay:
         memory = PMemory(memory_size, alpha, per_epsilon, max_abstd)
         beta = beta0
-        pretrain(env,nq,memory,max_steps,batch_size,PrioritizedReplay,memory.max_abstd,postterm_len) # prepopulate memory
+        pretrain(env,nq,memory,max_steps,batch_size,PrioritizedReplay,memory.max_abstd,postterm_len,fstack) # prepopulate memory
     else:
         memory = Memory(memory_size, state_size, len(env.actionspace_dim))
-        pretrain(env,nq,memory,max_steps,batch_size,PrioritizedReplay,0,postterm_len) # prepopulate memory
+        pretrain(env,nq,memory,max_steps,batch_size,PrioritizedReplay,0,postterm_len,fstack) # prepopulate memory
     print(f'Pretraining memory with {batch_size} experiences (buffer size: {memory_size})')
 
     ## state initialization setting 
@@ -252,6 +252,7 @@ def Rainbow(env,paramdf, meta):
             S = env.state
         else:
             S = env.obs
+        stack = S*fstack # set stack
         previous_a = 0
         done = False
         
@@ -260,7 +261,7 @@ def Rainbow(env,paramdf, meta):
         while done == False:
             prev_a = previous_a if actioninput else None
             if t > 0:
-                a = choose_action(S, Q, ep, action_size,distributional,device,False,None,prev_a)
+                a = choose_action(stack, Q, ep, action_size,distributional,device,False,None,prev_a)
             else:
                 a = random.randint(0, action_size-1) # first action in the episode is random for added exploration
             true_state = env.state
@@ -273,11 +274,14 @@ def Rainbow(env,paramdf, meta):
             if t >= max_steps: # finish episode if max steps reached even if terminal state not reached
                 done = True
             if env.partial == False:
-                nq.add(S, a, reward, env.state, done, previous_a, memory, PrioritizedReplay) # add transition to queue
+                next_stack = stack[len(env.state):] + env.state
+                nq.add(stack, a, reward, next_stack, done, previous_a, memory, PrioritizedReplay) # add transition to queue
                 S = env.state #  update state
             else:
-                nq.add(S, a, reward, env.obs, done, previous_a, memory, PrioritizedReplay)
+                next_stack = stack[len(env.obs):] + env.obs
+                nq.add(stack, a, reward, next_stack, done, previous_a, memory, PrioritizedReplay)
                 S = env.obs
+            stack = next_stack
             previous_a = a
             # train network
             if j % training_cycle == 0:

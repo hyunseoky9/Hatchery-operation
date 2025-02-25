@@ -1,7 +1,7 @@
 import numpy as np
 from absorbing import *
 
-def pretrain(env, nq, memory, max_steps, batch_size, PrioritizedReplay, max_priority, postterm_len):
+def pretrain(env, nq, memory, max_steps, batch_size, PrioritizedReplay, max_priority, postterm_len, fstack):
     # Make a bunch of random actions from a random state and store the experiences
     reset = True
     memadd = 0 # number of transitions added to memory
@@ -18,6 +18,7 @@ def pretrain(env, nq, memory, max_steps, batch_size, PrioritizedReplay, max_prio
                 state = env.obs
                 previous_action = 0
                 reset = False
+            stack = state*fstack
             t = 0
             termination_t = 0
         # Make a random action
@@ -37,9 +38,9 @@ def pretrain(env, nq, memory, max_steps, batch_size, PrioritizedReplay, max_prio
             next_state = env.state
         else:
             next_state = env.obs
-
+        next_stack = stack[len(next_state):] + next_state
         if done:
-            nq.add(state, action, reward, next_state, done, previous_action, memory, PrioritizedReplay)
+            nq.add(stack, action, reward, next_stack, done, previous_action, memory, PrioritizedReplay)
             reset = True
             memadd += n
         else:
@@ -48,8 +49,9 @@ def pretrain(env, nq, memory, max_steps, batch_size, PrioritizedReplay, max_prio
             # increase memadd by 1 if nq is full
             if len(nq.queue) == n-1:
                 memadd += 1
-            nq.add(state, action, reward, next_state, done, previous_action, memory, PrioritizedReplay)
+            nq.add(stack, action, reward, next_stack, done, previous_action, memory, PrioritizedReplay)
             state = next_state
+            stack = next_stack
             previous_action = action
 
     nq.queue = [] # clear the n-step queue

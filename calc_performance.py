@@ -18,6 +18,8 @@ def calc_performance(env, device, Q=None, policy=None, episodenum=1000, t_maxste
     action_size = env.actionspace_dim[0]
     if Q is not None:
         distributional = Q.distributional
+    if hasattr(Q, 'fstack') == False:
+        fstack = 1
     for i in range(episodenum):
         rewards = 0
         if env.envID in ['Env1.0','Env1.1']:
@@ -26,8 +28,13 @@ def calc_performance(env, device, Q=None, policy=None, episodenum=1000, t_maxste
         elif env.envID in ['Env2.0','Env2.1','Env2.2','Env2.3','Env2.4','Env2.5','Env2.6','tiger']:
             env.reset([-1,-1,-1,-1,-1,-1])
             hx = None # for A3C + lstm and RDQN
+
+        if env.partial == False:
+            stack = env.env*fstack
+        else:
+            stack = env.obs*fstack
+        
         previous_action = 0
-            
         done = False
         t = 0
         while done == False:
@@ -35,10 +42,11 @@ def calc_performance(env, device, Q=None, policy=None, episodenum=1000, t_maxste
                 state = env.state
             else:
                 state = env.obs
+            stack = stack[len(env.state):] + env.state
 
             if Q is not None:
                 prev_a = previous_action if actioninput else None
-                if drqn == True:
+                if drqn == True: #DRQN
                     action, hx = choose_action(state,Q,0,action_size,distributional,device, drqn, hx, prev_a)
                     if env.envID == 'tiger':
                         if action == 1:
@@ -47,8 +55,8 @@ def calc_performance(env, device, Q=None, policy=None, episodenum=1000, t_maxste
                             surveyed = 1
                     elif env.envID in ['Env2.0','Env2.1','Env2.2','Env2.3','Env2.4','Env2.5','Env2.6']:
                         actiondist[action] += 1
-                else:
-                    action = choose_action(state,Q,0,action_size,distributional,device, drqn, hx, prev_a)
+                else: # DQN
+                    action = choose_action(stack,Q,0,action_size,distributional,device, drqn, hx, prev_a)
                 # * state increase in size by 1 due to adding previous action in choose_action, but it will get overwritten in the next iteration
                 previous_action = action
             elif policy is not None:
