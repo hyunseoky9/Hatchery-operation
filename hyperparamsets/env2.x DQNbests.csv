@@ -14,15 +14,15 @@ hidden_shared_num,0,1,1,1,1,1
 hidden_split_num,0,1,1,1,1,1
 hidden_shared_width,0,30,30,30,30,30
 hidden_split_width,0,30,30,30,30,30
-prioritized,0,1,1,1,0,1
+prioritized,0,1,1,1,1,1
 beta0,0,0.4,0.4,0.4,0.6,0.4
 alpha,0,0.4,0.4,0.4,0.6,0.4
 nstep,1,1,1,1,1,1
 noisy,0,0,0,0,0,0
 distributional,0,0,0,0,0,0
 atomn,0,0,0,0,16,0
-vmin,0,0,0,0,-104,0
-vmax,0,0,0,0,70,0
+vmin,0,0,0,0,-25,0
+vmax,0,0,0,0,10000,0
 max_steps,100,100,100,100,100,100
 episodenum,10000,10000,10000,10000,300,10000
 memory size,1000,1000,1000,1000,1000,1000
@@ -39,7 +39,7 @@ evaluation_interval,1000,1000,1000,1000,100,1000
 envid,Env2.1,Env2.4,Env2.5,Env2.6,Env2.1,Env2.6
 envconfig,"{'init':[-1,-1,-1,-1,-1,-1],'paramset':2,'discretization':0}","{'init':[-1,-1,-1,-1,-1,-1],'paramset':2,'discretization':2}","{'init':[-1,-1,-1,-1,-1,-1],'paramset':2,'discretization':0}","{'init':[-1,-1,-1,-1,-1,-1],'paramset':2,'discretization':2}","{'init':[-1,-1,-1,-1,-1,-1],'paramset':2,'discretization':0}","{'init':[-1,-1,-1,-1,-1,-1],'paramset':2,'discretization':0}"
 seed,random,12,random,random,11111,random
-framestacking,1,1,1,1,1,2
+framestacking,1,1,1,1,2,2
 min_MSE,na,na,na,na,na,na
-note,env2.1 well performing,env2.4 (discretization2) performing well,"env2.5 with log-transformed y. good seeds: 958486, 688912, 502690, 764979",env2.6 with the same paramset for 2.4 & 2.5. working seed:74400,dummy set,env2.6 with the same paramset for 2.4 & 2.5
+note,env2.1 well performing,env2.4 (discretization2) performing well,"env2.5 with log-transformed y. good seeds: 958486, 688912, 764979",env2.6 with the same paramset for 2.4 & 2.5. working seed:74400,dummy set,env2.6 with the same paramset for 2.4 & 2.5
 score,4900,4600,,,0,

@@ -181,7 +181,7 @@ def DRQN(env, paramdf, meta):
     nq = Nstepqueue(nstep, gamma)
     ## initialize memory
     memory = Memory(memory_size, state_size, len(env.actionspace_dim))
-    pretrainsize = batch_size #batch_size*(seql+burninl)
+    pretrainsize = 100 #batch_size*(seql+burninl)
     pretrain(env,nq,memory,max_steps,pretrainsize,0,0,postterm_len,1) # prepopulate memory
     print(f'Pretraining memory with {pretrainsize} experiences (buffer size: {memory_size})')
 

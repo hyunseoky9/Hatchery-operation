@@ -206,7 +206,7 @@ def Rainbow(env,paramdf, meta):
         beta = beta0
         pretrain(env,nq,memory,max_steps,batch_size,PrioritizedReplay,memory.max_abstd,postterm_len,fstack) # prepopulate memory
     else:
-        memory = Memory(memory_size, state_size, len(env.actionspace_dim))
+        memory = Memory(memory_size, state_size*fstack, len(env.actionspace_dim))
         pretrain(env,nq,memory,max_steps,batch_size,PrioritizedReplay,0,postterm_len,fstack) # prepopulate memory
     print(f'Pretraining memory with {batch_size} experiences (buffer size: {memory_size})')
 

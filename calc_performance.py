@@ -18,8 +18,8 @@ def calc_performance(env, device, Q=None, policy=None, episodenum=1000, t_maxste
     action_size = env.actionspace_dim[0]
     if Q is not None:
         distributional = Q.distributional
-    if hasattr(Q, 'fstack') == False:
-        fstack = 1
+    fstack = 1 if not hasattr(Q, 'fstack') else Q.fstack
+
     for i in range(episodenum):
         rewards = 0
         if env.envID in ['Env1.0','Env1.1']:
