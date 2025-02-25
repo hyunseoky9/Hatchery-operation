@@ -9,14 +9,14 @@ x = seq(0, 60, 1)
 colors = rainbow(length(Ns))
 
 # Plot setup
-plot(NULL, xlim=c(0, 60), ylim=c(0, 1), xlab="CPUE",main=sprintf('dispersion=%.2f',r), ylab="Probability", type='n')
+plot(NULL, xlim=c(0, 60), ylim=c(0, 0.61), xlab="CPUE",main=sprintf('catch probability distritbution (detection=%.2f, dispersion=%.2f)',p,r), ylab="Probability", type='n')
 
 # Loop through each N in Ns and plot the distribution
 for (i in 1:length(Ns)) {
     N = Ns[i]
     C = N * p * f
     y = dnbinom(x, size=r, mu=C, log = FALSE)
-    lines(x, y, col=colors[i], type='l', lwd=2)  # Increase line width with lwd parameter
+    lines(x, y, col=colors[i], type='l', lwd=3)  # Increase line width with lwd parameter
 }
 
 # Add legend

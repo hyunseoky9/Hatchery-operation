@@ -1,3 +1,4 @@
+from setup_logger import setup_logger
 import time
 import shutil
 import subprocess
@@ -18,12 +19,28 @@ from calc_performance import *
 from choose_action import *
 from absorbing import *
 from pretrain import *
-def Rainbow(env,paramdf,paramid, seed):
-    # train using Deep Q Network
-    # env: environment class object
-    # num_episodes: number of episodes to train 
-    # epdecayopt: epsilon decay option
-    
+def Rainbow(env,paramdf, meta):
+    '''
+    train using Deep Q Network
+    env: environment class object
+    num_episodes: number of episodes to train 
+    epdecayopt: epsilon decay option
+    '''
+    # some path and logging settings    
+    ## roll otu meta info
+    paramid = meta['paramid']
+    iteration = meta['iteration']
+    seed = meta['seed'] 
+    ## Define the path for the new directory
+    parent_directory = './deepQN results'
+    new_directory = f'seed{seed}_paramset{paramid}'
+    path = os.path.join(parent_directory, new_directory)
+    ## set path
+    os.makedirs(path, exist_ok=True)
+    testwd = f'./deepQN results/{new_directory}'
+    logger = setup_logger(testwd) ## set up logging
+    print(f'paramID: {paramid}, iteration: {iteration}, seed: {seed}')
+
     # device for pytorch neural network
     device = (
     "cuda"
@@ -166,14 +183,6 @@ def Rainbow(env,paramdf,paramid, seed):
     Q_target.load_state_dict(Q.state_dict())  # Copy weights from Q to Q_target
     Q_target.eval()  # Set target network to evaluation mode (no gradient updates)
     
-    ## Define the path for the new directory
-    parent_directory = './deepQN results'
-    new_directory = f'seed{seed}_paramset{paramid}'
-    path = os.path.join(parent_directory, new_directory)
-
-    ## start testing process
-    os.makedirs(path, exist_ok=True)
-    testwd = f'./deepQN results/{new_directory}'
 
     # run testing script in a separate process if external testing is on
     if external_testing:
@@ -188,6 +197,7 @@ def Rainbow(env,paramdf,paramid, seed):
         #subprocess.Popen(["python", script_name] + args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         subprocess.Popen(["python", script_name] + args)
     
+
     ## intialize nstep queue
     nq = Nstepqueue(nstep, gamma)
     ## initialize memory

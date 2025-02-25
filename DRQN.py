@@ -1,3 +1,4 @@
+from setup_logger import setup_logger
 import time
 import shutil
 import subprocess
@@ -17,12 +18,28 @@ from calc_performance import *
 from choose_action import *
 from absorbing import *
 from pretrain import *
-def DRQN(env, paramdf, paramid, seed):
-    # train using Deep Q Network
-    # env: environment class object
-    # num_episodes: number of episodes to train 
-    # epdecayopt: epsilon decay option
-    
+def DRQN(env, paramdf, meta):
+    '''
+     train using Deep Q Network
+     env: environment class object
+     num_episodes: number of episodes to train 
+     epdecayopt: epsilon decay option
+    '''
+    # some path and logging settings 
+    ## roll otu meta info
+    paramid = meta['paramid']
+    iteration = meta['iteration']
+    seed = meta['seed'] 
+    ## Define the path for the new directory
+    parent_directory = './DRQN results'
+    new_directory = f'seed{seed}_paramset{paramid}'
+    path = os.path.join(parent_directory, new_directory)
+    ## set path
+    os.makedirs(path, exist_ok=True)
+    testwd = f'./DRQN results/{new_directory}'
+    logger = setup_logger(testwd) ## set up logging
+    print(f'paramID: {paramid}, iteration: {iteration}, seed: {seed}')
+
     # device for pytorch neural network
     #device = (
     #"cuda"
@@ -147,9 +164,6 @@ def DRQN(env, paramdf, paramid, seed):
     new_directory = f'seed{seed}_paramset{paramid}'
     path = os.path.join(parent_directory, new_directory)
 
-    # Create the new directory
-    os.makedirs(path, exist_ok=True)
-    testwd = f'./DRQN results/{new_directory}'
     # run testing script in a separate process if external testing is on
     if external_testing:
         # run the testing script in a separate process
