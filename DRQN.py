@@ -151,7 +151,7 @@ def DRQN(env, paramdf, meta):
             initQ = torch.load(file,weights_only=False)
         print('initializing Q with the best Q network from the previous run')
         Q.load_state_dict(initQ.state_dict())
-        initperform = calc_performance(env,device,Q,None,performance_sampleN,max_steps,actioninput) # initial Q's performance
+        initperform = calc_performance(env,device,seed,Q,None,performance_sampleN,max_steps,actioninput) # initial Q's performance
         print(f'performance of the initial Q network: {initperform}')
     else:
         initperform = -100000000
@@ -299,7 +299,7 @@ def DRQN(env, paramdf, meta):
 
         if i % evaluation_interval == 0: # calculate average reward every 1000 episodes
             if not external_testing:
-                avgperformance = calc_performance(env,device,Q,None,performance_sampleN,max_steps,True,actioninput)
+                avgperformance = calc_performance(env,device,seed,Q,None,performance_sampleN,max_steps,True,actioninput)
                 avgperformances.append(avgperformance)
             if env.envID in ['Env1.0', 'Env1.1', 'Env2.0', 'Env2.1','Env2.2','Env2.3','Env2.4','Env2.5','Env2.6','tiger']:
                 torch.save(Q, f"{testwd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DRQN_episode{i}.pt")
@@ -313,7 +313,7 @@ def DRQN(env, paramdf, meta):
 
     # calculate final average reward
     if external_testing == False:
-        final_avgreward = calc_performance(env,device,Q,None,final_performance_sampleN,max_steps,True,actioninput)
+        final_avgreward = calc_performance(env,device,seed,Q,None,final_performance_sampleN,max_steps,True,actioninput)
         avgperformances.append(final_avgreward)
         print(f'final average reward (seed {seed}): {final_avgreward}')
     torch.save(Q, f"{testwd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DRQN_episode{i}.pt")

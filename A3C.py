@@ -163,7 +163,7 @@ def A3C(env,contaction,lr,lrdecaytype,lrdecayrate,min_lr,normalize,calc_MSE,calc
     start_time = time.time()
     processes = []
     # Spawn tester process
-    p = mp.Process(target=tester, args=(MSEV, MSEP, avgperformances, V_vi, policy_vi, reachable_states, envinit_params, worker_params, calc_MSE, calc_perf, performance_sampleN, final_performance_sampleN))
+    p = mp.Process(target=tester, args=(MSEV, MSEP, avgperformances, V_vi, policy_vi, reachable_states, envinit_params, worker_params, calc_MSE, calc_perf, performance_sampleN, final_performance_sampleN,seednum))
     p.start()
     processes.append(p)
     # Spawn worker processes
@@ -339,7 +339,7 @@ def worker(global_net, optimizer, T, worker_id, envinit_params, networkinit_para
         # Sync local network with global network
         local_net.load_state_dict(global_net.state_dict())
 
-def tester(MSEV, MSEP, avgperformances, V_vi, policy_vi, reachable_states, envinit_params, worker_params, calc_MSE, calc_perf, performance_sampleN, final_performance_sampleN):
+def tester(MSEV, MSEP, avgperformances, V_vi, policy_vi, reachable_states, envinit_params, worker_params, calc_MSE, calc_perf, performance_sampleN, final_performance_sampleN,seednum):
     """
     Test the performance of the policy network in 3 ways:
     1. Calculate the MSE of the value function
@@ -404,9 +404,9 @@ def tester(MSEV, MSEP, avgperformances, V_vi, policy_vi, reachable_states, envin
         if calc_perf:
             if interval_idx < len(intervals) - 1:
                 # calculate the average reward over N episodes
-                avgperformance = calc_performance(env,None,None,local_net,performance_sampleN)
+                avgperformance = calc_performance(env,None,seednum,None,local_net,performance_sampleN,seednum)
             else:
-                avgperformance = calc_performance(env,None,None,local_net,final_performance_sampleN)
+                avgperformance = calc_performance(env,None,seednum,None,local_net,final_performance_sampleN)
             performance_str = f"Avg Performance: {avgperformance}"
             avgperformances[interval_idx] = avgperformance
         else:
