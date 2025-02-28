@@ -3,24 +3,12 @@ from math import floor
 import random
 from IPython.display import display
 import pandas as pd
-import gymnasium as gym
-from gymnasium import spaces
-
-class Env2_1gym(gym.Env):
+class Env2_7:
     """
-    A Gymnasium-compatible version of Env2_1.
+    same as env2.1 but base survival rate (alpha0) is uncertain now 
     """
-    def __init__(self,config=None):
-        super(Env2_1gym, self).__init__()
-        # Load configuration
-        if config is None:
-            config = {}
-        # Safe defaults
-        initstate = config.get("init", [-1, -1, -1, -1, -1, -1])
-        parameterization_set = config.get("parameset", 2)
-        discretization_set = config.get("discretization", 0)
-
-        self.envID = 'Env2.1'
+    def __init__(self,initstate,parameterization_set,discretization_set):
+        self.envID = 'Env2.7'
         self.partial = True
         self.episodic = False
         self.absorbing_cut = True # has an absorbing state and the episode should be cut shortly after reaching it.
@@ -28,6 +16,7 @@ class Env2_1gym(gym.Env):
         # Define state space and action space based on your document
         if discretization_set == 0:
             self.states = {
+                "alph0": [-0.3,-0.2,-0.1,0,0.1,0.2,0.3], # Population size
                 "NW": [1000, 3000, 15195, 76961, 389806, 1974350, 10000000], # Population size
                 "NWm1": [3000, 15195, 76961, 389806, 1974350, 10000000], # Population size
                 "NH": [0, 75000, 150000, 225000, 300000], # hatchery population size
@@ -48,17 +37,11 @@ class Env2_1gym(gym.Env):
             }
 
 
-        # observed catch from fall monitoring. -1= no observed catch (for spring); 45 is actually anything gretaer than 45
+                 # observed catch from fall monitoring. -1= no observed catch (for spring); 45 is actually anything gretaer than 45
         self.statespace_dim = list(map(lambda x: len(x[1]), self.states.items()))
         self.actionspace_dim = list(map(lambda x: len(x[1]), self.actions.items()))
         self.obsspace_dim  = list(map(lambda x: len(x[1]), self.observations.items()))
 
-        # Define Gymnasium spaces
-        self.low = np.zeros(6, dtype=np.float32)  # each dimension min=0
-        self.high = np.array([dim_size - 1 for dim_size in self.statespace_dim], dtype=np.float32)  # each dimension max=(size-1)
-        self.observation_space = spaces.Box(low=self.low, high=self.high, shape=(6,), dtype=np.float32)
-        #self.observation_space = spaces.MultiDiscrete([len(v) for v in self.states.values()])
-        self.action_space = spaces.Discrete(len(self.actions["a"]))
         
         # Define parameters
         # call in parameterization dataset csv
@@ -67,6 +50,7 @@ class Env2_1gym(gym.Env):
         parameterization_set_filename = 'parameterization_env2.0.csv'
         paramdf = pd.read_csv(parameterization_set_filename)
         self.alpha0 = paramdf['alpha0'][parameterization_set - 1] # survival parameter 1
+        self.alpha0 = -0.4
         self.alpha1 = paramdf['alpha1'][parameterization_set - 1] # survival parameter 2
         self.sigs = paramdf['sigs'][parameterization_set - 1] # standard deviation of survival noise
         self.mu = paramdf['mu'][parameterization_set - 1] # mutation rate
@@ -84,113 +68,112 @@ class Env2_1gym(gym.Env):
         self.theta = paramdf['theta'][parameterization_set - 1] # detection probability
         self.sigy = paramdf['sigy'][parameterization_set - 1] # overdispersion parameter for observed catch
 
-        # Specify if you want to support or define a maximum number of steps.
-        self.max_steps = np.Inf
-        self.current_step = 0
-        self.postabsorbing_steps = np.Inf
-        self.absorbing_counter = 0 # number of steps since the environment has entered the absorbing state (e.g. extinct population)
         # Initialize state and observation
         self.state, self.obs = self.reset(initstate)
 
 
+    def reset(self, initstate):
+        if initstate == None:
+            initstate = np.ones(len(self.statespace_dim))*-1
 
-    def reset(self, initstate=None, seed=None, options=None):
-        self.current_step = 0
-        self.absorbing_counter = 0
-        if initstate is None:
-            initstate = [-1, -1, -1, -1, -1, -1]
         # Initialize state variables
         new_state = []
         new_obs = []
-        if initstate[5] == -1:
+        # set uncertain alpha0
+        if initstate[0] == -1:
+            idx = random.choice(np.arange(0,len(self.states["alph0"])))
+            new_state.append(idx)
+            self.alpha0 = self.states["alph0"][idx]
+        else:
+            new_state.append(initstate[0])
+            self.alpha0 = self.states["alph0"][initstate[0]]
+
+        if initstate[6] == -1:
             season  = random.choice([0,1])
         else:
-            season = initstate[5]
+            season = initstate[6]
         if season == 0: # spring
 
-            if initstate[0] == -1:
-                idx0 = random.choice(np.arange(1, len(self.states["NW"])))
-                new_state.append(idx0) # don't start from the smallest population size
-                new_obs.append(idx0)
-            else: 
-                new_state.append(initstate[0])
-                new_obs.append(initstate[0])
             if initstate[1] == -1:
+                idx1 = random.choice(np.arange(1, len(self.states["NW"])))
+                new_state.append(idx1) # don't start from the smallest population size
+                new_obs.append(idx1)
+            else: 
+                new_state.append(initstate[1])
+                new_obs.append(initstate[1])
+            if initstate[2] == -1:
                 idx1 = random.choice(np.arange(0, len(self.states["NWm1"])))
                 new_state.append(idx1)
                 new_obs.append(idx1)
             else:
-                new_state.append(initstate[1])
-                new_obs.append(initstate[1])
-            if initstate[2] == -1:
+                new_state.append(initstate[2])
+                new_obs.append(initstate[2])
+            if initstate[3] == -1:
                 new_state.append(0) # start from no hatchery fish
                 new_obs.append(0)
             else:
-                new_state.append(initstate[2])
-                new_obs.append(initstate[2])
-
-            if initstate[3] == -1:
-                idx3 = random.choice(np.arange(0, len(self.states["H"])))
-                new_state.append(idx3)
-                new_obs.append(idx3)
-            else: 
                 new_state.append(initstate[3])
                 new_obs.append(initstate[3])
 
             if initstate[4] == -1:
+                idx3 = random.choice(np.arange(0, len(self.states["H"])))
+                new_state.append(idx3)
+                new_obs.append(idx3)
+            else: 
+                new_state.append(initstate[4])
+                new_obs.append(initstate[4])
+
+            if initstate[5] == -1:
                 idx4 = random.choice(np.arange(0, len(self.states["q"])))
                 new_state.append(idx4)
                 new_obs.append(idx4)
             else:
-                new_state.append(initstate[4])
-                new_obs.append(initstate[4])
+                new_state.append(initstate[5])
+                new_obs.append(initstate[5])
         else: # fall
 
-            if initstate[0] == -1:
+            if initstate[1] == -1:
                 idx0 = random.choice(np.arange(1, len(self.states["NW"])))
                 new_state.append(idx0) # don't start from the smallest population size
                 new_obs.append(idx0)
             else: 
-                new_state.append(initstate[0])
-                new_obs.append(initstate[0])
-            if initstate[1] == -1:
+                new_state.append(initstate[1])
+                new_obs.append(initstate[1])
+            if initstate[2] == -1:
                 idx1 = random.choice(np.arange(0, len(self.states["NWm1"])))
                 new_state.append(idx1)
                 new_obs.append(idx1)
             else:
-                new_state.append(initstate[1])
-                new_obs.append(initstate[1])
-            if initstate[2] == -1:
+                new_state.append(initstate[2])
+                new_obs.append(initstate[2])
+            if initstate[3] == -1:
                 idx2 = random.choice(np.arange(0, len(self.states["NH"])))
                 new_state.append(idx2)
                 new_obs.append(idx2)
             else:  
-                new_state.append(initstate[2])
-                new_obs.append(initstate[2])
-            if initstate[3] == -1:
+                new_state.append(initstate[3])
+                new_obs.append(initstate[3])
+            if initstate[4] == -1:
                 idx3 = random.choice(np.arange(0, len(self.states["H"])))
                 new_state.append(idx3)
                 new_obs.append(idx3)
             else: 
-                new_state.append(initstate[3])
-                new_obs.append(initstate[3])
-            if initstate[4] == -1:
+                new_state.append(initstate[4])
+                new_obs.append(initstate[4])
+            if initstate[5] == -1:
                 new_state.append(0) # spring flow state is not relevant in fall
                 new_obs.append(0) 
             else:
-                new_state.append(initstate[4])
-                new_obs.append(initstate[4])
+                new_state.append(initstate[5])
+                new_obs.append(initstate[5])
         new_state.append(season)
         new_obs.append(season)
-        self.state = np.array(new_state,dtype=np.float32)
-        self.obs = np.array(new_obs,dtype=np.float32)
-        return self.obs, {'true_state': self.state}
+        self.state = new_state
+        self.obs = new_obs
+        return self.state, self.obs
     
     def step(self, action):
         # Compute next state and reward based on action and transition rules
-        
-        truncated = False
-        done = False 
         
         NW = self.states["NW"][self.state[0]]
         NWm1 = self.states["NWm1"][self.state[1]]
@@ -270,22 +253,13 @@ class Env2_1gym(gym.Env):
             NWm1_next = 0
             H_next_idx = 0
             q_next_idx = np.where(np.array(self.states['q']) == q_next)[0][0]
-            self.state = np.array([NW_next_idx, NWm1_next, NH_next, H_next_idx, q_next_idx, tau_next],dtype=np.float32)
-            self.obs = np.array([NW_next_idx, NWm1_next, NH_next, H_next_idx, q_next_idx, tau_next],dtype=np.float32)
+            self.state = [NW_next_idx, NWm1_next, NH_next, H_next_idx, q_next_idx, tau_next]
+            self.obs = [NW_next_idx, NWm1_next, NH_next, H_next_idx, q_next_idx, tau_next]
             # extinction
             done = False
             s = 0
 
-        # Update step counter
-        self.current_step += 1
-        if self.current_step >= self.max_steps:
-            truncated = True
-        if self.state[0] == 0:
-            self.absorbing_counter += 1
-        if self.absorbing_counter > self.postabsorbing_steps:
-            truncated = True
-        return self.obs, reward, done, truncated, {'s': s, 'true_state': self.state}
-    
+        return reward, done, s
     def _fallmonitoring(self, NW):
         # fall monitoring
         expcatch = self.theta * NW

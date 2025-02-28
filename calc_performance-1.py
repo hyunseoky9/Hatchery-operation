@@ -6,12 +6,13 @@ from choose_action import choose_action
 from choose_action_a3c import choose_action_a3c
 def calc_performance(env, device, seed, Q=None, policy=None, episodenum=1000, t_maxstep = 1000, drqn=False, actioninput=False):
     """
+    non-parallelized version.
     calculate the performance of the agent in the environment.
     For DQN calculate performance with the Q network. (use Q variable in the function input)
     For Tabular Q learning and value iteration, calculate perofrmance using the policy table.
     For policy gradient methods, calculate performance using the policy network.
     """
-
+    print('serial calc_performance called')
     managed = 0 # for tiger environment
     surveyed = 0 # for tiger environment
     if env.envID in ['Env2.0','Env2.1','Env2.2','Env2.3','Env2.4','Env2.5','Env2.6']:

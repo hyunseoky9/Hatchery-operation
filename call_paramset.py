@@ -39,6 +39,7 @@ from env2_3 import Env2_3
 from env2_4 import Env2_4
 from env2_5 import Env2_5
 from env2_6 import Env2_6
+from env2_7 import Env2_7
 from tiger import Tiger
 def call_env(param):
     config = eval(param['envconfig'])
@@ -62,6 +63,8 @@ def call_env(param):
         return Env2_5(config['init'], config['paramset'], config['discretization'])
     elif param['envid'] == 'Env2.6':
         return Env2_6(config['init'], config['paramset'], config['discretization'])
+    elif param['envid'] == 'Env2.7':
+        return Env2_7(config['init'], config['paramset'], config['discretization'])
     elif param['envid'] == 'Tiger':
         return Tiger()
     else:
