@@ -14,6 +14,7 @@ class Env1_1:
         self.partial = False
         self.discset = discretization_set
         self.episodic = True
+        self.contstate= False
 
         # Define parameters
         # call in parameterization dataset csv
@@ -56,11 +57,18 @@ class Env1_1:
         self.statespace_dim = [-1,-1,-1,-1,-1,2] # continuous states = -1, discrete states = number of states
         self.actionspace_dim = list(map(lambda x: len(x[1]), self.actions.items()))
 
+        # varname idx 
+        self.statevaridx = {key: idx for idx, key in enumerate(self.states.keys())}
+        self.actionvaridx = {key: idx for idx, key in enumerate(self.actions.keys())}
+
         # Initialize state
         self.state = self.reset(initstate)
 
         
-    def reset(self, initstate):
+    def reset(self, initstate=None):
+        if initstate == None:
+            initstate = np.ones(len(self.statespace_dim))*-1
+
         # Initialize state variables
         new_state = []
         if initstate[5] == -1:

@@ -13,6 +13,7 @@ class Env2_1:
         self.episodic = False
         self.absorbing_cut = True # has an absorbing state and the episode should be cut shortly after reaching it.
         self.discset = discretization_set
+        self.contstate= False
         # Define state space and action space based on your document
         if discretization_set == 0:
             self.states = {
@@ -36,12 +37,16 @@ class Env2_1:
             }
 
 
-                 # observed catch from fall monitoring. -1= no observed catch (for spring); 45 is actually anything gretaer than 45
+        # observed catch from fall monitoring. -1= no observed catch (for spring); 45 is actually anything gretaer than 45
         self.statespace_dim = list(map(lambda x: len(x[1]), self.states.items()))
         self.actionspace_dim = list(map(lambda x: len(x[1]), self.actions.items()))
         self.obsspace_dim  = list(map(lambda x: len(x[1]), self.observations.items()))
 
-        
+        # varname idx 
+        self.statevaridx = {key: idx for idx, key in enumerate(self.states.keys())}
+        self.obsvaridx = {key: idx for idx, key in enumerate(self.observations.keys())}
+        self.actionvaridx = {key: idx for idx, key in enumerate(self.actions.keys())}
+
         # Define parameters
         # call in parameterization dataset csv
         # Read csv 'parameterization_env1.0.csv'
@@ -70,7 +75,10 @@ class Env2_1:
         self.state, self.obs = self.reset(initstate)
 
 
-    def reset(self, initstate):
+    def reset(self, initstate=None):
+        if initstate == None:
+            initstate = list(np.ones(len(self.statespace_dim))*-1)
+
         # Initialize state variables
         new_state = []
         new_obs = []

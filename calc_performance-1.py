@@ -25,12 +25,8 @@ def calc_performance(env, device, seed, Q=None, policy=None, episodenum=1000, t_
 
     for i in range(episodenum):
         rewards = 0
-        if env.envID in ['Env1.0','Env1.1']:
-            env.reset([-1,-1,-1,-1,-1,-1])
-            hx = None # for A3C + lstm
-        elif env.envID in ['Env2.0','Env2.1','Env2.2','Env2.3','Env2.4','Env2.5','Env2.6','tiger']:
-            env.reset([-1,-1,-1,-1,-1,-1])
-            hx = None # for A3C + lstm and RDQN
+        env.reset()
+        hx = None # for A3C + lstm and RDQN
 
         if env.partial == False:
             stack = env.env*fstack

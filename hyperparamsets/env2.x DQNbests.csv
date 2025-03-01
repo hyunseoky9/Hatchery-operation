@@ -3,20 +3,20 @@ training_cycle,7,7,7,7,7,7
 target_update_cycle,15,15,15,15,15,15
 lr,0.01,0.01,0.01,0.01,0.01,0.01
 lrdecaytype,exp,exp,exp,exp,exp,exp
-lrdecay,0.9992,0.9997,0.9997,0.9997,0.9992,0.9997
+lrdecay,0.9992,0.9997,0.9997,0.9997,0.9992,0.9992
 minlr,inf,inf,inf,inf,inf,inf
 hidden_num,3,3,3,3,3,3
 hidden_size,30,30,30,30,30,30
 epsilon,"{'type':4,'fix':100000,'a':0.1,'bf':30,'cf':0.4,'minep':0.01}","{'type':4,'fix':100000,'a':0.1,'bf':30,'cf':0.4,'minep':0.01}","{'type':4,'fix':100000,'a':0.1,'bf':30,'cf':0.4,'minep':0.01}","{'type':4,'fix':100000,'a':0.1,'bf':30,'cf':0.4,'minep':0.01}","{'type':4,'fix':100000,'a':0.1,'bf':30,'cf':0.4,'minep':0.01}","{'type':4,'fix':100000,'a':0.1,'bf':30,'cf':0.4,'minep':0.01}"
 ddqn,0,0,0,0,0,0
 dueling,0,0,0,0,0,0
-hidden_shared_num,0,1,1,1,1,1
-hidden_split_num,0,1,1,1,1,1
-hidden_shared_width,0,30,30,30,30,30
-hidden_split_width,0,30,30,30,30,30
-prioritized,0,1,1,1,1,1
-beta0,0,0.4,0.4,0.4,0.6,0.4
-alpha,0,0.4,0.4,0.4,0.6,0.4
+hidden_shared_num,0,1,1,1,1,0
+hidden_split_num,0,1,1,1,1,0
+hidden_shared_width,0,30,30,30,30,0
+hidden_split_width,0,30,30,30,30,0
+prioritized,0,1,1,1,1,0
+beta0,0,0.4,0.4,0.4,0.6,0
+alpha,0,0.4,0.4,0.4,0.6,0
 nstep,1,1,1,1,1,1
 noisy,0,0,0,0,0,0
 distributional,0,0,0,0,0,0
@@ -36,10 +36,10 @@ performance_sampleN,1000,1000,1000,1000,10,1000
 final_performance_sampleN,1000,1000,1000,1000,10,1000
 calc_MSE,0,0,0,0,0,0
 evaluation_interval,1000,1000,1000,1000,100,1000
-envid,Env2.1,Env2.4,Env2.5,Env2.6,Env2.4,Env2.6
-envconfig,"{'init':[-1,-1,-1,-1,-1,-1],'paramset':2,'discretization':0}","{'init':[-1,-1,-1,-1,-1,-1],'paramset':2,'discretization':2}","{'init':[-1,-1,-1,-1,-1,-1],'paramset':2,'discretization':0}","{'init':[-1,-1,-1,-1,-1,-1],'paramset':2,'discretization':2}","{'init':[-1,-1,-1,-1,-1,-1],'paramset':2,'discretization':2}","{'init':[-1,-1,-1,-1,-1,-1],'paramset':2,'discretization':0}"
+envid,Env2.1,Env2.4,Env2.5,Env2.6,Env2.4,Env2.7
+envconfig,"{'init':None,'paramset':2,'discretization':0}","{'init':[-1,-1,-1,-1,-1,-1],'paramset':2,'discretization':2}","{'init':[-1,-1,-1,-1,-1,-1],'paramset':2,'discretization':0}","{'init':[-1,-1,-1,-1,-1,-1],'paramset':2,'discretization':2}","{'init':[-1,-1,-1,-1,-1,-1],'paramset':2,'discretization':2}","{'init':None,'paramset':2,'discretization':0}"
 seed,random,12,random,random,11111,random
-framestacking,1,1,1,1,2,2
+framestacking,1,1,1,1,2,1
 min_MSE,na,na,na,na,na,na
-note,env2.1 well performing,env2.4 (discretization2) performing well,"env2.5 with log-transformed y. good seeds: 958486, 688912, 764979",env2.6 with the same paramset for 2.4 & 2.5. working seed:74400,dummy set,env2.6 with the same paramset for 2.4 & 2.5
+note,env2.1 well performing,env2.4 (discretization2) performing well,"env2.5 with log-transformed y. good seeds: 958486, 688912, 764979",env2.6 with the same paramset for 2.4 & 2.5. working seed:74400,dummy set,first attempt at solving env2.7
 score,4900,4600,,,0,

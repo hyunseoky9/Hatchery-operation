@@ -26,10 +26,7 @@ def calc_performance(env, device, seed, Q=None, policy=None, episodenum=1000, t_
     'lock': mp.Lock()  # Lock to ensure thread safety
     }
     # set environment configuration for the workers
-    if env.envID in ['Env1.0','Env1.1']:
-        initlist = [-1,-1,-1,-1,-1,-1]
-    elif env.envID in ['Env2.0','Env2.1','Env2.2','Env2.3','Env2.4','Env2.5','Env2.6','tiger']:
-        initlist = [-1,-1,-1,-1,-1,-1]
+    initlist = None
     config = "{'init': %s,'paramset': %d, 'discretization': %d}" %(str(initlist),env.parset+1,env.discset)
     envinit_params = {'envconfig': config, 'envid': env.envID}
 
@@ -66,7 +63,7 @@ def calc_performance(env, device, seed, Q=None, policy=None, episodenum=1000, t_
             print('management was done')
         if policy_info['surveyed'] == 1:
             print('survey was done')
-    elif env.envID in ['Env2.0','Env2.1','Env2.2','Env2.3','Env2.4','Env2.5','Env2.6'] and drqn == True:
+    elif env.envID in ['Env2.0','Env2.1','Env2.2','Env2.3','Env2.4','Env2.5','Env2.6','Env2.7'] and drqn == True:
         policy_info['actiondist'].div_(policy_info['actiondist'].sum())
         print(policy_info['actiondist'])
     
@@ -95,12 +92,8 @@ def worker(Q, policy, episodenum, workerepisodenum, worker_id, envinit_params, t
 
     for i in range(workerepisodenum):
         rewards = 0
-        if env.envID in ['Env1.0','Env1.1']:
-            env.reset([-1,-1,-1,-1,-1,-1])
-            hx = None # for A3C + lstm
-        elif env.envID in ['Env2.0','Env2.1','Env2.2','Env2.3','Env2.4','Env2.5','Env2.6','tiger']:
-            env.reset([-1,-1,-1,-1,-1,-1])
-            hx = None # for A3C + lstm and RDQN
+        env.reset()
+        hx = None # for A3C + lstm and RDQN
 
         if env.partial == False:
             stack = env.env*fstack

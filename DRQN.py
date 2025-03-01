@@ -114,15 +114,20 @@ def DRQN(env, paramdf, meta):
 
 
     ## normalization parameters
-    if env.envID == 'Env1.0': # for discrete states
-        state_max = (torch.tensor(np.array(env.statespace_dim)-1, dtype=torch.float32) - 1).to(device)
-        state_min = torch.zeros([len(env.statespace_dim)], dtype=torch.float32).to(device)
-    elif env.envID in ['Env1.1','Env1.2']: # for continuous states
-        state_max = torch.tensor([env.states[key][1] for key in env.states.keys()], dtype=torch.float32).to(device)
-        state_min = torch.tensor([env.states[key][0] for key in env.states.keys()], dtype=torch.float32).to(device)
-    elif env.envID in ['Env2.0','Env2.1','Env2.2','Env2.3','Env2.4','Env2.5','Env2.6','tiger']: # state is really observation in env2.0. We'll call the actual states as hidden states. This is done to make the code consistent with env1.0
-        state_max = (torch.tensor(np.array(env.obsspace_dim)-1, dtype=torch.float32)).to(device)
-        state_min = (torch.zeros([len(env.obsspace_dim)], dtype=torch.float32)).to(device) 
+    if env.contstate == False:
+        if env.partial == True:
+            state_max = (torch.tensor(env.obsspace_dim, dtype=torch.float32) - 1).to(device)
+            state_min = torch.zeros([len(env.obsspace_dim)], dtype=torch.float32).to(device)
+        else:
+            state_max = (torch.tensor(env.statespace_dim, dtype=torch.float32) - 1).to(device)
+            state_min = torch.zeros([len(env.statespace_dim)], dtype=torch.float32).to(device)
+    else:
+        if env.partial == True:
+            state_max = torch.tensor([env.observations[key][1] for key in env.states.keys()], dtype=torch.float32).to(device)
+            state_min = torch.tensor([env.observations[key][0] for key in env.states.keys()], dtype=torch.float32).to(device)
+        else:
+            state_max = torch.tensor([env.states[key][1] for key in env.states.keys()], dtype=torch.float32).to(device)
+            state_min = torch.tensor([env.states[key][0] for key in env.states.keys()], dtype=torch.float32).to(device)
     # append action input
     if actioninput:
         input_max = torch.cat((state_max,torch.ones(actioninputsize)*(np.array(env.actionspace_dim)-1)),0)

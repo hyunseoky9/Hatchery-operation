@@ -9,6 +9,7 @@ class Env1_0:
         self.partial = False
         self.episodic = True
         self.discset = discretization_set
+        self.contstate= False
         # Define state space and action space based on your document
         if discretization_set == 0:
             self.states = {
@@ -59,7 +60,12 @@ class Env1_0:
         # & only 1 hatchery state possible when tau=0
         # reachable state space: 7*6*1*7*5 + 7*6*5*7*1 = 2940
         # reachable state-action space 7*6*1*7*5*2*(5) = 14700
-        
+
+
+        # varname idx 
+        self.statevaridx = {key: idx for idx, key in enumerate(self.states.keys())}
+        self.actionvaridx = {key: idx for idx, key in enumerate(self.actions.keys())}
+
         
 
         # Initialize state
@@ -86,7 +92,10 @@ class Env1_0:
         self.gamma = paramdf['gamma'][parameterization_set - 1] # Discount factor
         self.extpenalty = paramdf['extpenalty'][parameterization_set - 1] # Penalty for extinction
         
-    def reset(self, initstate):
+    def reset(self, initstate=None):
+        if initstate == None:
+            initstate = list(np.ones(len(self.statespace_dim))*-1)
+
         # Initialize state variables
         new_state = []
         if initstate[5] == -1:

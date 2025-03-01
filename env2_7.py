@@ -13,6 +13,7 @@ class Env2_7:
         self.episodic = False
         self.absorbing_cut = True # has an absorbing state and the episode should be cut shortly after reaching it.
         self.discset = discretization_set
+        self.contstate= False
         # Define state space and action space based on your document
         if discretization_set == 0:
             self.states = {
@@ -37,11 +38,15 @@ class Env2_7:
             }
 
 
-                 # observed catch from fall monitoring. -1= no observed catch (for spring); 45 is actually anything gretaer than 45
+        # observed catch from fall monitoring. -1= no observed catch (for spring); 45 is actually anything gretaer than 45
         self.statespace_dim = list(map(lambda x: len(x[1]), self.states.items()))
         self.actionspace_dim = list(map(lambda x: len(x[1]), self.actions.items()))
         self.obsspace_dim  = list(map(lambda x: len(x[1]), self.observations.items()))
 
+        # varname idx 
+        self.statevaridx = {key: idx for idx, key in enumerate(self.states.keys())}
+        self.obsvaridx = {key: idx for idx, key in enumerate(self.observations.keys())}
+        self.actionvaridx = {key: idx for idx, key in enumerate(self.actions.keys())}
         
         # Define parameters
         # call in parameterization dataset csv
@@ -50,7 +55,6 @@ class Env2_7:
         parameterization_set_filename = 'parameterization_env2.0.csv'
         paramdf = pd.read_csv(parameterization_set_filename)
         self.alpha0 = paramdf['alpha0'][parameterization_set - 1] # survival parameter 1
-        self.alpha0 = -0.4
         self.alpha1 = paramdf['alpha1'][parameterization_set - 1] # survival parameter 2
         self.sigs = paramdf['sigs'][parameterization_set - 1] # standard deviation of survival noise
         self.mu = paramdf['mu'][parameterization_set - 1] # mutation rate
@@ -72,9 +76,9 @@ class Env2_7:
         self.state, self.obs = self.reset(initstate)
 
 
-    def reset(self, initstate):
+    def reset(self, initstate=None):
         if initstate == None:
-            initstate = np.ones(len(self.statespace_dim))*-1
+            initstate = list(np.ones(len(self.statespace_dim))*-1)
 
         # Initialize state variables
         new_state = []
@@ -175,12 +179,12 @@ class Env2_7:
     def step(self, action):
         # Compute next state and reward based on action and transition rules
         
-        NW = self.states["NW"][self.state[0]]
-        NWm1 = self.states["NWm1"][self.state[1]]
-        NH = self.states["NH"][self.state[2]]
-        H = self.states["H"][self.state[3]]
-        q = self.states["q"][self.state[4]]
-        tau = self.states["tau"][self.state[5]]
+        NW = self.states["NW"][self.state[1]]
+        NWm1 = self.states["NWm1"][self.state[2]]
+        NH = self.states["NH"][self.state[3]]
+        H = self.states["H"][self.state[4]]
+        q = self.states["q"][self.state[5]]
+        tau = self.states["tau"][self.state[6]]
         a = self.actions["a"][action]
         # Check termination
         # Update season
@@ -231,7 +235,7 @@ class Env2_7:
             NWm1_next = np.where(np.array(self.states['NWm1']) == NWm1_next)[0][0]
             H_next_idx = np.where(np.array(self.states['H']) == H_next)[0][0]
             q_next_idx = np.where(np.array(self.states['q']) == q_next)[0][0]
-            self.state = [NW_next_idx, NWm1_next, NH_next, H_next_idx, q_next_idx, tau_next]
+            self.state = [self.state[0],NW_next_idx, NWm1_next, NH_next, H_next_idx, q_next_idx, tau_next]
             self.obs = [NW_next_idx, NWm1_next, NH_next, H_next_idx, q_next_idx, tau_next]
             # Check termination
             done  = False
@@ -253,7 +257,7 @@ class Env2_7:
             NWm1_next = 0
             H_next_idx = 0
             q_next_idx = np.where(np.array(self.states['q']) == q_next)[0][0]
-            self.state = [NW_next_idx, NWm1_next, NH_next, H_next_idx, q_next_idx, tau_next]
+            self.state = [self.state[0],NW_next_idx, NWm1_next, NH_next, H_next_idx, q_next_idx, tau_next]
             self.obs = [NW_next_idx, NWm1_next, NH_next, H_next_idx, q_next_idx, tau_next]
             # extinction
             done = False

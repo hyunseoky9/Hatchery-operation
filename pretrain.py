@@ -8,16 +8,14 @@ def pretrain(env, nq, memory, max_steps, batch_size, PrioritizedReplay, max_prio
     n = nq.n
     while memadd < batch_size:
         if reset == True:
-            if env.envID in ['Env1.0', 'Env1.1']:
-                env.reset([-1,-1,-1,-1,-1,-1])
+            if env.partial == False:
+                env.reset()
                 state = env.state
-                previous_action = 0
-                reset = False
-            elif env.envID in ['Env2.0', 'Env2.1','Env2.2','Env2.3','Env2.4','Env2.5','Env2.6','tiger']:
-                env.reset([-1,-1,-1,-1,-1,-1])
+            else:
+                env.reset()
                 state = env.obs
-                previous_action = 0
-                reset = False
+            previous_action = 0
+            reset = False
             stack = state*fstack
             t = 0
             termination_t = 0

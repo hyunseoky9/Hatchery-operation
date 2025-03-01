@@ -26,6 +26,7 @@ def Rainbow(env,paramdf, meta):
     num_episodes: number of episodes to train 
     epdecayopt: epsilon decay option
     '''
+    t_initstart = time.perf_counter()
     # some path and logging settings    
     ## roll otu meta info
     paramid = meta['paramid']
@@ -129,15 +130,20 @@ def Rainbow(env,paramdf, meta):
  
 
     ## normalization parameters
-    if env.envID == 'Env1.0': # for discrete states
-        state_max = (torch.tensor(env.statespace_dim, dtype=torch.float32) - 1).to(device)
-        state_min = torch.zeros([len(env.statespace_dim)], dtype=torch.float32).to(device)
-    elif env.envID in ['Env1.1','Env1.2']: # for continuous states
-        state_max = torch.tensor([env.states[key][1] for key in env.states.keys()], dtype=torch.float32).to(device)
-        state_min = torch.tensor([env.states[key][0] for key in env.states.keys()], dtype=torch.float32).to(device)
-    elif env.envID in ['Env2.0','Env2.1','Env2.2','Env2.3','Env2.4','Env2.5','Env2.6','tiger']: # state is really observation in env2.0. We'll call the actual states as hidden states. This is done to make the code consistent with env1.0
-        state_max = (torch.tensor(env.obsspace_dim, dtype=torch.float32)).to(device)
-        state_min = torch.zeros([len(env.obsspace_dim)], dtype=torch.float32).to(device)
+    if env.contstate == False:
+        if env.partial == True:
+            state_max = (torch.tensor(env.obsspace_dim, dtype=torch.float32) - 1).to(device)
+            state_min = torch.zeros([len(env.obsspace_dim)], dtype=torch.float32).to(device)
+        else:
+            state_max = (torch.tensor(env.statespace_dim, dtype=torch.float32) - 1).to(device)
+            state_min = torch.zeros([len(env.statespace_dim)], dtype=torch.float32).to(device)
+    else:
+        if env.partial == True:
+            state_max = torch.tensor([env.observations[key][1] for key in env.states.keys()], dtype=torch.float32).to(device)
+            state_min = torch.tensor([env.observations[key][0] for key in env.states.keys()], dtype=torch.float32).to(device)
+        else:
+            state_max = torch.tensor([env.states[key][1] for key in env.states.keys()], dtype=torch.float32).to(device)
+            state_min = torch.tensor([env.states[key][0] for key in env.states.keys()], dtype=torch.float32).to(device)
     # repeat by the number of stack size.
     input_max = torch.cat([state_max] * fstack) 
     input_min = torch.cat([state_min] * fstack)
@@ -212,15 +218,10 @@ def Rainbow(env,paramdf, meta):
 
     ## state initialization setting 
     if env.envID == 'Env1.0':
-        initlist = [-1,-1,-1,-1,-1,-1] # all random
         reachables = env.reachable_state_actions()
         reachable_states = torch.tensor([env._unflatten(i[0]) for i in reachables], dtype=torch.float32).to(device) # states extracted from reachable state-action pairs. *there are redundant states on purpose*
         reachable_uniquestateid = torch.tensor(env.reachable_states(), dtype=torch.int64).to(device)
         reachable_actions = torch.tensor([i[1] for i in reachables], dtype=torch.int64).unsqueeze(1).to(device)
-    elif env.envID == 'Env1.1':
-        initlist = [-1,-1,-1,-1,-1,-1]
-    elif env.envID in ['Env2.0', 'Env2.1','Env2.2','Env2.3','Env2.4','Env2.5','Env2.6','tiger']:
-        initlist = [-1,-1,-1,-1,-1,-1]
     
     ## initialize performance metrics
     # load Q function from the value iteration for calculating MSE
@@ -235,6 +236,12 @@ def Rainbow(env,paramdf, meta):
     final_avgreward = 0
     print(f'performance sampling: {performance_sampleN}/{final_performance_sampleN}')
 
+    t_initend = time.perf_counter()
+    t_inittime = t_initend - t_initstart
+    t_simulationtime = 0
+    t_traintime = 0
+    t_evaltime = 0
+    t_simulationstart = time.perf_counter()
     # initialize counters
     j = 0 # training cycle counter
     i = 0 # peisode num
@@ -247,7 +254,7 @@ def Rainbow(env,paramdf, meta):
         else:
             ep = epsilon_update(i,epdecayparam,num_episodes) 
         # initialize state that doesn't start from terminal
-        env.reset(initlist) # random initialization
+        env.reset() # random initialization
         if env.partial == False:
             S = env.state
         else:
@@ -285,7 +292,7 @@ def Rainbow(env,paramdf, meta):
             previous_a = a
             # train network
             if j % training_cycle == 0:
-
+                t_trainstart = time.perf_counter()
                 # Sample mini-batch from memory
                 if PrioritizedReplay:
                     mini_batch, idxs, weights = memory.sample(batch_size, beta)
@@ -341,6 +348,8 @@ def Rainbow(env,paramdf, meta):
                     td_error = np.abs(td_error.detach().cpu().numpy())
                     memory.update_priorities(idxs, td_error)
                     memory.max_abstd = max(memory.max_abstd, np.max(td_error))
+                t_trainend = time.perf_counter()
+                t_traintime += t_trainend - t_trainstart
 
             # update target network
             if j % target_update_cycle == 0:
@@ -360,12 +369,14 @@ def Rainbow(env,paramdf, meta):
             if calc_MSE:
                 mse_value = test_model(Q, reachable_states, reachable_actions, Q_vi, noisy, device)
                 MSE.append(mse_value)
-        if i % evaluation_interval == 0: # calculate average reward every 1000 episodes
+        if i % evaluation_interval == 0: # calculate average reward every evaluation interval episodes
             if not external_testing:
+                t_evaltimestart = time.perf_counter()
                 avgperformance = calc_performance(env,device,seed,Q,None,performance_sampleN,max_steps,False,actioninput)
                 avgperformances.append(avgperformance)
-            if env.envID in ['Env1.0', 'Env1.1', 'Env2.0','Env2.1','Env2.2','Env2.3','Env2.4','Env2.5','Env2.6','tiger']:
-                torch.save(Q, f"{testwd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN_episode{i}.pt")
+                t_evaltimeend = time.perf_counter()
+                t_evaltime += t_evaltimeend - t_evaltimestart
+            torch.save(Q, f"{testwd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN_episode{i}.pt")
 
         if i % evaluation_interval == 0: # print outs
             current_lr = Q.optimizer.param_groups[0]['lr']
@@ -397,28 +408,32 @@ def Rainbow(env,paramdf, meta):
             print('-----------------------------------')        
         i += 1 # update episode number
 
+    t_simulationend = time.perf_counter()
+    t_simulationtime = t_simulationend - t_simulationstart - t_traintime - t_evaltime
     # calculate final average reward
     print('calculating the average reward with the final Q network')
     if external_testing == False:
+        t_evaltimestart = time.perf_counter()
         final_avgreward = calc_performance(env,device,seed,Q,None,final_performance_sampleN,max_steps,False,actioninput)
         avgperformances.append(final_avgreward)
+        t_evaltimeend = time.perf_counter()
+        t_evaltime += t_evaltimeend - t_evaltimestart
         print(f'final average reward: {final_avgreward}')
     torch.save(Q, f"{testwd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN_episode{i}.pt")
-
+    
     # save results and performance metrics.
     ## save last model and the best model (in terms of rewards)
-    if env.envID in ['Env1.0','Env1.1','Env2.0','Env2.1','Env2.2','Env2.3','Env2.4','Env2.5','Env2.6','tiger']:
-        # last model
-        torch.save(Q, f"{testwd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pt")
-        # best model
-        if not external_testing:
-            if max(avgperformances) > initperform:
-                bestidx = np.array(avgperformances).argmax()
-                bestfilename = f"{testwd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN_episode{bestidx*evaluation_interval}.pt"
-                print(f'best Q network found at episode {bestidx*evaluation_interval}')
-                shutil.copy(bestfilename, f"{testwd}/bestQNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pt")
-            else:
-                print(f'no improvement in the performance from training')
+    # last model
+    torch.save(Q, f"{testwd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pt")
+    # best model
+    if not external_testing:
+        if max(avgperformances) > initperform:
+            bestidx = np.array(avgperformances).argmax()
+            bestfilename = f"{testwd}/QNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN_episode{bestidx*evaluation_interval}.pt"
+            print(f'best Q network found at episode {bestidx*evaluation_interval}')
+            shutil.copy(bestfilename, f"{testwd}/bestQNetwork_{env.envID}_par{env.parset}_dis{env.discset}_DQN.pt")
+        else:
+            print(f'no improvement in the performance from training')
 
     ## make a discrete Q table if the environment is discrete and save it
     if env.envID == 'Env1.0' and actioninput == False:
@@ -444,6 +459,8 @@ def Rainbow(env,paramdf, meta):
         for key, value in paramdf.items():
             param_file.write(f"{key}: {value}\n")
 
+    # print time
+    print(f'time for initialization: {t_inittime}\n time for simulation: {t_simulationtime}\n time for training: {t_traintime}\n time for evaluation: {t_evaltime}')
     return Q_discrete, policy, MSE, avgperformances, final_avgreward
 
 
